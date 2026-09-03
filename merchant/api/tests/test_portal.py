@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi import FastAPI
@@ -90,6 +91,32 @@ def test_dashboard_payload_shape(client: TestClient):
         monthly["period"]["against"] == "the prior 30 days"
         and len(monthly["kpis"]["sales"]["points"]) == 30
     )
+
+
+def test_dashboard_context_carries_the_operators_clock(client: TestClient, monkeypatch):
+    """The session context the route builds is aware and in the browser's zone
+    (``X-Timezone``), and falls back to ``HOST_TIMEZONE`` when the header is absent."""
+    headers = _session(client)
+    backend = client.merchant_portal.backend  # type: ignore[attr-defined]
+    seen: list[MerchantSessionContext] = []
+    real_dashboard = backend.dashboard
+
+    async def spy(context, period):
+        seen.append(context)
+        return await real_dashboard(context, period)
+
+    monkeypatch.setattr(backend, "dashboard", spy)
+    monkeypatch.setenv("HOST_TIMEZONE", "Europe/Berlin")
+
+    client.get(f"{PREFIX}/dashboard", headers={**headers, "X-Timezone": "Asia/Tokyo"})
+    client.get(f"{PREFIX}/dashboard", headers=headers)
+    client.get(f"{PREFIX}/dashboard", headers={**headers, "X-Timezone": "Nowhere/Land"})
+
+    zones = [context.timezone for context in seen]
+    assert zones == ["Asia/Tokyo", "Europe/Berlin", "Europe/Berlin"]
+    for context in seen:
+        assert context.now is not None and context.now.utcoffset() is not None
+        assert context.now.tzinfo == ZoneInfo(context.timezone)
 
 
 def test_orders_payload_shape(client: TestClient):

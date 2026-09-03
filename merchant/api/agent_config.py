@@ -98,9 +98,29 @@ def load_settings() -> ShopwareSettings:
     )
 
 
+# The host's own rules for the model, carried in ``brand_voice`` (the one prompt hook the
+# pinned package exposes; the sentence completes "Your voice is …"). They close two gaps the
+# eval suite found (evals/README.md, findings 1–3): the blueprint's presentation rule reads
+# as licence to quote 32-hex ids in prose, and its follow-through rule generalizes to
+# "stage the nearest compliant move" when a request breaks a cap or lacks a parameter.
+MERCHANT_BRAND_VOICE = (
+    "plain and specific, numbers first. Two house rules. Prose names a listing by its "
+    "title or product number and a change by what it does; the 32-character ids belong in "
+    "tool arguments and in the cards, never in a sentence you write. And when a request "
+    "would exceed a store cap, leaves out something a change needs (a promotion without "
+    "start and end dates, a date window that has already passed, a price with no target "
+    "named), or could mean more than one listing, stage nothing: say what the cap or the "
+    "missing piece is and ask one question, instead of staging the nearest allowed move, "
+    "the deepest legal discount, a shifted window, or the listing you ruled in by "
+    "elimination. A fallback the operator spelled out themselves ('if that is over the "
+    "cap, use the maximum allowed') is a directed move: stage it at exactly the cap"
+)
+
+
 def build_merchant_config(store_name: str) -> MerchantAgentConfig:
     return MerchantAgentConfig(
         brand_name=store_name,
+        brand_voice=MERCHANT_BRAND_VOICE,
         require_host_approval=host_approval_default(),
         approval_surface="POST /api/merchant/changes/{id}/apply",
         enable_analysis=False,

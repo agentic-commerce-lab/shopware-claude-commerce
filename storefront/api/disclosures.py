@@ -17,7 +17,7 @@ COPY_PATH = DATA_DIR / "disclosure_copy.de.json"
 _DEFAULT_COPY = {
     "title": "Pflichtangaben",
     "vat": "inkl. MwSt.",
-    "shipping_hint": "zzgl. Versandkosten, berechnet im Checkout.",
+    "shipping_hint": "zzgl. Versandkosten, berechnet im Checkout; Details unter „Versand & Lieferzeit“.",
     "grundpreis_label": "Grundpreis",
     "delivery_label": "Lieferzeit",
     "stock_label": "Verfügbarkeit",
@@ -48,14 +48,14 @@ def disclosure_from_store_product(product_id: str, product: dict[str, Any]) -> D
     delivery = product.get("deliveryTime") or {}
     delivery_name = delivery.get("translated", {}).get("name") or delivery.get("name")
     if delivery_name:
-        min_days = delivery.get("min")
-        max_days = delivery.get("max")
-        eta = delivery_name
-        if min_days is not None and max_days is not None:
-            eta = f"{delivery_name} ({min_days}–{max_days} Tage)"
-        rows.append(DisclosureRow(label=copy["delivery_label"], value=str(eta)))
+        rows.append(
+            DisclosureRow(
+                label=copy["delivery_label"],
+                value=delivery_text(str(delivery_name), delivery.get("min"), delivery.get("max")),
+            )
+        )
     available = product.get("available")
-    stock = product.get("availableStock") or product.get("stock")
+    stock = _stock_level(product)
     if available is False or (stock is not None and stock <= 0):
         rows.append(DisclosureRow(label=copy["stock_label"], value="Derzeit nicht lieferbar"))
     elif stock is not None:
@@ -69,6 +69,30 @@ def disclosure_from_store_product(product_id: str, product: dict[str, Any]) -> D
     return Disclosure(
         title=copy["title"], product_id=product_id, rows=rows, sources=["shopware-store-api"]
     )
+
+
+def delivery_text(name: str, min_days: Any, max_days: Any) -> str:
+    """The delivery-time row. Shopware's delivery-time names usually spell the range
+    already ("2–4 Tage", "1-3 Werktage"); the numeric range is appended only when the
+    name does not carry both bounds, so the row never reads "2–4 Tage (2–4 Tage)"."""
+    if min_days is None or max_days is None:
+        return name
+    if str(min_days) in name and str(max_days) in name:
+        return name
+    return f"{name} ({min_days}–{max_days} Tage)"
+
+
+def _stock_level(product: dict[str, Any]) -> int | None:
+    """``availableStock`` when the record carries it (0 is a real value and means sold
+    out), else ``stock``; ``None`` when neither is present."""
+    for key in ("availableStock", "stock"):
+        value = product.get(key)
+        if value is not None:
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return None
+    return None
 
 
 def _format_eur(value: Any) -> str:

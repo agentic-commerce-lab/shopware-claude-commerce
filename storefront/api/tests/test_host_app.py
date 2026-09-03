@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
@@ -115,6 +116,35 @@ def test_the_add_button_reads_details_first_so_a_variant_enters_provenance(clien
     assert body["checkout_url"].startswith("http://host.test/api/checkout/handoff/")
     record = main_module.host.sessions.require(headers[SESSION_HEADER])
     assert record.state.seen_products[VARIANT_S].variant_of == PRODUCT_ID
+
+
+def test_the_add_button_runs_under_the_customers_clock(client, monkeypatch):
+    """``shopping_context`` gives the executor an aware ``now`` in the browser's zone
+    (``X-Timezone``), else ``HOST_TIMEZONE``; never the server's naive wall clock."""
+    _bind_replay(monkeypatch)
+    monkeypatch.setenv("HOST_TIMEZONE", "Europe/Berlin")
+    seen: list[ShoppingSessionContext] = []
+    real_executor_class = main_module.agent.executor_class
+
+    def spying_executor(**kwargs):
+        seen.append(kwargs["session"])
+        return real_executor_class(**kwargs)
+
+    monkeypatch.setattr(main_module.agent, "executor_class", spying_executor)
+    headers = start(client)
+    client.post(
+        "/api/cart/add",
+        json={"product_id": VARIANT_S, "quantity": 1},
+        headers={**headers, "X-Timezone": "America/Chicago"},
+    )
+    client.post("/api/cart/add", json={"product_id": VARIANT_S, "quantity": 1}, headers=headers)
+    # Each add builds two executors: ours for the details read (the host clock), then the
+    # shared host's ``direct_add`` (its own context, see the vendor pin).
+    ours = seen[0::2]
+    assert [context.timezone for context in ours] == ["America/Chicago", "Europe/Berlin"]
+    for context in ours:
+        assert context.now is not None and context.now.utcoffset() is not None
+        assert context.now.tzinfo == ZoneInfo(context.timezone)
 
 
 def test_the_add_button_on_a_family_is_held_with_the_route_to_a_variant(client, monkeypatch):

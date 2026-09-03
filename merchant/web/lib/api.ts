@@ -17,8 +17,32 @@ import type {
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8005";
 
+const TIMEZONE_HEADER = "X-Timezone";
+
+/** The browser's IANA zone, when the runtime knows it (a server render does not). */
+function browserTimezone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The shared client plus the operator's timezone on every request (`X-Timezone`), so the
+ * host's session clock is the operator's, not the server's (`shopware_common.clock`).
+ */
+class TimezoneAwareApi extends AgentApi {
+  headers(json = false): Record<string, string> {
+    const headers = super.headers(json);
+    const zone = browserTimezone();
+    if (zone) headers[TIMEZONE_HEADER] = zone;
+    return headers;
+  }
+}
+
 /** The shared client over the merchant host; every route below lives under `/api/merchant`. */
-export const api = new AgentApi(API_URL, "/api/merchant");
+export const api = new TimezoneAwareApi(API_URL, "/api/merchant");
 
 export const UNREACHABLE =
   "Couldn't reach the Shopware merchant API on port 8005. Start it with " +

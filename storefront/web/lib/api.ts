@@ -7,8 +7,32 @@ import type { AuthStatus, Brand, CartPayload, Product, ProductDetails } from "./
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8004";
 
+const TIMEZONE_HEADER = "X-Timezone";
+
+/** The browser's IANA zone, when the runtime knows it (a server render does not). */
+function browserTimezone(): string | null {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The shared client plus the customer's timezone on every request (`X-Timezone`), so the
+ * host's session clock is the customer's, not the server's (`shopware_common.clock`).
+ */
+class TimezoneAwareApi extends AgentApi {
+  headers(json = false): Record<string, string> {
+    const headers = super.headers(json);
+    const zone = browserTimezone();
+    if (zone) headers[TIMEZONE_HEADER] = zone;
+    return headers;
+  }
+}
+
 /** The shared client: `root` is the API's origin, the storefront routes live under `/api`. */
-export const api = new AgentApi(API_URL, "/api");
+export const api = new TimezoneAwareApi(API_URL, "/api");
 
 export const UNREACHABLE =
   "Couldn't reach the storefront host on port 8004. Start it with `uvicorn storefront.api.main:app --port 8004` and try again.";

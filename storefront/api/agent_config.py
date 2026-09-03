@@ -10,12 +10,22 @@ from shopping_agent import ShoppingAgentConfig
 
 _SHOPWARE_UUID = r"\b[0-9a-f]{32}\b"
 
+# ``brand_voice`` completes "Your voice is …" in the pinned prompt; it is the host's one
+# hook for its own rules. The dates rule closes the eval finding that the model confirms
+# a delivery deadline that has already passed (evals/README.md, finding 5).
+SHOPPING_BRAND_VOICE = (
+    "friendly, direct, and plain about what this Shopware store carries. When the customer "
+    "names a date (a deadline, a delivery day, an occasion), compare it with the local time "
+    "in this conversation first; if it has already passed, say so plainly and ask what "
+    "date they mean instead of promising delivery by it"
+)
+
 
 def build_shopping_config(store_name: str) -> ShoppingAgentConfig:
     return ShoppingAgentConfig(
         brand_name=store_name,
         assistant_name="the store assistant",
-        brand_voice="friendly, direct, and plain about what this Shopware store carries",
+        brand_voice=SHOPPING_BRAND_VOICE,
         enable_disclosures=True,
         domain_search_notes=(
             "The catalog is a live Shopware 6 shop priced in EUR. A product with options "

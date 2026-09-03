@@ -23,6 +23,8 @@ Fallback is one-directional per call: a transport-level failure (connection refu
 3. `tools/list`, `tools/call` with `Mcp-Session-Id` and `Mcp-Protocol-Version` on every request; bodies come back as JSON or as an SSE stream (`event: message`), both are handled.
 4. `404`/`400 session not found` → one transparent re-initialize and retry.
 5. `DELETE /ucp/mcp` ends the session on `close()`.
+6. **One in-flight request per session.** Shopware's streamable-HTTP server (`mcp/sdk`) races when a session answers two `tools/call` at once: one of them comes back `200` with an **empty body** (reproduced live on 6.7.13 with three concurrent `shopware-entity-search` calls; the merchant portal's dashboard/overview/ledger reads landed together). `McpClient.request` serialises requests on a session; callers keep issuing them concurrently.
+7. **Offloaded tool results.** Above an inline size cap (observed at an order search with associations, `responseSize` ≈ 160 KB) the Admin MCP answers `{"success": true, "data": null, "_meta": {"resourceUri": "shopware://tool-result/<id>", "responseSize": …, "note": "Response too large for inline delivery…"}}`. `McpClient.read_resource` runs `resources/read` on that URI and `McpTransport` swaps the parked JSON in as the payload, so a large result is never mistaken for an empty one.
 
 `/ucp/mcp` additionally requires the `UCP-Agent` header on **every** request including `initialize` (`422 $.headers.ucp-agent is required` otherwise). Signed requests (RFC 9421 + RFC 9530, see below) work on both transports because the signature covers the raw JSON-RPC body.
 
@@ -40,7 +42,7 @@ Business errors arrive inside `data.messages[]` (`{"type":"error","code":"produc
 
 `UCP-Agent: platform; profile="http://localhost/agent-profile.json"` on every call. Shopware fetches the profile **from inside the container**, so bootstrap copies `agent-profile.json` into the shop's `public/` and sets `SWAG_AGENTIC_COMMERCE_UCP_PROFILE_FETCHING_DEVELOPMENT_MODE=1` so an http profile is accepted. Capabilities must be declared as **lists** and intersect with the shop's (`dev.ucp.shopping.catalog`, `.cart`, `.checkout`, `.order`, `.discount`, `dev.ucp.common.identity_linking`), otherwise `capabilities_incompatible`.
 
-Writes send `Idempotency-Key` (UUID per call; REST header, MCP `_meta`). Local policy is `signature-policy=log`; production runs `strict`.
+Writes send `Idempotency-Key` (UUID per call; REST header, MCP `_meta`). The Docker shop runs `signature-policy=strict` (bootstrap default; `UCP_SIGNATURE_POLICY=log` relaxes it for a shop without the agent key), so every UCP call from the host is signed.
 
 ### Request signing (RFC 9421 + RFC 9530)
 

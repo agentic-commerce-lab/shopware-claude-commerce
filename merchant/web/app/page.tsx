@@ -120,6 +120,23 @@ export default function PortalPage() {
     return source.filter((change) => change.status === "staged");
   }, [stagedData, stagedFailed, overview]);
 
+  // The sidebar's pending-approvals badge. PortalShell (vendored, unmodified) renders the
+  // Assistant toggle itself with no slot for a count, so the count is set as `data-pending`
+  // on that button — the sidebar's only `aria-pressed` control — and globals.css draws it.
+  // (The rail is an aside too; the sidebar is the one holding the "Portal views" nav.)
+  const pendingCount = pendingChanges.length;
+  useEffect(() => {
+    const toggle = document.querySelector<HTMLButtonElement>('aside:has(> nav[aria-label="Portal views"]) button[aria-pressed]');
+    if (!toggle) return;
+    if (pendingCount > 0) {
+      toggle.dataset.pending = String(pendingCount);
+      toggle.setAttribute("aria-description", `${pendingCount} change${pendingCount === 1 ? "" : "s"} awaiting approval`);
+    } else {
+      delete toggle.dataset.pending;
+      toggle.removeAttribute("aria-description");
+    }
+  }, [pendingCount]);
+
   const insights = useMemo(() => insightsFromChat(chat.items), [chat.items]);
 
   const nav = useMemo<PortalNavItem<PortalView>[]>(() => {

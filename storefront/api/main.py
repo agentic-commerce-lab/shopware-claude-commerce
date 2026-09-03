@@ -40,8 +40,10 @@ from demo_common import (
     build_storefront_host,
     load_demo_env,
 )
+from shopping_agent import ShoppingSessionContext
 from shopping_agent_runtime import ShoppingAgent
 from shopware_common.anthropic_client import build_anthropic_client
+from shopware_common.clock import host_clock
 
 from .agent_config import build_shopping_config
 from .brand import BrandSource
@@ -159,8 +161,19 @@ async def agent_profile() -> FileResponse:
     return FileResponse(PROFILE_PATH, media_type="application/json")
 
 
+def shopping_context(record, request: Request | None = None) -> ShoppingSessionContext:
+    """This host's view of a request: identity from the record, the clock from the
+    browser's zone (``X-Timezone`` / ``tz``) or ``HOST_TIMEZONE``, as an aware ``now``.
+    (The shared host's ``/api/chat`` builds its own context inside ``demo_common``.)"""
+    return ShoppingSessionContext(
+        session_id=record.session_id, user_id=record.user_id, **host_clock(request)
+    )
+
+
 @app.post("/api/cart/add")
-async def cart_add(request: CartAddRequest, record: host.CurrentSession) -> dict:
+async def cart_add(
+    request: CartAddRequest, http_request: Request, record: host.CurrentSession
+) -> dict:
     """The grid button. It reads the product through the agent's own
     ``get_product_details`` tool first, so the record (and its variants) enter session
     provenance exactly as a conversation would, then adds through the same gated executor."""
@@ -168,7 +181,7 @@ async def cart_add(request: CartAddRequest, record: host.CurrentSession) -> dict
         backend=backend,
         config=agent.config,
         skills=agent.skills,
-        session=host.context(record),
+        session=shopping_context(record, http_request),
         state=record.state,
         memory=agent.memory,
     )

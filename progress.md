@@ -47,8 +47,9 @@ Shopware × Claude Commerce Agents — phases 0–2 complete and stabilized (202
 - [x] Restock as delta on fresh stock (M1); pause/activate expands to children (M2)
 - [x] Performance insights from aggregations: snapshot, metrics, inventory alerts, order issues, pricing context (M3)
 - [x] SQLite ledger via `MERCHANT_LEDGER_DSN`, survives restarts (M7)
-- [x] Portal routes `/api/merchant/dashboard`, `/orders`, `/changes`
-- [x] Merchant portal `merchant/web` on `:3006` mirroring the reference portal (KPI row, Needs you today, assistant rail with staged-change cards)
+- [x] Portal routes `/api/merchant/dashboard`, `/orders`, `/changes`; listing staged changes admits them to the session's provenance so the portal's Approve / Dismiss works across sessions and restarts
+- [x] Merchant portal `merchant/web` on `:3006` mirroring the reference portal (KPI row, Needs you today, assistant rail with staged-change cards, pending count on the sidebar's Assistant entry)
+- [x] MCP client hardening from the live pass: one in-flight request per session (Shopware answers one of two concurrent calls with an empty body); offloaded results (`_meta.resourceUri` → `resources/read`) collected instead of read as empty — this is what fills the portal's recent-orders feed
 - [x] pytest (transports, staging, ledger, portal) + `merchant/scripts/smoke_live.py` (read-only and `--write` round trips over MCP and REST)
 - [x] Browser: dashboard → briefing → stage price → approve → verified in Shopware → reverted (`docs/screenshots/merchant-portal.png`)
 

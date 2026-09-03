@@ -5,10 +5,11 @@ Next.js 16 back office for the Shopware merchant agent: the upstream retail merc
 wiring and Shopware blue (`#189EFF`) as the accent. Everything it shows comes from
 `/api/merchant/*` on port 8005; there is no mock data.
 
-> Screenshot pending: the merchant API was not running when this app was built, so
-> `docs/screenshots/merchant-portal.png` has not been captured yet. With the API up, load
-> http://localhost:3006, ask "What needs my attention this morning?" in the rail, and save a
-> full-page screenshot there; then embed it here as `![Merchant portal](../../docs/screenshots/merchant-portal.png)`.
+![Merchant portal against the Docker shop: briefing in the rail, a price change staged with Shopware's dry-run preview and approved](../../docs/screenshots/merchant-portal.png)
+
+Captured against the live Docker shop (seeded order history) after the browser pass in
+`merchant/README.md`: "What needs my attention this morning?", then a staged price change on
+`CA-OIL` approved from the rail (Shopware price checked before and after), then reverted the same way.
 
 ## Run
 
@@ -29,8 +30,11 @@ Approve / Dismiss buttons work without it.
 ## Layout
 
 - **Sidebar** — Home, Catalog, Orders (badge: open order issues), Inventory (count: low-stock +
-  slow-mover alerts), the Assistant toggle, and the operator at the bottom. Shop name and operator
-  come from `shop.name` / `shop.operator` on `/overview` (falling back to the session's operator).
+  slow-mover alerts), the Assistant toggle with the **pending-approvals count** as a blue badge
+  (the vendored `PortalShell` has no slot for it, so `app/page.tsx` sets `data-pending` on that
+  button and `globals.css` draws the badge; it also carries an `aria-description`), and the
+  operator at the bottom. Shop name and operator come from `shop.name` / `shop.operator` on
+  `/overview` (falling back to the session's operator).
 - **Home** — greeting with the operator's first name, today's date, and a one-line digest built
   from the snapshot ("Sales are up 1.7% on the week. 5 orders and 6 listings need you today."; down
   / flat wording when negative / zero). Then the "This week" KPI row, "Needs you today" with filter
@@ -57,7 +61,7 @@ demand.
 | `GET /alerts` | Inventory and Orders pages; Catalog row annotations. |
 | `GET /listings?query=`, `GET /listings/{id}` | Catalog table and detail sheet (listing + pricing context). |
 | `GET /orders?limit=20` | Orders page list (`order_number`, items, customer, total, status, `issue`); `overview.recent_orders` until it answers. |
-| `GET /changes?status=staged` | The rail's staged-changes strip; `overview.needs_attention.pending_changes` until it answers. Resolved changes list on Home from `overview.recent_changes`. |
+| `GET /changes?status=staged` | The rail's staged-changes strip and the sidebar's pending count; `overview.needs_attention.pending_changes` until it answers. Listing a staged change also admits it to this session's provenance on the host, so a change staged in an earlier session (or before a host restart) can be approved or dismissed from its card. Resolved changes list on Home from `overview.recent_changes`. |
 | `POST /changes/{id}/apply`, `POST /changes/{id}/discard` | Approve / Dismiss on every change card. `{ ok: false, reason }` shows the gate's reason on the card. |
 | `GET/DELETE /memory` | The Activity inspector's "Business memory" view. |
 | `GET /health` | Shown when no session can start: unreachable, or running without Shopware credentials (`error`). |

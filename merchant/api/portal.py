@@ -16,14 +16,14 @@ own routes declare (``_session_dependency_of``) instead of building a second sto
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.routing import APIRoute
 
 from demo_common.sessions import SessionRecord
 from merchant_agent import ChangeStatus, MerchantSessionContext
+from shopware_common.clock import host_clock
 
 from .shopware_backend import ShopwareMerchantBackend
 
@@ -52,19 +52,21 @@ def build_portal_router(
     scoped = Depends(current_session, scope="function")
     router = APIRouter()
 
-    def context(record: SessionRecord) -> MerchantSessionContext:
+    def context(record: SessionRecord, request: Request | None = None) -> MerchantSessionContext:
+        """The clock is the operator's: the browser's zone from ``X-Timezone`` (or ``tz``),
+        else ``HOST_TIMEZONE``, always as an aware ``now`` plus the zone name."""
         return MerchantSessionContext(
             session_id=record.session_id,
             merchant_id=record.user_id,
             operator=operator,
-            now=datetime.now(),
+            **host_clock(request),
         )
 
     @router.get("/dashboard")
     async def dashboard(
-        period: str = Query(default="last_7d"), record: SessionRecord = scoped
+        request: Request, period: str = Query(default="last_7d"), record: SessionRecord = scoped
     ) -> dict[str, Any]:
-        return await backend.dashboard(context(record), period)
+        return await backend.dashboard(context(record, request), period)
 
     @router.get("/orders")
     async def orders(

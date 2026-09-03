@@ -54,6 +54,17 @@ uvicorn storefront.api.main:app --port 8004
 | `STOREFRONT_API_PUBLIC_URL` | `http://localhost:8004` | how the browser reaches this host (ticket URL, OAuth redirect) |
 | `SHOPWARE_UCP_OAUTH_CLIENT_ID`, `SHOPWARE_OAUTH_REDIRECT_URI` | profile URL / `{public}/api/auth/shopware/callback` | Identity Linking client id (must be https) and the `redirect_uri` sent to the AS (the code is returned in the JSON body, so no route listens there) |
 | `WEB_APP_URL`, `BRAND_TAGLINE`, `CATALOG_WARMUP` | `http://localhost:3005`, tagline, `1` | web UI wiring |
+| `HOST_TIMEZONE` | `Europe/Berlin` | session clock when the request carries no `X-Timezone` header (the web app sends the browser's zone; `shopware_common/clock.py`) |
+
+### Prompt rules this host adds
+
+`storefront/api/agent_config.py` carries the host's own rules in `brand_voice` (the one hook
+the pinned `ShoppingAgentConfig` exposes for prose rules): compare a date the customer names
+against the conversation's local time and say so when it has passed, instead of promising
+delivery by it (eval `shop-clock-002`). The clock itself comes from `shopware_common.clock`
+on this repo's routes (`POST /api/cart/add`); the shared `/api/chat` route in the vendored
+`demo_common` still passes the server's naive `datetime.now()` — see
+`docs/anthropic-upstream-notes.md` §5.
 
 ### Shopware facts the backend relies on
 

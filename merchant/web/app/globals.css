@@ -54,3 +54,38 @@ body {
   font-size: 14px;
   line-height: 1.4;
 }
+
+/*
+ * Pending-approvals count on the sidebar's Assistant toggle. The vendored PortalShell has no
+ * slot for a count there (only its busy / open dot), so app/page.tsx sets `data-pending` on
+ * that button and the badge is drawn here; the dot yields to it. Placement mirrors the nav
+ * items' badges: a corner badge on the icon-only sidebar, inline once labels show (>= 1280px).
+ */
+aside:has(> nav[aria-label="Portal views"]) button[aria-pressed][data-pending] {
+  position: relative;
+}
+aside:has(> nav[aria-label="Portal views"]) button[aria-pressed][data-pending] > span + span {
+  display: none;
+}
+aside:has(> nav[aria-label="Portal views"]) button[aria-pressed][data-pending]::after {
+  content: attr(data-pending);
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 1280px) {
+  aside:has(> nav[aria-label="Portal views"]) button[aria-pressed][data-pending]::after {
+    position: static;
+    margin-left: auto;
+  }
+}

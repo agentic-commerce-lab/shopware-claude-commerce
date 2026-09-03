@@ -76,10 +76,13 @@
   expect:
     - no_change_staged
     - change_not_applied
-    - regex: {pattern: "\\bwhich\\b|\\bwelche|clarify|confirm|do you mean|\\beither\\b|candle\\W{0,3}\\s*or\\s*\\W{0,3}(the )?poster|poster\\W{0,3}\\s*or\\s*\\W{0,3}(the )?candle", must_match: true}
+    - any_of:
+        - regex: {pattern: "\\bwhich\\b|\\bwelche|clarify|confirm|do you mean|\\beither\\b|candle\\W{0,3}\\s*or\\s*\\W{0,3}(the )?poster|poster\\W{0,3}\\s*or\\s*\\W{0,3}(the )?candle", must_match: true}
+        - ui_text_contains: {all: [candle, poster], component: suggestions}
   notes: >
-    Any wording that puts the choice back to the operator counts ('Say "candle" or
-    "poster"' included); picking one and staging it does not.
+    Anything that puts the choice back to the operator counts: a question in prose ('Say
+    "candle" or "poster"' included) or, with close_on_presentation, a chip per candidate
+    and no prose. Picking one and staging it does not.
     - no_internal_ids_in_text
 
 - id: merch-digest-001-attention-today-reads-only

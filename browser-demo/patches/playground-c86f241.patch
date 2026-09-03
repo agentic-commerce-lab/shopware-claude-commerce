@@ -1,0 +1,191 @@
+diff --git a/package.json b/package.json
+index 99cf56d..cd6b143 100644
+--- a/package.json
++++ b/package.json
+@@ -19,7 +19,7 @@
+     "@php-wasm/universal": "^3.1.52",
+     "@php-wasm/web": "^3.1.52",
+     "esbuild": "^0.28.2",
+-    "lite4mariadb": "^0.1.1"
++    "lite4mariadb": "^0.1.2"
+   },
+   "overrides": {
+     "fs-ext-extra-prebuilt": "file:./shims/fs-ext-stub"
+diff --git a/src/app-route.mjs b/src/app-route.mjs
+index 1f7ffbd..f4a1785 100644
+--- a/src/app-route.mjs
++++ b/src/app-route.mjs
+@@ -2,7 +2,15 @@
+  * Real static assets. Do not treat SEO suffixes like SWDEMO10007.1 as files.
+  */
+ const STATIC_FILE_EXT =
+-  /\.(?:html?|js|mjs|cjs|css|json|map|wasm|svg|png|jpe?g|gif|webp|ico|avif|woff2?|ttf|otf|eot|zip|gz|dat|so|la|txt|xml|webmanifest)$/i;
++  /\.(?:html?|js|mjs|cjs|css|json|map|wasm|svg|png|jpe?g|gif|webp|ico|avif|woff2?|ttf|otf|eot|zip|gz|dat|so|la|txt|md|xml|webmanifest|whl|tar)$/i;
++
++/**
++ * Static tree of the demo shell that embeds this playground (Vite build, Pyodide
++ * distribution, Python wheels, agent host). Never a PHP route.
++ */
++export const DEMO_STATIC_PREFIX = '/demo/';
++/** The demo's same-origin Anthropic proxy (browser-demo/server) — never a PHP route. */
++export const DEMO_PROXY_PREFIX = '/api/anthropic/';
+ 
+ /**
+  * Shopware storefront/admin assets that live per version under
+@@ -47,6 +55,8 @@ export function isStaticPlaygroundPath(pathname) {
+     pathname.startsWith('/php/') ||
+     pathname.startsWith('/src/') ||
+     pathname.startsWith('/node_modules/') ||
++    pathname.startsWith(DEMO_STATIC_PREFIX) ||
++    pathname.startsWith(DEMO_PROXY_PREFIX) ||
+     isVersionedAssetPath(pathname) ||
+     pathname === '/app.js' ||
+     pathname === '/browser-worker.js' ||
+@@ -78,6 +88,8 @@ export function isEngineBypassPath(pathname) {
+     pathname.startsWith('/php/') ||
+     pathname.startsWith('/src/') ||
+     pathname.startsWith('/node_modules/') ||
++    pathname.startsWith(DEMO_STATIC_PREFIX) ||
++    pathname.startsWith(DEMO_PROXY_PREFIX) ||
+     // Vite dev server internals (/@vite/client, /@id/, /@fs/) — dev only,
+     // nothing requests these from the built bundle.
+     pathname.startsWith('/@')
+@@ -92,6 +104,9 @@ export function isShopwarePhpPath(pathname, nested = false) {
+   if (pathname === '/index.php' || pathname.startsWith('/index.php/')) {
+     return true;
+   }
++  if (pathname.startsWith(DEMO_PROXY_PREFIX)) {
++    return false;
++  }
+   // Shopware API routes may end in a static-looking extension
+   // (e.g. /api/_info/entity-schema.json) but are PHP controllers.
+   if (pathname.startsWith('/api/')) {
+diff --git a/src/browser-runtime.mjs b/src/browser-runtime.mjs
+index c465d23..b49b5f2 100644
+--- a/src/browser-runtime.mjs
++++ b/src/browser-runtime.mjs
+@@ -57,6 +57,7 @@ export async function createPlayground(options = {}) {
+ 
+   const prependRes = await fetch('/php/auto_prepend.php');
+   php.writeFile('/internal/playground_prepend.php', await prependRes.text());
++  php.writeFile('/internal/openssl.cnf', '[req]\ndistinguished_name = dn\n[dn]\n');
+   php.writeFile('/internal/playground_skip_heavy_migrations', '1');
+ 
+   const zipRes = await fetch(options.zipUrl || '/shopware.zip');
+diff --git a/src/frontend-assets.mjs b/src/frontend-assets.mjs
+index 627c231..9f71148 100644
+--- a/src/frontend-assets.mjs
++++ b/src/frontend-assets.mjs
+@@ -45,6 +45,7 @@ export async function runShopwareConsole(pg, input) {
+       $_SERVER['APP_ENV'] = 'prod';
+       $_SERVER['APP_DEBUG'] = '0';
+       $classLoader = require '/shopware/vendor/autoload.php';
++      (new Symfony\\Component\\Dotenv\\Dotenv())->usePutenv()->bootEnv('/shopware/.env');
+       $kernel = Shopware\\Core\\Framework\\Adapter\\Kernel\\KernelFactory::create(
+         environment: 'prod',
+         debug: false,
+diff --git a/src/php-web-runtime.mjs b/src/php-web-runtime.mjs
+index 090505a..9f2b102 100644
+--- a/src/php-web-runtime.mjs
++++ b/src/php-web-runtime.mjs
+@@ -9,6 +9,9 @@ export async function loadPlaygroundWebRuntime() {
+     globalThis.setImmediate = (fn) => setTimeout(fn, 0);
+   }
+   return loadWebRuntime('8.4', {
++    // OpenSSL 1.1.1 in WASM has no openssl.cnf; without OPENSSL_CONF pointing at a file
++    // (written to MEMFS by browser-runtime.mjs) openssl_pkey_new() fails with fopen errors.
++    emscriptenOptions: { ENV: { OPENSSL_CONF: '/internal/openssl.cnf' } },
+     extensions: ['intl'],
+   });
+ }
+diff --git a/src/runtime.mjs b/src/runtime.mjs
+index c3366d7..83a937f 100644
+--- a/src/runtime.mjs
++++ b/src/runtime.mjs
+@@ -33,7 +33,7 @@ export const SHOPWARE_DUMP_PATH = versionDumpPath(publicDir, mainTreeVersion);
+ async function loadPhpRuntime() {
+   const { loadNodeRuntime } = await import('@php-wasm/node');
+   return loadNodeRuntime('8.4', {
+-    emscriptenOptions: { processId: 1 },
++    emscriptenOptions: { processId: 1, ENV: { OPENSSL_CONF: '/internal/openssl.cnf' } },
+     extensions: ['intl'],
+   });
+ }
+@@ -43,6 +43,7 @@ async function mountShopware(php, shopwareRoot) {
+   php.mkdir('/shopware');
+   await php.mount('/shopware', createNodeFsMountHandler(shopwareRoot));
+   php.writeFile('/internal/playground_prepend.php', prependSource);
++  php.writeFile('/internal/openssl.cnf', '[req]\ndistinguished_name = dn\n[dn]\n');
+   php.chdir('/shopware/public');
+ }
+ 
+diff --git a/src/service-worker.mjs b/src/service-worker.mjs
+index 600a740..a9b6dd7 100644
+--- a/src/service-worker.mjs
++++ b/src/service-worker.mjs
+@@ -147,13 +147,33 @@ async function phpViaPage(req) {
+   });
+ }
+ 
++/**
++ * coi-serviceworker behaviour for hosts that cannot set headers (GitHub Pages): every
++ * same-origin response the SW hands out carries COOP/COEP/CORP, so the page becomes
++ * crossOriginIsolated after the first controlled reload (the shell reloads once).
++ */
++function withIsolationHeaders(response) {
++  if (!response || response.type === 'opaque' || response.status === 0) return response;
++  const headers = new Headers(response.headers);
++  headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
++  headers.set('Cross-Origin-Opener-Policy', 'same-origin');
++  headers.set('Cross-Origin-Resource-Policy', 'same-origin');
++  return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
++}
++
+ self.addEventListener('fetch', (event) => {
+   const request = event.request;
+   const url = new URL(request.url);
+   if (url.origin !== self.location.origin) return;
+ 
+   const pathname = pathnameOf(request);
+-  if (isEngineBypassPath(pathname)) return;
++  if (isEngineBypassPath(pathname)) {
++    // Streaming proxy answers (SSE) must not be re-wrapped; static engine files get the
++    // isolation headers for header-less hosts.
++    if (pathname.startsWith('/api/anthropic/')) return;
++    event.respondWith(fetch(request).then(withIsolationHeaders));
++    return;
++  }
+ 
+   event.respondWith(
+     (async () => {
+@@ -169,13 +189,15 @@ self.addEventListener('fetch', (event) => {
+           // keeps the rewritten /versions/... URL, which browsers then use as
+           // the module base URL — the admin SPA would load its chunks twice
+           // (once via /bundles/, once via /versions/) and boot breaks.
+-          return new Response(res.body, {
+-            status: res.status,
+-            statusText: res.statusText,
+-            headers: res.headers,
+-          });
++          return withIsolationHeaders(
++            new Response(res.body, {
++              status: res.status,
++              statusText: res.statusText,
++              headers: res.headers,
++            })
++          );
+         }
+-        return fetch(request);
++        return withIsolationHeaders(await fetch(request));
+       }
+ 
+       // The playground has no external network: Shopware's update check calls
+@@ -199,7 +221,7 @@ self.addEventListener('fetch', (event) => {
+ 
+       const nested = await isNestedClient(event);
+       if (!isShopwarePhpPath(pathname, nested)) {
+-        return fetch(request);
++        return withIsolationHeaders(await fetch(request));
+       }
+       const method = request.method || 'GET';
+       let body;

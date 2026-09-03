@@ -261,6 +261,32 @@ async def test_disclosures(backend, session):
     assert any("Grundpreis" in row.label or "25,80" in row.value for row in oil.rows)
 
 
+def test_disclosure_rows_read_zero_stock_and_do_not_repeat_the_delivery_range():
+    """``availableStock: 0`` is sold out (not "fall back to ``stock``"), and a delivery-time
+    name that already spells its range is not suffixed with the same range."""
+    from storefront.api.disclosures import disclosure_from_store_product
+
+    sold_out = disclosure_from_store_product(
+        "p1",
+        {
+            "availableStock": 0,
+            "stock": 7,
+            "deliveryTime": {"name": "2–4 Tage", "min": 2, "max": 4},
+        },
+    )
+    rows = {row.label: row.value for row in sold_out.rows}
+    assert rows["Verfügbarkeit"] == "Derzeit nicht lieferbar"
+    assert rows["Lieferzeit"] == "2–4 Tage"
+    assert "Versand & Lieferzeit" in rows["Versand"]
+
+    named = disclosure_from_store_product(
+        "p2", {"stock": 3, "deliveryTime": {"name": "Standardversand", "min": 1, "max": 3}}
+    )
+    rows = {row.label: row.value for row in named.rows}
+    assert rows["Verfügbarkeit"] == "Auf Lager"
+    assert rows["Lieferzeit"] == "Standardversand (1–3 Tage)"
+
+
 async def test_fulfillment_options_carry_fee_and_eta_from_shipping_methods(backend, session):
     await backend.get_product_details(session, PRODUCT_ID)
     options = await backend.get_fulfillment_options(session, [PRODUCT_ID])

@@ -1,0 +1,14 @@
+--- a/vendor/ucp-php-sdk/symfony-bundle/src/Bridge/DoctrineDbal/ConnectionFactory.php
++++ b/vendor/ucp-php-sdk/symfony-bundle/src/Bridge/DoctrineDbal/ConnectionFactory.php
+@@ -12,6 +12,11 @@
+ {
+     public static function create(string $dsn): Connection
+     {
++        // browser-demo patch: route the SDK's private connection through MariaDB WASM
++        // (same bridged DBAL driver Shopware uses) instead of native pdo_mysql TCP.
++        if (str_starts_with($dsn, 'mysql://') && class_exists(\App\Playground\MariadbLiteDriver::class)) {
++            return DriverManager::getConnection(['driverClass' => \App\Playground\MariadbLiteDriver::class, 'dbname' => 'shopware']);
++        }
+         if (class_exists(\Doctrine\DBAL\Tools\DsnParser::class)) {
+             $parser = new \Doctrine\DBAL\Tools\DsnParser([
+                 'sqlite' => 'pdo_sqlite',

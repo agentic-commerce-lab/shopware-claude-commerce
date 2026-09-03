@@ -56,10 +56,26 @@ Chat needs `ANTHROPIC_API_KEY`; identity-linked keys also need `ANTHROPIC_WORKSP
 | `MERCHANT_OPERATOR` | `Operator` | Actor recorded on staged/applied changes |
 | `MERCHANT_REQUIRE_HOST_APPROVAL` | `1` | Blueprint gate: the model never applies |
 | `MERCHANT_LEDGER_DSN` | `sqlite:///./merchant/data/ledger.db` | Ledger file; `:memory:` for tests |
+| `HOST_TIMEZONE` | `Europe/Berlin` | Session clock on the portal routes when the request carries no `X-Timezone` header (the portal sends the browser's zone; `shopware_common/clock.py`) |
 
 The admin user's password grant is **not** accepted by the host (ADR-14). It is used
 only by `scripts/smoke_live.py` / `scripts/mcp_tools.py --admin` to bootstrap a
 temporary integration when none is configured.
+
+### Prompt rules this host adds
+
+`api/agent_config.py::MERCHANT_BRAND_VOICE` carries the host's own rules in `brand_voice`,
+the one hook the pinned `MerchantAgentConfig` exposes for prose rules: listings are named
+by title or product number in prose (ids stay in the cards), and a request that exceeds a
+cap, lacks a required parameter (promotion dates, one clear target) or is ambiguous stages
+nothing and asks — unless the operator spelled the fallback out themselves ("use the
+maximum allowed"), which is staged at exactly the cap. On the merchant CI eval set
+(`python -m evals.runner --suite merchant --set ci --mode replay --trials 2`) this moved
+the result from 23/38 cases (trial pass rate 0.67) to 34/38 (0.93; 35/38 on a second run
+of the same config). What remains: `merch-price-008` (the operator pre-approves the cap,
+the agent stages 11,88 € and the blueprint guardrail refuses it — the float boundary bug
+in `docs/anthropic-upstream-notes.md` §1 — so it lands on 11,87 €), and single-trial
+wording or judge misses on `merch-approval-001/004` and `merch-price-001`.
 
 ## Architecture
 
@@ -68,12 +84,19 @@ temporary integration when none is configured.
 same semantics as the live tools. `McpTransport` wraps `shopware_common.mcp_client.McpClient`
 (Streamable HTTP handshake, session, retries) and serialises criteria/aggregations/payloads
 as JSON *strings* (the tools' input schema). It calls `ensure_tool(name)` once per tool
-before first use. `RestTransport` speaks `POST /api/search/{kebab-entity}`, `PATCH
+before first use. Two live quirks of the 6.7.13 server are handled here: requests on one
+MCP session run **one at a time** (two concurrent `tools/call` make the server answer one of
+them with an empty body), and a result above the inline size cap arrives as `data: null` +
+`_meta.resourceUri` (`shopware://tool-result/<id>`; seen at ~160 KB on an order search with
+associations) and is **collected with `resources/read`** instead of being read as "no rows".
+`RestTransport` speaks `POST /api/search/{kebab-entity}`, `PATCH
 /api/{entity}/{id}` and `POST /api/_action/sync` (lists, promotions, rules). Every call —
 reads included — lands in `transport.calls` (a 500-entry deque); `admin_client.writes()`
 lists the persisted writes so tests can prove staging never writes.
 
-**MCP tools the backend calls** (the integration's tool allowlist must be exactly this):
+**MCP tools the backend calls** (the integration's tool allowlist must be exactly this;
+`docker/merchant_identity.py::MCP_TOOL_ALLOWLIST` and `::ACL_PRIVILEGES` are what bootstrap
+writes, and `docker/verify.sh` step 4 checks the live `tools/list` against them):
 
 ```
 shopware-entity-search
@@ -177,7 +200,18 @@ The blueprint router (`vendor/demo_common/merchant.py`) is mounted unchanged at
 | --- | --- |
 | `GET /api/merchant/dashboard?period=last_7d` | `{"period": {"label": "Aug 28 – Sep 3", "against": "the prior week", "key": "last_7d"}, "kpis": {"sales": {"value", "unit": "EUR", "change_pct", "points": [{"date", "value"}]}, "orders": {"value", "unit": "count", "change_pct", "points"}, "conversion": {"value": null, "note"}, "average_order": {"value", "unit": "EUR", "change_pct", "points"}}, "digest": "Sales are up 1.7% on the week. 5 orders and 6 listings need you today."}` |
 | `GET /api/merchant/orders?limit=20` | `{"orders": [{"order_id", "order_number", "status", "payment_status", "delivery_status", "placed_at", "total", "currency", "items", "customer", "issue"?}]}` — `issue` ∈ `payment_failed`, `delayed`, `buyer_message` |
-| `GET /api/merchant/changes?status=staged` | `{"status": "staged", "changes": [StagedChange…]}`; `status` ∈ `staged`, `applied`, `discarded`, `all` |
+| `GET /api/merchant/changes?status=staged` | `{"status": "staged", "changes": [StagedChange…]}`; `status` ∈ `staged`, `applied`, `discarded`, `all`. Listing a staged change records it in the session's provenance (as the `get_pending_changes` tool does), so the portal's Approve / Dismiss on a change staged in another session or before a restart passes the blueprint's provenance gate. |
+
+## Portal browser pass
+
+With the Docker shop, both hosts and `npm run dev:merchant` running, the pass behind
+`docs/screenshots/merchant-portal.png` is: load http://localhost:3006 (shop name, digest,
+KPI row, "Needs you today", recent orders from Shopware), click "What needs my attention this
+morning?" and wait for the briefing, ask the assistant to stage a price change on `CA-OIL`
+(12.90 → 13.90 EUR), approve it on the card in the rail (`POST /api/merchant/changes/{id}/apply`
+answers `{"ok": true, "change": {"status": "applied"}}`), check the Store API price, then
+stage the revert the same way and approve it. The sidebar's Assistant entry shows the pending
+count while a change waits.
 
 ## Verify
 

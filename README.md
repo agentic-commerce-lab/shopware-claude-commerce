@@ -208,7 +208,7 @@ Deployment notes that are yours to own (auth on the host routes, rate limits, me
 ├── requirements.txt          blueprint packages pinned to fd4d5922 + runtime deps
 ├── requirements-dev.txt      + pytest
 ├── package.json              npm workspaces: vendor/web-shared, storefront/web, merchant/web
-├── shopware_common/          mcp_client, http_signing (RFC 9421/9530), handoff codes, anthropic_client, tests
+├── shopware_common/          mcp_client, http_signing (RFC 9421/9530), handoff codes, anthropic_client, clock, tests (README inside)
 ├── docker/
 │   ├── compose.yaml          dockware/shopware:6.7.13.0, ports 8080 and 3306, MCP_SERVER=1
 │   ├── bootstrap.sh          pinned plugins, UCP config, signing keys, integration + ACL + allowlist, seed, .generated.env
@@ -327,6 +327,7 @@ Work in progress, nothing shipped yet. The feasibility spike in [`docs/browser-d
 |---|---|---|
 | `ANTHROPIC_API_KEY` | empty | Required for chat turns only |
 | `ANTHROPIC_WORKSPACE_ID` | empty | Only for identity-linked keys (API answers 400 `anthropic-workspace-id is required` without it); Console → Settings → Workspaces, `wrkspc_…` |
+| `HOST_TIMEZONE` | `Europe/Berlin` | Session clock when the browser sends no `X-Timezone` header (both web apps send it) |
 | `SHOPWARE_URL`, `SHOPWARE_ADMIN_URL` | `http://localhost:8080` | Sales-channel domain serving `/.well-known/ucp`; Admin API base |
 | `SHOPWARE_SALES_CHANNEL_ACCESS_KEY`, `SHOPWARE_SALES_CHANNEL_ID` | from `docker/.generated.env` | Store API `sw-access-key`, channel for promotions |
 | `UCP_TRANSPORT` | `mcp` | `mcp` (primary) or `rest`; the other one is the fallback |
@@ -343,26 +344,24 @@ Work in progress, nothing shipped yet. The feasibility spike in [`docs/browser-d
 
 ## Status and roadmap
 
-Blueprint phases 0 to 2 of the internal masterplan are implemented; a stabilization pass is re-verifying them against the running Docker shop. The checklist is in [`progress.md`](progress.md); this snapshot of the tree is work in progress.
+Blueprint phases 0 to 2 of the internal masterplan are implemented and verified against the running Docker shop (stabilization pass of 2026-09-03; the finding-by-finding truth table is in [`progress.md`](progress.md)).
 
 Done:
 
 - Guest shopping: search, details with real variants, cart, checkout handoff via one-time code into Shopware's confirm page, CMS policy search, PAngV disclosures, shipping options with fees and ETA, order lookup behind the cart token.
-- Merchant: aggregation-based snapshot and metrics, inventory alerts and order issues from the seeded history, pricing context, staged listing / price / inventory changes with server-side dry-run previews, SQLite ledger, approval and discard routes, portal dashboard.
+- Merchant: aggregation-based snapshot and metrics with a prior period, inventory alerts and order issues from the seeded history, pricing context, staged listing / price / inventory / promotion changes with server-side dry-run previews, SQLite ledger, approval and discard routes, portal dashboard on `:3006`.
+- MCP as the primary transport on both sides (`UCP_TRANSPORT=mcp`, `SHOPWARE_ADMIN_TRANSPORT=mcp`) with REST fallback; RFC 9421 + RFC 9530 request signing against the shop's `signature-policy=strict`; real promotions on approval (`promotion` + `promotion_discount` + rule + sales channel).
+- Session clock from the browser's timezone (`X-Timezone`, default `HOST_TIMEZONE`) on the hosts' own routes; host prompt rules (`brand_voice`) that keep ids out of prose and make the merchant agent ask instead of staging the nearest compliant change (merchant CI evals 23/38 → 34/38 cases, see [`docs/anthropic-upstream-notes.md`](docs/anthropic-upstream-notes.md) for what goes upstream).
 - Offline test suite (netless replays of every Shopware surface), live smoke scripts for both hosts, `docker/verify.sh`, PHPUnit tests for the handoff plugin, both web apps building.
 - Claude Code plugin `shopware-commerce-builder` (five commands, six skills, marketplace manifest).
 - Evals v1: 107 cases, scorers, judge, replay and live backends, CI gate.
 - CI: `ci.yml` (netless) and `integration.yml` (nightly Docker Shopware + smoke, optional evals).
 - `SwagCommerceAgentTools`, first increment: nine MCP tools, staged-change entity, Flow Builder triggers, ACL templates; 149 PHPUnit tests, PHPStan max.
 
-In progress (implemented, being verified by the stabilization pass; not counted as done until `progress.md` marks them verified):
+In progress:
 
-- Stabilization items across `storefront/`, `merchant/`, `docker/`: bootstrap idempotency, handoff plugin hardening, Store API error handling.
-- MCP as the primary transport on both sides (`UCP_TRANSPORT=mcp`, `SHOPWARE_ADMIN_TRANSPORT=mcp`) with REST fallback.
-- UCP Identity Linking (OAuth authorization code + PKCE); on the plain-http Docker shop `GET /api/auth/shopware/start` answers 503 because Shopware requires an https agent-profile `client_id`, so sessions stay guests.
-- RFC 9421 + RFC 9530 request signing against the shop's `signature-policy=strict`.
-- Real promotions on approval (`promotion` + `promotion_discount` + rule + sales channel in one transaction).
-- Merchant portal on `:3006`.
+- UCP Identity Linking (OAuth authorization code + PKCE) is implemented and covered by the netless replay; on the plain-http Docker shop `GET /api/auth/shopware/start` answers 503 because Shopware requires an https agent-profile `client_id`, so sessions stay guests until the profile is served over https.
+- The shared `/api/chat` routes (`demo_common`, vendored unmodified) still build their session clock from the server's naive `datetime.now()`; the browser timezone reaches only this repo's own routes until upstream exposes a clock hook (upstream note 5).
 - Browser demo (feasibility verified, build not started).
 
 Not in this version:
