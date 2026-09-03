@@ -32,7 +32,7 @@ Three properties of Shopware make this a natural fit rather than a port:
 
 ## Demo video
 
-[![Shopware × Claude Commerce Agents explainer (2 min)](docs/media/explainer-poster.png)](docs/media/explainer.mp4)
+https://github.com/user-attachments/assets/00286df3-c81d-45ca-8a78-c0c2d01a4ce9
 
 The full-resolution file is [`docs/media/explainer.mp4`](docs/media/explainer.mp4) (1080p, 2 min), the poster is [`docs/media/explainer-poster.png`](docs/media/explainer-poster.png), and the script and re-render instructions are in [`docs/media/README.md`](docs/media/README.md).
 
