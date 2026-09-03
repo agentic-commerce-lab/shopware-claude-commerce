@@ -57,12 +57,7 @@ from shopping_agent import Order
 from .admin_client import EUR_CURRENCY_ID, AdminAPIError, AdminTransport
 from .agent_config import DATA_DIR, ShopwareSettings
 from .agent_tools import (
-    PLUGIN_CHANGE_KINDS,
-    AgentToolsError,
     MerchantAgentTools,
-    plugin_period,
-    preview_note as plugin_preview_note,
-    staged_change_from_row,
 )
 from .catalog import CatalogCache, ProductRecord
 from .insights import (
@@ -70,8 +65,6 @@ from .insights import (
     OPEN_ORDER_STATES,
     PAYMENT_PROBLEM_STATES,
     Period,
-    bucket_date,
-    bucket_starts,
     change_pct,
     derive_issues,
     histogram_aggregation,

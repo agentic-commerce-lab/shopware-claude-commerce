@@ -24,12 +24,13 @@ Nothing here modifies the blueprint packages or the repo backends (ADR-1).
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
 import sys
 import traceback
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -87,10 +88,8 @@ class _ReadableStreamBody(httpx.AsyncByteStream):
 
     async def aclose(self) -> None:
         if self._reader is not None:
-            try:
+            with contextlib.suppress(Exception):  # pragma: no cover - reader already released
                 await self._reader.cancel()
-            except Exception:  # pragma: no cover - reader already released
-                pass
 
 
 class _BytesBody(httpx.AsyncByteStream):
