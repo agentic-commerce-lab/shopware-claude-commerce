@@ -91,7 +91,7 @@ jobs:
             browser-demo/playground
             browser-demo/app/public/demo
             browser-demo/build/.cache
-          key: browser-demo-${{ runner.os }}-${{ hashFiles('browser-demo/build/config.mjs', 'browser-demo/package-lock.json', 'requirements.txt') }}
+          key: browser-demo-${{ runner.os }}-${{ hashFiles('browser-demo/build/config.mjs', 'browser-demo/package-lock.json', 'browser-demo/playground-shims/**', 'requirements.txt') }}
           restore-keys: |
             browser-demo-${{ runner.os }}-
 

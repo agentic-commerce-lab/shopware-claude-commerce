@@ -47,8 +47,28 @@ if (!existsSync(shimSrc)) {
 mkdirSync(join(PLAYGROUND_DIR, 'shims'), { recursive: true });
 cpSync(shimSrc, shimDst, { recursive: true });
 
+
+function ensureFsExtStub() {
+  const fsExtDir = join(PLAYGROUND_DIR, 'node_modules/fs-ext-extra-prebuilt');
+  const fsExtPkg = join(fsExtDir, 'package.json');
+  if (existsSync(fsExtPkg)) {
+    try {
+      const pkg = JSON.parse(readFileSync(fsExtPkg, 'utf8'));
+      if (pkg.version === '2.2.7-stub') return;
+    } catch {
+      /* reinstall */
+    }
+  }
+  // package-lock may point fs-ext at @php-wasm/node/shims (empty); npm install then leaves the dep missing.
+  rmSync(fsExtDir, { recursive: true, force: true });
+  mkdirSync(join(PLAYGROUND_DIR, 'node_modules'), { recursive: true });
+  log('installing fs-ext-extra-prebuilt stub (@php-wasm/node on Node without native prebuild)');
+  cpSync(shimDst, fsExtDir, { recursive: true });
+}
+
 // package.json changed (lite4mariadb pin) → `npm install` rather than `npm ci`.
 run('npm', ['install', '--no-audit', '--no-fund'], { cwd: PLAYGROUND_DIR });
+ensureFsExtStub();
 const litePackage = join(PLAYGROUND_DIR, 'node_modules/lite4mariadb/package.json');
 const lite = existsSync(litePackage) ? JSON.parse(readFileSync(litePackage, 'utf8')).version : '';
 if (!lite || Number(lite.split('.')[2]) < 2) {
