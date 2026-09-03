@@ -10,6 +10,7 @@ Anthropic's [Commerce Agents blueprint](https://github.com/anthropics/commerce-a
 [![UCP 2026-04-08](https://img.shields.io/badge/UCP-2026--04--08-lightgrey)](https://ucp.dev)
 [![CI](https://github.com/sthamann/shopware_claude_commerce/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sthamann/shopware_claude_commerce/actions/workflows/ci.yml)
 [![Integration (Docker Shopware)](https://github.com/sthamann/shopware_claude_commerce/actions/workflows/integration.yml/badge.svg)](https://github.com/sthamann/shopware_claude_commerce/actions/workflows/integration.yml)
+[![Pages](https://github.com/sthamann/shopware_claude_commerce/actions/workflows/pages.yml/badge.svg?branch=main)](https://sthamann.github.io/shopware_claude_commerce/)
 
 ## Why this exists
 
@@ -35,29 +36,23 @@ Three properties of Shopware make this a natural fit rather than a port:
 | Mapping notes | Live UCP and Admin MCP tool names and schemas, REST paths, cart-id semantics, handoff mechanics, Store API surfaces, write payloads | `docs/shopware-mapping.md` |
 | Claude Code plugin | `shopware-commerce-builder`: five commands (scaffold, add flow, author evals, review, UCP doctor) and six skills that state what Shopware adds to Anthropic's `commerce-builder` plugin; marketplace manifest at the repo root | `plugins/shopware-commerce-builder/`, `.claude-plugin/` |
 | Eval suite | 107 YAML cases (64 shopping, 43 merchant), deterministic scorers plus one pinned LLM judge, replay and live backends, CI-set selection and gate (`evals/gates.yaml`) | `evals/` |
-| CI workflows | `ci.yml` (ruff, pytest on 3.11/3.12, Next.js builds, handoff plugin PHPUnit; netless) and `integration.yml` (nightly Docker Shopware bootstrap + smoke, optional eval CI set) | `.github/workflows/` |
+| CI workflows | `ci.yml` (ruff, pytest on 3.11/3.12, Next.js builds, handoff plugin PHPUnit; netless), `integration.yml` (nightly Docker Shopware bootstrap + smoke, optional eval CI set), `pages.yml` (GitHub Pages browser demo) | `.github/workflows/` |
 | Shopware plugin (Phase 4, first increment) | `SwagCommerceAgentTools`: nine MCP tools in Shopware itself. Store API: `shopping-policy-search`, `shopping-disclosure`, `shopping-fulfillment-options`. Admin API: `agent-change-stage`, `-list`, `-apply`, `-discard`, `agent-business-snapshot`, `agent-metrics-series`. Staged-change entity, Flow Builder triggers, ACL role templates | `shopware-plugins/SwagCommerceAgentTools/` |
-| Browser demo (in progress) | Zero-install demo: Shopware 6.7 in PHP WASM + MariaDB WASM, blueprint agents on Pyodide, local Node server — see [Browser demo](#browser-demo) | [`browser-demo/README.md`](browser-demo/README.md) |
+| Browser demo | Zero-install Shopware 6.7 in PHP WASM + MariaDB WASM and both agents on Pyodide, opened from GitHub Pages — see [Browser demo](#browser-demo) | [Live demo](https://sthamann.github.io/shopware_claude_commerce/) · [`browser-demo/README.md`](browser-demo/README.md) |
 
 ## Browser demo
 
-**Work in progress** — a zero-install alternative to the Docker quick start: the same Shopware shop and both agents run entirely in your browser. Shopware 6.7.13.1 ships as PHP WASM + MariaDB WASM ([shopware-playground](https://github.com/FriendsOfShopware/shopware-playground)); the shopping and merchant hosts run on Pyodide with the blueprint packages unchanged. A small local Node server sends the cross-origin isolation headers the WASM engines need and proxies the Anthropic API (or you can bring your own key in the UI).
+**[Open the live demo](https://sthamann.github.io/shopware_claude_commerce/)** — no clone, no `npm install`. Shopware 6.7.13.1 runs in the tab as PHP WASM + MariaDB WASM ([shopware-playground](https://github.com/FriendsOfShopware/shopware-playground)); the shopping and merchant hosts run on Pyodide. Cold boot downloads ~150 MB and takes ~20–40 s; a reload reuses the browser cache.
 
-```bash
-cd browser-demo
-npm install
-npm run build          # first time: needs PHP, Composer, Python, network (~10–30+ min)
-cp ../.env.example ../.env   # ANTHROPIC_API_KEY for proxied chat (optional)
-npm start              # → http://127.0.0.1:4188
-```
+What that GitHub Pages build actually does:
 
-| What | URL |
-|---|---|
-| Demo shell (boot UI + agent panels) | http://127.0.0.1:4188/ |
-| Shopware storefront (iframe, same origin) | `/index.php` after boot (~20–40 s cold) |
-| Anthropic proxy | `/api/anthropic/*` |
+- **Runs in the browser:** demo shell, Shopware storefront (after WASM boot), catalog, cart, admin, UCP/MCP surfaces that the seed includes.
+- **Chat:** paste your own `ANTHROPIC_API_KEY` in the UI. Pages is a static host — there is no Node proxy and no repo key. The tab calls `api.anthropic.com` with Anthropic's browser-access header. If Anthropic rejects that call (CORS, key, or workspace), chat fails; the shop still works.
+- **First deploy:** [pages.yml](.github/workflows/pages.yml) builds the gitignored WASM shop on Actions (10–30+ min). Until that workflow has succeeded, the URL may 404.
 
-Full build steps, prerequisites, configuration, and honest WIP notes: **[`browser-demo/README.md`](browser-demo/README.md)**. Feasibility spike that validated WASM UCP/MCP: [`docs/browser-demo-feasibility.md`](docs/browser-demo-feasibility.md).
+The Docker + FastAPI stack below is the full local product (handoff, signed UCP, merchant apply). The Pages demo is the zero-install shop + agents in one tab.
+
+Contributor fallback (local Node server with COOP/COEP headers and an optional Anthropic proxy): [`browser-demo/README.md`](browser-demo/README.md). Feasibility notes: [`docs/browser-demo-feasibility.md`](docs/browser-demo-feasibility.md).
 
 ## Demo video
 
@@ -252,8 +247,8 @@ Deployment notes that are yours to own (auth on the host routes, rate limits, me
 ├── .claude-plugin/marketplace.json      plugin marketplace manifest (shopware-claude-commerce)
 ├── evals/                    runner, harness, backends (replay | live), scorers, judge, ci, gates.yaml, cases/, tests/
 ├── shopware-plugins/SwagCommerceAgentTools/   Phase 4 Shopware plugin: Store API + Admin MCP tools, staged-change entity, PHPUnit
-├── .github/workflows/        ci.yml (netless), integration.yml (nightly Docker Shopware + smoke, optional evals)
-├── browser-demo/             in-browser demo: WASM Shopware + Pyodide agents, build pipeline, local server (README inside)
+├── .github/workflows/        ci.yml (netless), integration.yml (nightly Docker Shopware + smoke), pages.yml (GitHub Pages demo)
+├── browser-demo/             in-browser demo: WASM Shopware + Pyodide agents; published at https://sthamann.github.io/shopware_claude_commerce/
 ├── docs/                     shopware-mapping.md, security.md, version-matrix.md, browser-demo-feasibility.md, screenshots/, media/
 └── progress.md               phase checklist
 ```
@@ -318,10 +313,11 @@ Gate policy (`evals/gates.yaml`): pass rate over all trials per tag, `core ≥ 0
 
 ## CI
 
-Two GitHub Actions workflows in `.github/workflows/`:
+Three GitHub Actions workflows in `.github/workflows/`:
 
 - `ci.yml` runs on push and pull requests to `main` and needs no secrets: `ruff check`, `pytest -q` on Python 3.11 and 3.12, `npm run build` for both Next.js apps on Node 22, and `php -l` plus the standalone PHPUnit suite of the `CommerceAgentsHandoff` plugin on PHP 8.4.
 - `integration.yml` runs nightly and on manual dispatch: it boots the Docker Shopware on the runner, runs `docker/bootstrap.sh`, then `storefront/scripts/smoke.py` and `merchant/scripts/smoke_live.py --read-only`, and uploads container logs on failure. The optional `evals` job (nightly, or `run_evals=true` on dispatch) runs the eval CI set in replay mode and needs the `ANTHROPIC_API_KEY` secret (`ANTHROPIC_WORKSPACE_ID` only for identity-linked keys); without the secret it skips with a warning.
+- `pages.yml` builds `browser-demo/` on push to `main` (and manual dispatch) and deploys the static site to [GitHub Pages](https://sthamann.github.io/shopware_claude_commerce/). No secrets. The WASM shop bundle is produced on the runner, not committed.
 
 ## Shopware plugin: SwagCommerceAgentTools (Phase 4, in progress)
 
@@ -379,7 +375,7 @@ In progress:
 
 - UCP Identity Linking (OAuth authorization code + PKCE) is implemented and covered by the netless replay; on the plain-http Docker shop `GET /api/auth/shopware/start` answers 503 because Shopware requires an https agent-profile `client_id`, so sessions stay guests until the profile is served over https.
 - The shared `/api/chat` routes (`demo_common`, vendored unmodified) still build their session clock from the server's naive `datetime.now()`; the browser timezone reaches only this repo's own routes until upstream exposes a clock hook (upstream note 5).
-- Browser demo: build pipeline and local server landed in `browser-demo/`; first runnable scaffold at http://127.0.0.1:4188 after `npm run build` — polish, hosted deploy, and CI still open ([`browser-demo/README.md`](browser-demo/README.md)).
+- Browser demo: live on [GitHub Pages](https://sthamann.github.io/shopware_claude_commerce/) via `pages.yml`. Shop + catalog boot in the tab; chat needs a key pasted in the UI (no Pages proxy). End-to-end chat/handoff still need a manual pass after each WASM rebuild ([`browser-demo/README.md`](browser-demo/README.md)).
 
 Not in this version:
 

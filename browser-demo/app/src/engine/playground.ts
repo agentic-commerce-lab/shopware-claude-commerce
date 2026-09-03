@@ -8,6 +8,7 @@
 
 import { idbNamesForVersion } from '../../../playground/src/idb-names.mjs';
 import { VERSION_COOKIE } from '../../../playground/src/app-route.mjs';
+import { PUBLIC_BASE, demoUrl, shopPublicOrigin } from './public-base';
 
 export type PhpRequest = {
   url: string;
@@ -28,9 +29,10 @@ export type VersionEntry = { id: string; label?: string; zip: string; dump: stri
 
 type WorkerReply = { id?: string; type: string; text?: string; error?: string; [key: string]: unknown };
 
-const WORKER_URL = '/browser-worker.js';
-const SERVICE_WORKER_URL = '/service-worker.js';
-const VERSIONS_URL = '/versions.json';
+const WORKER_URL = demoUrl('/browser-worker.js');
+const SERVICE_WORKER_URL = demoUrl('/service-worker.js');
+const VERSIONS_URL = demoUrl('/versions.json');
+const SW_SCOPE = PUBLIC_BASE ? `${PUBLIC_BASE}/` : '/';
 const LOCAL_STORAGE_VERSION = 'sw-playground-version';
 const SEED_MARKER_PREFIX = 'sw-playground-seed-';
 const SQL_ROW_CAP = 500;
@@ -143,7 +145,7 @@ export class Playground {
     });
     await this.send({
       type: 'boot',
-      origin: location.origin,
+      origin: shopPublicOrigin(),
       host: location.host,
       version: entry.id,
       zipUrl: entry.zip,
@@ -194,12 +196,12 @@ async function loadVersions(): Promise<{ list: VersionEntry[]; active: string }>
 
 function selectVersion(version: string): void {
   localStorage.setItem(LOCAL_STORAGE_VERSION, version);
-  document.cookie = VERSION_COOKIE + '=' + encodeURIComponent(version) + '; path=/; SameSite=Strict';
+  document.cookie = VERSION_COOKIE + '=' + encodeURIComponent(version) + '; path=' + SW_SCOPE + '; SameSite=Strict';
 }
 
 async function registerServiceWorker(): Promise<void> {
   if (!('serviceWorker' in navigator)) throw new Error('Service Worker support is required for the in-browser Shopware');
-  const registration = await navigator.serviceWorker.register(SERVICE_WORKER_URL, { type: 'module', scope: '/' });
+  const registration = await navigator.serviceWorker.register(SERVICE_WORKER_URL, { type: 'module', scope: SW_SCOPE });
   if (registration.waiting) registration.waiting.postMessage({ type: 'skip-waiting' });
   await navigator.serviceWorker.ready;
   if (navigator.serviceWorker.controller) return;
@@ -230,7 +232,9 @@ function ensureCrossOriginIsolation(onStatus: (text: string) => void): void {
     location.reload();
     throw new Error('reloading for cross-origin isolation');
   }
-  throw new Error('This page is not cross-origin isolated: the host must send Cross-Origin-Opener-Policy: same-origin and Cross-Origin-Embedder-Policy: require-corp (see browser-demo/README.md, "Static hosting").');
+  throw new Error(
+    'This page is not cross-origin isolated. The service worker should add COOP/COEP after one reload (GitHub Pages cannot set those headers). Try a hard refresh, or use a Chromium/Firefox desktop browser with service workers enabled.',
+  );
 }
 
 /** Wipe a persisted database whose seed dump differs from the deployed one. */

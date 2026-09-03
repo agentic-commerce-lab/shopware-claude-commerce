@@ -7,11 +7,11 @@ export type AgentRole = 'shopping' | 'merchant';
 
 export type AnthropicAccess = {
   /**
-   * `proxy`: the local server (browser-demo/server) injects the key at /api/anthropic/*.
-   * `byok`: the visitor's key, kept in the agent-host worker's memory.
+   * `proxy`: the local Node server (browser-demo/server) injects the key at /api/anthropic/*.
+   * GitHub Pages has no proxy. `byok`: the visitor's key, kept in the agent-host worker's memory.
    */
   mode: 'proxy' | 'byok';
-  /** Absolute URL of the proxy prefix (same origin `/api/anthropic`). */
+  /** Absolute URL of the proxy prefix (same origin `/api/anthropic`, plus the Pages path if any). */
   proxyUrl: string;
   apiKey?: string;
   workspaceId?: string;

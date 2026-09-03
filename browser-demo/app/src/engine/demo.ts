@@ -26,6 +26,7 @@ import {
   WHEELS_MANIFEST_URL,
 } from './demo-config';
 import { Playground } from './playground';
+import { demoUrl, shopPublicOrigin } from './public-base';
 
 export type DemoView = 'shop' | 'shopping' | 'merchant';
 export const DEMO_VIEWS: readonly DemoView[] = ['shop', 'shopping', 'merchant'];
@@ -253,10 +254,10 @@ export class DemoController {
       const config: HostBootConfig = {
         pyodideIndexUrl: new URL(PYODIDE_INDEX_URL, location.origin).href,
         pyodidePackages: packages.packages,
-        wheelUrls: wheels.wheels.map((name) => new URL(`/demo/wheels/${name}`, location.origin).href),
+        wheelUrls: wheels.wheels.map((name) => new URL(demoUrl(`/demo/wheels/${name}`), location.origin).href),
         repoTreeUrl: new URL(REPO_TREE_URL, location.origin).href,
         bootstrapUrl: new URL(BOOTSTRAP_URL, location.origin).href,
-        shopOrigin: location.origin,
+        shopOrigin: shopPublicOrigin(),
         shop,
         agentSigningKeyPem: shop.agentSigningKeyPem,
         virtualOrigins: VIRTUAL_ORIGINS,
@@ -315,11 +316,12 @@ export class DemoController {
    * escaped slashes (`http:\/\/…`), and a previous origin may differ from the seed origin.
    */
   private async rewriteUcpOrigin(seedOrigin: string): Promise<void> {
+    const liveOrigin = shopPublicOrigin();
     const previous = localStorage.getItem(STORAGE_KEYS.ucpOrigin);
-    const staleOrigins = new Set([seedOrigin, previous].filter((o): o is string => !!o && o !== location.origin));
+    const staleOrigins = new Set([seedOrigin, previous].filter((o): o is string => !!o && o !== liveOrigin));
     const swapOrigin = (value: unknown): unknown => {
       if (typeof value === 'string') {
-        for (const from of staleOrigins) if (value.startsWith(from)) return location.origin + value.slice(from.length);
+        for (const from of staleOrigins) if (value.startsWith(from)) return liveOrigin + value.slice(from.length);
         return value;
       }
       if (Array.isArray(value)) return value.map(swapOrigin);
@@ -341,9 +343,9 @@ export class DemoController {
         await this.playground.sql(
           `UPDATE swag_agentic_commerce_ucp_config SET config_json = '${escape(next)}' WHERE sales_channel_id = UNHEX('${row.sales_channel_id}')`
         );
-        console.info('ucp config origin rewritten →', location.origin, 'for sales channel', row.sales_channel_id);
+        console.info('ucp config origin rewritten →', liveOrigin, 'for sales channel', row.sales_channel_id);
       }
-      localStorage.setItem(STORAGE_KEYS.ucpOrigin, location.origin);
+      localStorage.setItem(STORAGE_KEYS.ucpOrigin, liveOrigin);
     } catch (error) {
       console.warn('ucp config origin rewrite skipped', error);
     }
@@ -354,7 +356,7 @@ export class DemoController {
   openInFrame(path: string): void {
     if (!this.frame) return;
     const target = path.startsWith('/') ? path : '/' + path;
-    this.frame.src = location.origin + target;
+    this.frame.src = shopPublicOrigin() + target;
   }
 
   /**
@@ -497,9 +499,17 @@ export class DemoController {
     } catch {
       status = 'absent';
     }
-    this.update({ proxyStatus: status });
-    if (status !== 'ready' && this.state.anthropic.mode === 'proxy' && !this.state.anthropic.apiKey) {
-      this.toast(status === 'absent' ? 'No demo proxy on this host — add your own Anthropic key (top right) to chat.' : 'The local server has no ANTHROPIC_API_KEY — add it to .env or use your own key (top right).');
+    if (status === 'absent' && this.state.anthropic.mode === 'proxy' && !this.state.anthropic.apiKey) {
+      this.update({ proxyStatus: status, anthropic: { ...this.state.anthropic, mode: 'byok' } });
+    } else {
+      this.update({ proxyStatus: status });
+    }
+    if (status !== 'ready' && !this.state.anthropic.apiKey) {
+      this.toast(
+        status === 'absent'
+          ? 'This GitHub Pages build has no Anthropic proxy. Paste your own API key (top right) to chat; the shop runs without one.'
+          : 'The local server has no ANTHROPIC_API_KEY — add it to .env or paste your own key (top right).',
+      );
     }
     return status;
   }

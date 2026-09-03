@@ -3,7 +3,9 @@
 
 /** Static locations and defaults of the demo shell. Everything under /demo/ is a build artifact. */
 
-export const DEMO_BASE = '/demo/';
+import { demoUrl } from './public-base';
+
+export const DEMO_BASE = `${demoUrl('/demo')}/`;
 export const PYODIDE_INDEX_URL = `${DEMO_BASE}pyodide/`;
 /** Written by build/fetch-pyodide.mjs: the Pyodide-built packages the host loads. */
 export const PYODIDE_PACKAGES_URL = `${PYODIDE_INDEX_URL}packages.json`;
@@ -14,10 +16,10 @@ export const BOOTSTRAP_URL = `${DEMO_BASE}host/bootstrap.py`;
 export const SHOP_CONFIG_URL = `${DEMO_BASE}shop-config.json`;
 
 /**
- * Same-origin Anthropic proxy of the local server (browser-demo/server/anthropic-proxy.mjs).
- * On a plain static host nothing answers here and the shell falls back to BYOK.
+ * Same-origin Anthropic proxy of the local Node server (browser-demo/server/anthropic-proxy.mjs).
+ * GitHub Pages is static: nothing answers here and the shell falls back to a key pasted in the UI.
  */
-export const PROXY_PATH = '/api/anthropic';
+export const PROXY_PATH = demoUrl('/api/anthropic');
 export const PROXY_STATUS_PATH = `${PROXY_PATH}/status`;
 
 export const STORAGE_KEYS = {

@@ -135,10 +135,11 @@ twice then `curl -s http://localhost:8080/.well-known/ucp | jq '.signing_keys | 
 
 - [x] Feasibility measured — [`docs/browser-demo-feasibility.md`](docs/browser-demo-feasibility.md) (2026-09-03)
 - [x] Build pipeline in `browser-demo/`: playground fetch, Shopware 6.7.13.1 + pinned plugins, Node WASM seed, MEMFS bundle, Pyodide wheels, site assembly
-- [x] Local server (`server/index.mjs`): COOP/COEP, static `dist/site`, Anthropic proxy + BYOK; `npm test` (13 server/build tests)
+- [x] Local server (`server/index.mjs`): COOP/COEP, static `dist/site`, Anthropic proxy + BYOK (contributor fallback)
 - [x] Demo shell: React boot UI, Shopware iframe, shopping/merchant panels, `DemoOverlay` plugin
-- [ ] End-to-end acceptance on a fresh build (cold boot, chat turn, cart, handoff) documented and gated in CI
-- [ ] Hosted static deploy (optional; upstream playground supports R2/static `_headers`)
+- [x] GitHub Pages: `pages.yml` builds the gitignored WASM tree and deploys to https://sthamann.github.io/shopware_claude_commerce/ (COI via service worker; project path prefix; no Cloudflare)
+- [ ] End-to-end acceptance on a fresh Pages build (cold boot, chat turn, cart, handoff) documented and gated in CI
+- [ ] Hosted Anthropic proxy — not on Pages (static). Chat is BYOK against `api.anthropic.com` and may fail if Anthropic blocks the browser call
 
 ## Phase 3 — not started
 

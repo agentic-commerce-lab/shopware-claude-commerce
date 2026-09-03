@@ -43,6 +43,11 @@ body {
   position: absolute;
   inset: var(--demo-bar-h) 0 0 0;
   overflow: hidden;
+  /* The apps use `position: fixed; inset: 0` for drawers and dialogs (cart, key dialog …).
+     `contain: layout paint` makes this view their containing block and `isolation` keeps their
+     z-index local, so no overlay ever covers the demo bar. */
+  contain: layout paint;
+  isolation: isolate;
 }
 .demo-view .h-dvh,
 .demo-view .min-h-dvh,

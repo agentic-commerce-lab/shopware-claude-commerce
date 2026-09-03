@@ -13,16 +13,26 @@
  *   /versions.json, /versions/<v>/…       Shopware MEMFS zip, seed dump, static bundles/theme/media
  *   /demo/build-info.json                 sizes + versions of everything above
  *
- * Serve with `npm start` (server/index.mjs) or any static host that sends COOP/COEP — see
- * README.md "Static hosting". No host-specific files (_headers, _redirects) are written.
+ * Serve with `npm start` (server/index.mjs) or GitHub Pages. Pages cannot set COOP/COEP;
+ * the playground service worker adds them (coi-serviceworker behaviour). DEMO_BASE_PATH
+ * prefixes engine URLs for project Pages (`/shopware_claude_commerce/`).
  */
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { APP_DIR, DEMO_ROOT, PLAYGROUND_COMMIT, PLAYGROUND_DIR, PLAYGROUND_PUBLIC, PYODIDE_VERSION, SITE_DIR } from './config.mjs';
 import { formatBytes, log } from './lib.mjs';
+import {
+  injectPublicBaseBanner,
+  pagesFileLimitBytes,
+  prefixManifestUrls,
+  publicBasePrefix,
+  rewriteEngineSource,
+  viteBaseFromEnv,
+} from './public-base.mjs';
 
 const appDist = join(APP_DIR, 'dist');
 const mariadbDist = join(PLAYGROUND_DIR, 'node_modules', 'lite4mariadb', 'dist');
+const publicPrefix = publicBasePrefix(viteBaseFromEnv());
 
 function required(path, hint) {
   if (!existsSync(path)) throw new Error(`${path} missing — ${hint}`);
@@ -47,7 +57,8 @@ const referenced = new Set();
 for (const file of engineFiles) {
   const source = readFileSync(join(PLAYGROUND_PUBLIC, file), 'utf8');
   for (const match of source.matchAll(/["'](?:\/)?assets\/([A-Za-z0-9._-]+)["']/g)) referenced.add(match[1]);
-  cpSync(join(PLAYGROUND_PUBLIC, file), join(SITE_DIR, file));
+  const rewritten = injectPublicBaseBanner(rewriteEngineSource(source, publicPrefix), publicPrefix);
+  writeFileSync(join(SITE_DIR, file), rewritten);
 }
 mkdirSync(join(SITE_DIR, 'assets'), { recursive: true });
 for (const name of referenced) {
@@ -57,9 +68,9 @@ for (const name of referenced) {
 cpSync(mariadbDist, join(SITE_DIR, 'mariadb'), { recursive: true });
 cpSync(join(PLAYGROUND_DIR, 'php'), join(SITE_DIR, 'php'), { recursive: true });
 
-// Shopware version bundles.
-cpSync(join(PLAYGROUND_PUBLIC, 'versions.json'), join(SITE_DIR, 'versions.json'));
-const manifest = JSON.parse(readFileSync(join(PLAYGROUND_PUBLIC, 'versions.json'), 'utf8'));
+// Shopware version bundles. Prefix zip/dump URLs when the site is not at `/`.
+const manifest = prefixManifestUrls(JSON.parse(readFileSync(join(PLAYGROUND_PUBLIC, 'versions.json'), 'utf8')), publicPrefix);
+writeFileSync(join(SITE_DIR, 'versions.json'), JSON.stringify(manifest, null, 2) + '\n');
 for (const version of manifest.versions || []) {
   const from = join(PLAYGROUND_PUBLIC, 'versions', version.id);
   required(join(from, 'shopware.zip'), 'run npm run build:bundle');
@@ -103,9 +114,15 @@ const buildInfo = {
   sizes: { ...sizes, total },
   largestFiles: largest,
 };
-writeFileSync(join(SITE_DIR, 'demo', 'build-info.json'), JSON.stringify(buildInfo, null, 2) + '\n');
+writeFileSync(join(SITE_DIR, 'demo', 'build-info.json'), JSON.stringify({ ...buildInfo, publicBase: publicPrefix || '/' }, null, 2) + '\n');
+writeFileSync(join(SITE_DIR, '.nojekyll'), '');
+cpSync(join(SITE_DIR, 'index.html'), join(SITE_DIR, '404.html'));
 
-log(`site assembled in ${relative(DEMO_ROOT, SITE_DIR)} (${formatBytes(total)})`);
+log(`site assembled in ${relative(DEMO_ROOT, SITE_DIR)} (${formatBytes(total)}) publicBase=${publicPrefix || '/'}`);
 for (const [name, bytes] of Object.entries(sizes)) log(`  ${name.padEnd(9)} ${formatBytes(bytes)}`);
 log('largest files:');
 for (const file of largest.slice(0, 8)) log(`  ${formatBytes(file.bytes).padStart(9)}  ${file.path}`);
+const overLimit = largest.filter((file) => file.bytes >= pagesFileLimitBytes());
+if (overLimit.length) {
+  for (const file of overLimit) log(`  GitHub Pages limit (100 MB): ${file.path} is ${formatBytes(file.bytes)}`);
+}

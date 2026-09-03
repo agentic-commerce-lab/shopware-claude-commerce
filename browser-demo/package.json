@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "Shopware \u00d7 Claude Commerce Agents, fully in the browser: Shopware 6.7 (PHP WASM + MariaDB WASM) with UCP/MCP plugins plus both blueprint agents on Pyodide. One local Node server serves the static demo (COOP/COEP) and proxies the Anthropic API from the repo .env.",
+  "description": "Shopware \u00d7 Claude Commerce Agents, fully in the browser: Shopware 6.7 (PHP WASM + MariaDB WASM) with UCP/MCP plugins plus both blueprint agents on Pyodide. Published on GitHub Pages; a local Node server is the contributor fallback (COOP/COEP + optional Anthropic proxy).",
   "type": "module",
   "scripts": {
     "start": "node server/index.mjs",

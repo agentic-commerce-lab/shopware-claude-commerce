@@ -12,10 +12,10 @@ index 99cf56d..cd6b143 100644
    "overrides": {
      "fs-ext-extra-prebuilt": "file:./shims/fs-ext-stub"
 diff --git a/src/app-route.mjs b/src/app-route.mjs
-index 1f7ffbd..f4a1785 100644
+index 1f7ffbd..388a11a 100644
 --- a/src/app-route.mjs
 +++ b/src/app-route.mjs
-@@ -2,7 +2,15 @@
+@@ -2,7 +2,41 @@
   * Real static assets. Do not treat SEO suffixes like SWDEMO10007.1 as files.
   */
  const STATIC_FILE_EXT =
@@ -29,10 +29,60 @@ index 1f7ffbd..f4a1785 100644
 +export const DEMO_STATIC_PREFIX = '/demo/';
 +/** The demo's same-origin Anthropic proxy (browser-demo/server) — never a PHP route. */
 +export const DEMO_PROXY_PREFIX = '/api/anthropic/';
++
++/**
++ * GitHub project Pages serves the demo under /<repo>/, not at the origin root.
++ * assemble-site.mjs writes self.__DEMO_PUBLIC_BASE__ into the bundled workers.
++ */
++export function demoPublicBase() {
++  const raw =
++    typeof self !== 'undefined' && typeof self.__DEMO_PUBLIC_BASE__ === 'string' ? self.__DEMO_PUBLIC_BASE__ : '';
++  if (!raw || raw === '/') return '';
++  return raw.endsWith('/') ? raw.slice(0, -1) : raw;
++}
++
++export function withoutPublicBase(pathname) {
++  const base = demoPublicBase();
++  if (!base || !pathname) return pathname;
++  if (pathname === base) return '/';
++  if (pathname.startsWith(base + '/')) return pathname.slice(base.length) || '/';
++  return pathname;
++}
++
++export function withPublicBase(pathname) {
++  const base = demoPublicBase();
++  if (!base || !pathname) return pathname;
++  if (pathname === base || pathname.startsWith(base + '/')) return pathname;
++  return base + (pathname.startsWith('/') ? pathname : '/' + pathname);
++}
  
  /**
   * Shopware storefront/admin assets that live per version under
-@@ -47,6 +55,8 @@ export function isStaticPlaygroundPath(pathname) {
+@@ -12,12 +46,14 @@ const STATIC_FILE_EXT =
+ export const VERSIONED_ASSET_PREFIXES = ['/bundles/', '/theme/', '/media/', '/thumbnail/'];
+ 
+ export function isVersionedAssetPath(pathname) {
++  pathname = withoutPublicBase(pathname);
+   return VERSIONED_ASSET_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+ }
+ 
+ export function versionedAssetPath(pathname, version) {
++  pathname = withoutPublicBase(pathname);
+   if (!version || !isVersionedAssetPath(pathname)) return null;
+-  return '/versions/' + encodeURIComponent(version) + '/assets' + pathname;
++  return withPublicBase('/versions/' + encodeURIComponent(version) + '/assets' + pathname);
+ }
+ 
+ /** The shell marks the active Shopware version in a cookie so the service
+@@ -40,6 +76,7 @@ export function versionFromCookieHeader(header) {
+  * Paths the static host should serve as files vs. PHP front-controller routes.
+  */
+ export function isStaticPlaygroundPath(pathname) {
++  pathname = withoutPublicBase(pathname);
+   if (
+     pathname.startsWith('/mariadb/') ||
+     pathname.startsWith('/versions/') ||
+@@ -47,6 +84,8 @@ export function isStaticPlaygroundPath(pathname) {
      pathname.startsWith('/php/') ||
      pathname.startsWith('/src/') ||
      pathname.startsWith('/node_modules/') ||
@@ -41,7 +91,23 @@ index 1f7ffbd..f4a1785 100644
      isVersionedAssetPath(pathname) ||
      pathname === '/app.js' ||
      pathname === '/browser-worker.js' ||
-@@ -78,6 +88,8 @@ export function isEngineBypassPath(pathname) {
+@@ -59,6 +98,7 @@ export function isStaticPlaygroundPath(pathname) {
+ }
+ 
+ export function isPhpAppRoute(pathname) {
++  pathname = withoutPublicBase(pathname);
+   if (!pathname || pathname === '/') return false;
+   return !isStaticPlaygroundPath(pathname);
+ }
+@@ -67,6 +107,7 @@ export function isPhpAppRoute(pathname) {
+  * Paths the Service Worker must never steal (playground engine + wasm).
+  */
+ export function isEngineBypassPath(pathname) {
++  pathname = withoutPublicBase(pathname);
+   return (
+     pathname === '/app.js' ||
+     pathname === '/browser-worker.js' ||
+@@ -78,6 +119,8 @@ export function isEngineBypassPath(pathname) {
      pathname.startsWith('/php/') ||
      pathname.startsWith('/src/') ||
      pathname.startsWith('/node_modules/') ||
@@ -50,7 +116,11 @@ index 1f7ffbd..f4a1785 100644
      // Vite dev server internals (/@vite/client, /@id/, /@fs/) — dev only,
      // nothing requests these from the built bundle.
      pathname.startsWith('/@')
-@@ -92,6 +104,9 @@ export function isShopwarePhpPath(pathname, nested = false) {
+@@ -89,9 +132,13 @@ export function isEngineBypassPath(pathname) {
+  * `/` is PHP only inside the nested iframe; the top-level tab is the shell.
+  */
+ export function isShopwarePhpPath(pathname, nested = false) {
++  pathname = withoutPublicBase(pathname);
    if (pathname === '/index.php' || pathname.startsWith('/index.php/')) {
      return true;
    }
@@ -60,18 +130,53 @@ index 1f7ffbd..f4a1785 100644
    // Shopware API routes may end in a static-looking extension
    // (e.g. /api/_info/entity-schema.json) but are PHP controllers.
    if (pathname.startsWith('/api/')) {
+@@ -108,8 +155,8 @@ export function isShopwarePhpPath(pathname, nested = false) {
+ 
+ export function initialShopwarePath() {
+   if (typeof location === 'undefined') return '/';
+-  const path = location.pathname + location.search;
++  const path = withoutPublicBase(location.pathname) + location.search;
+   if (path === '/' || path === '') return '/';
+-  if (isStaticPlaygroundPath(location.pathname)) return '/';
++  if (isStaticPlaygroundPath(withoutPublicBase(location.pathname))) return '/';
+   return path;
+ }
 diff --git a/src/browser-runtime.mjs b/src/browser-runtime.mjs
-index c465d23..b49b5f2 100644
+index c465d23..6718e34 100644
 --- a/src/browser-runtime.mjs
 +++ b/src/browser-runtime.mjs
-@@ -57,6 +57,7 @@ export async function createPlayground(options = {}) {
+@@ -13,6 +13,7 @@ import { Lite4MariaDB } from '/mariadb/index.mjs';
+ import { attachSqlBridge } from './sql-bridge.mjs';
+ import { installSpawnStub } from './spawn-stub.mjs';
+ import { seedShopware } from './db-seed.mjs';
++import { withPublicBase } from './app-route.mjs';
  
-   const prependRes = await fetch('/php/auto_prepend.php');
+ export const SHOPWARE_DOCUMENT_ROOT = '/shopware/public';
+ export const SHOPWARE_PUBLIC_ROUTE = '/';
+@@ -44,7 +45,7 @@ export async function createPlayground(options = {}) {
+     }));
+ 
+   await seedShopware(db, {
+-    dumpSql: options.dumpSql || (await loadInstalledDump(options.dumpUrl || '/shopware.sql.gz')),
++    dumpSql: options.dumpSql || (await loadInstalledDump(options.dumpUrl || withPublicBase('/shopware.sql.gz'))),
+     absoluteUrl:
+       options.absoluteUrl || (typeof location !== 'undefined' ? location.origin : ''),
+     skipDump: options.skipDump,
+@@ -55,11 +56,12 @@ export async function createPlayground(options = {}) {
+   await installSpawnStub(php);
+   attachSqlBridge(php, db);
+ 
+-  const prependRes = await fetch('/php/auto_prepend.php');
++  const prependRes = await fetch(withPublicBase('/php/auto_prepend.php'));
    php.writeFile('/internal/playground_prepend.php', await prependRes.text());
 +  php.writeFile('/internal/openssl.cnf', '[req]\ndistinguished_name = dn\n[dn]\n');
    php.writeFile('/internal/playground_skip_heavy_migrations', '1');
  
-   const zipRes = await fetch(options.zipUrl || '/shopware.zip');
+-  const zipRes = await fetch(options.zipUrl || '/shopware.zip');
++  const zipRes = await fetch(options.zipUrl || withPublicBase('/shopware.zip'));
+   if (!zipRes.ok) {
+     throw new Error('Shopware zip missing at ' + (options.zipUrl || '/shopware.zip') + '; run node src/copy-assets.mjs');
+   }
 diff --git a/src/frontend-assets.mjs b/src/frontend-assets.mjs
 index 627c231..9f71148 100644
 --- a/src/frontend-assets.mjs
@@ -120,10 +225,18 @@ index c3366d7..83a937f 100644
  }
  
 diff --git a/src/service-worker.mjs b/src/service-worker.mjs
-index 600a740..a9b6dd7 100644
+index 600a740..9e1d324 100644
 --- a/src/service-worker.mjs
 +++ b/src/service-worker.mjs
-@@ -147,13 +147,33 @@ async function phpViaPage(req) {
+@@ -10,6 +10,7 @@ import {
+   isShopwarePhpPath,
+   isVersionedAssetPath,
+   versionedAssetPath,
++  withoutPublicBase,
+ } from './app-route.mjs';
+ 
+ self.addEventListener('install', (event) => {
+@@ -147,13 +148,34 @@ async function phpViaPage(req) {
    });
  }
  
@@ -148,17 +261,18 @@ index 600a740..a9b6dd7 100644
  
    const pathname = pathnameOf(request);
 -  if (isEngineBypassPath(pathname)) return;
++  const logical = withoutPublicBase(pathname);
 +  if (isEngineBypassPath(pathname)) {
 +    // Streaming proxy answers (SSE) must not be re-wrapped; static engine files get the
 +    // isolation headers for header-less hosts.
-+    if (pathname.startsWith('/api/anthropic/')) return;
++    if (logical.startsWith('/api/anthropic/')) return;
 +    event.respondWith(fetch(request).then(withIsolationHeaders));
 +    return;
 +  }
  
    event.respondWith(
      (async () => {
-@@ -169,13 +189,15 @@ self.addEventListener('fetch', (event) => {
+@@ -169,20 +191,22 @@ self.addEventListener('fetch', (event) => {
            // keeps the rewritten /versions/... URL, which browsers then use as
            // the module base URL — the admin SPA would load its chunks twice
            // (once via /bundles/, once via /versions/) and boot breaks.
@@ -180,7 +294,24 @@ index 600a740..a9b6dd7 100644
        }
  
        // The playground has no external network: Shopware's update check calls
-@@ -199,7 +221,7 @@ self.addEventListener('fetch', (event) => {
+       // releases.shopware.com and 500s (CA bundle missing in WASM). Answer
+       // "no update available" directly, like UpdateController::updateApiCheck
+       // does when there are no updates.
+-      if (pathname === '/api/_action/update/check') {
++      if (logical === '/api/_action/update/check') {
+         return new Response('null', {
+           headers: { 'content-type': 'application/json' },
+         });
+@@ -191,7 +215,7 @@ self.addEventListener('fetch', (event) => {
+       // API, which is unreachable from WASM: the request hangs until TCP
+       // timeout and blocks the single PHP instance behind it. Answer with
+       // empty lists so the admin stays responsive.
+-      if (pathname.startsWith('/api/_action/store/')) {
++      if (logical.startsWith('/api/_action/store/')) {
+         return new Response('[]', {
+           headers: { 'content-type': 'application/json' },
+         });
+@@ -199,7 +223,7 @@ self.addEventListener('fetch', (event) => {
  
        const nested = await isNestedClient(event);
        if (!isShopwarePhpPath(pathname, nested)) {

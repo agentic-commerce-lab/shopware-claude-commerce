@@ -101,3 +101,9 @@ export const HOST_DIR = join(DEMO_ROOT, 'host');
 export const APP_PUBLIC_DEMO = join(APP_DIR, 'public', 'demo');
 
 export const DEV_PORT = Number(process.env.PORT || 4188);
+
+/**
+ * Public path of the assembled site. `/` for the local Node server; GitHub project Pages
+ * sets `/shopware_claude_commerce/` via DEMO_BASE_PATH in .github/workflows/pages.yml.
+ */
+export { viteBaseFromEnv as DEMO_VITE_BASE } from './public-base.mjs';

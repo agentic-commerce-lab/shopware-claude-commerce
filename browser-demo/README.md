@@ -1,61 +1,57 @@
 # Browser demo — Shopware × Claude Commerce Agents in the browser
 
-Zero-install demo of the same stack as the Docker quick start: **Shopware 6.7.13.1** runs entirely in the tab (PHP WASM + MariaDB WASM via [FriendsOfShopware/shopware-playground](https://github.com/FriendsOfShopware/shopware-playground)), with UCP/MCP plugins and the blueprint shopping and merchant agents on **Pyodide**. A small local Node server serves the static site with cross-origin isolation (COOP/COEP) and proxies the Anthropic API so the key never ships to the browser.
+**[Open the live demo](https://sthamann.github.io/shopware_claude_commerce/)** — click that link; nothing to install.
 
-**Status: work in progress.** The build pipeline, WASM shop bundle, Pyodide agent host, overlay UI, and local server are implemented and unit-tested (`npm test`, 13 tests). End-to-end chat turns and checkout handoff still need manual verification after each build; cold boot is slow (~20–40 s on a typical laptop, ~155 MB of downloads). This is not yet a polished public demo — expect rough edges.
+Shopware 6.7.13.1 runs in the tab (PHP WASM + MariaDB WASM via [FriendsOfShopware/shopware-playground](https://github.com/FriendsOfShopware/shopware-playground)). The blueprint shopping and merchant hosts run on **Pyodide**. GitHub Actions builds the gitignored WASM shop and publishes the static tree to GitHub Pages.
 
-Feasibility measurements (2026-09-03) that motivated this tree: [`docs/browser-demo-feasibility.md`](../docs/browser-demo-feasibility.md).
+Cold boot downloads ≈ 150 MB and takes ~20–40 s on a typical laptop. A reload reuses the browser cache and the seeded database in IndexedDB. Use a current desktop Chromium or Firefox (service workers + SharedArrayBuffer). Mobile is not sensible.
 
-## What works today
+## What the Pages build does
 
-| Piece | Status |
+| Piece | On GitHub Pages |
 |---|---|
-| Build pipeline (`npm run build`) | Fetches playground @ pinned commit, installs Shopware + our plugins, seeds in Node PHP WASM, bundles MEMFS zip, syncs Python backends, builds Pyodide wheels, assembles `dist/site` |
-| Shopware in WASM | Storefront, Store API, Admin API, UCP discovery, UCP MCP (14 tools), Admin MCP with `dryRun` upserts — same pins as `docker/bootstrap.sh` |
-| Demo shell | React app: boot progress, Shopware iframe, shopping / merchant agent panels (vendored Next.js UIs), overlay links in the storefront |
-| Anthropic access | Same-origin proxy at `/api/anthropic/*` (key from repo `.env`) or bring-your-own-key in the UI |
-| Local server | COOP/COEP on every response, correct WASM MIME types, service-worker scope for Shopware routes |
+| Demo shell (boot UI, shop iframe, agent panels) | Yes |
+| Shopware storefront / admin / Store API / UCP / MCP in WASM | Yes, after the boot download (same pins as `docker/bootstrap.sh`) |
+| Catalog, cart, seeded products and orders | Yes |
+| Chat (Claude) | Only if you paste an `ANTHROPIC_API_KEY` in the UI. Pages cannot run the Node proxy. The tab calls `api.anthropic.com` with `anthropic-dangerous-direct-browser-access`. If Anthropic rejects that browser request, chat fails; the shop still works. |
+| Checkout handoff / full Docker parity | Implemented in the shell; treat as WIP until verified on a fresh Pages build |
+| Cross-origin isolation | GitHub Pages cannot set COOP/COEP. The playground service worker adds those headers; the shell reloads once so `SharedArrayBuffer` works. |
 
-## Prerequisites
+The first [pages.yml](../.github/workflows/pages.yml) run takes 10–30+ minutes. Until it has succeeded, the live URL may 404.
 
-From the repo root (or this folder):
+Feasibility measurements: [`docs/browser-demo-feasibility.md`](../docs/browser-demo-feasibility.md).
 
-- **Node 22+**, **npm**
-- **git**, **zip**, **rsync**
-- **PHP ≥ 8.2** with **Composer** (Shopware install step)
-- **Python ≥ 3.11** with **pip** (wheel build for Pyodide)
-- Network (GitHub, Packagist, PyPI, Pyodide CDN) for the first `npm run build`
+## Run locally (contributors)
 
-## Quick start
+The local Node server is optional. It sets COOP/COEP without a service-worker reload and can proxy Anthropic from the repo `.env` so the key never enters the tab.
 
 ```bash
 cd browser-demo
 npm install
-npm run build          # one-time; 10–30+ min depending on cache — see build/build.mjs
-cp ../.env.example ../.env   # add ANTHROPIC_API_KEY for proxied chat (optional: BYOK in the UI)
+npm run build          # first time: PHP, Composer, Python, network (~10–30+ min)
+cp ../.env.example ../.env   # ANTHROPIC_API_KEY for the local proxy (optional)
 npm start              # → http://127.0.0.1:4188
 ```
 
-For UI development on an already-built site:
+`npm run dev` is Vite HMR against an already-built playground. `npm start` needs `dist/site/` from `npm run build`. Individual steps: `npm run build:*` in `package.json`.
+
+A Pages-shaped local tree (project path prefix):
 
 ```bash
-npm run dev            # Vite middleware + same server routes, HMR for app/src
+DEMO_BASE_PATH=/shopware_claude_commerce/ npm run build:app
+DEMO_BASE_PATH=/shopware_claude_commerce/ npm run build:site
 ```
 
-`npm start` requires `dist/site/` (produced by `npm run build`). Individual pipeline steps are exposed as `npm run build:*` — see `package.json`.
+That prefix is what [pages.yml](../.github/workflows/pages.yml) sets from `actions/configure-pages`.
 
-## URLs (default server)
+| What | Local URL |
+|---|---|
+| Demo shell | http://127.0.0.1:4188/ |
+| Shopware storefront (iframe) | `/index.php` after boot |
+| Anthropic proxy (local only) | `/api/anthropic/messages` |
+| Proxy status | `/api/anthropic/status` |
 
-| What | URL | Notes |
-|---|---|---|
-| Demo shell | http://127.0.0.1:4188/ | Boot screen → Shopware iframe + agent panels |
-| Shopware storefront (in iframe) | same origin, `/index.php` | Rendered by PHP WASM after boot |
-| Shopware admin | `/admin` | `admin` / `Shopware123!` (playground default) |
-| UCP discovery | `/.well-known/ucp` | Through the service worker → WASM worker |
-| Anthropic proxy | `/api/anthropic/messages` | Server-side key from repo `.env`; budget per tab session |
-| Proxy status | `/api/anthropic/status` | Whether a key is configured |
-
-Bind address and port: `--host` / `--port` or `HOST` / `PORT` (default `127.0.0.1:4188`). Use `--host 0.0.0.0` for LAN demos.
+Bind address: `--host` / `--port` or `HOST` / `PORT` (default `127.0.0.1:4188`).
 
 ## Layout
 
@@ -65,15 +61,15 @@ browser-demo/
 ├── build/               Pipeline scripts (pins in build/config.mjs)
 ├── host/                Pyodide bootstrap + synced Python backends (build output)
 ├── plugins/DemoOverlay/ Shopware plugin: storefront overlay + demo context JSON route
-├── server/              Local static server + Anthropic proxy (Node built-ins only)
+├── server/              Local static server + Anthropic proxy (contributors)
 ├── scripts/             sync-backends.sh (copies storefront/merchant/api from repo)
-└── dist/site/           Assembled demo (gitignored; produced by npm run build)
+└── dist/site/           Assembled demo (gitignored; produced by npm run build / CI)
 ```
 
 ## Testing
 
 ```bash
-npm test                 # server + build unit tests (no WASM boot)
+npm test                 # server + build unit tests (18; no WASM boot)
 npm run typecheck        # TypeScript for app/
 npm run e2e              # Playwright (requires built site + browser; optional)
 ```
@@ -82,19 +78,20 @@ Repo-wide offline tests (`pytest`, `ruff`) do not cover this tree; `ruff check .
 
 ## Configuration
 
-The server reads `../.env` (repo root) then `browser-demo/.env`. Relevant variables:
+The local server reads `../.env` (repo root) then `browser-demo/.env`. Relevant variables:
 
 | Variable | Purpose |
 |---|---|
-| `ANTHROPIC_API_KEY` | Enables the proxied chat path (otherwise BYOK only) |
+| `ANTHROPIC_API_KEY` | Enables the local proxied chat path (otherwise paste a key in the UI) |
 | `ANTHROPIC_WORKSPACE_ID` | Identity-linked keys |
 | `DEMO_PROXY_*` | Per-session / per-IP budgets — see `server/anthropic-proxy.mjs` |
 | `PORT`, `HOST` | Listen address (default `4188`, `127.0.0.1`) |
+| `DEMO_BASE_PATH` | Public path for the assembled site (`/` locally, `/shopware_claude_commerce/` on Pages) |
 
 Build-time pins (playground commit, plugin refs, Pyodide version): `build/config.mjs`.
 
 ## Not in this demo yet
 
-- Parity with every Docker quick-start flow (identity linking over https, full eval gate, nightly CI on WASM)
-- Hosted static deployment (R2/CDN packaging exists upstream in shopware-playground; not wired here)
-- Merchant portal at a separate origin — both agents share the demo shell on `:4188`
+- Parity with every Docker quick-start flow (identity linking, full eval gate, nightly CI on WASM)
+- A hosted Anthropic proxy — GitHub Pages cannot run one; do not expect chat without your own key
+- Merchant portal at a separate origin — both agents share the demo shell

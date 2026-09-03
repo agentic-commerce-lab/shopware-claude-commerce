@@ -43,4 +43,4 @@ for (const [name, step] of steps) {
   step();
   log(`<== ${name} (${Math.round((Date.now() - t0) / 1000)} s)`);
 }
-log(`build finished in ${Math.round((Date.now() - startedAt) / 1000)} s — next: npm start (serves dist/site + proxy) or npm run dev`);
+log(`build finished in ${Math.round((Date.now() - startedAt) / 1000)} s — Pages: push to main (workflow pages.yml). Local: npm start`);

@@ -21,6 +21,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, type Plugin } from 'vite';
 import { ISOLATION_HEADERS, contentTypeFor } from '../server/headers.mjs';
+import { viteBaseFromEnv } from '../build/public-base.mjs';
 
 const appRoot = dirname(fileURLToPath(import.meta.url));
 const demoRoot = resolve(appRoot, '..');
@@ -138,6 +139,7 @@ export default defineConfig(({ command }) => ({
   root: appRoot,
   publicDir: 'public',
   appType: 'spa',
+  base: viteBaseFromEnv(),
   plugins: [nextAppCompat(), react(), tailwindcss(), playgroundEngine()],
   resolve: {
     alias: {

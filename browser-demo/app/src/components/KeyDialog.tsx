@@ -12,10 +12,11 @@ type Props = {
 };
 
 /**
- * Model access. Proxy: the local Node server (browser-demo/server) holds the Anthropic key,
- * forwards /api/anthropic/* and enforces per-session budgets. BYOK: the visitor's own key, sent
- * straight to api.anthropic.com from the agent-host worker with
- * `anthropic-dangerous-direct-browser-access`; it lives in memory only.
+ * Model access. Proxy: only the local Node server (browser-demo/server) can hold a repo
+ * key — GitHub Pages is static and has no proxy. BYOK: the visitor's key, sent to
+ * api.anthropic.com from the agent-host worker with
+ * `anthropic-dangerous-direct-browser-access`. Anthropic must accept that browser call;
+ * if CORS or the key is rejected, chat fails and the shop still runs.
  */
 export default function KeyDialog({ state, onClose, onSave }: Props) {
   const [mode, setMode] = useState<AnthropicAccess['mode']>(state.anthropic.mode);
@@ -25,12 +26,12 @@ export default function KeyDialog({ state, onClose, onSave }: Props) {
   const canSave = mode === 'proxy' ? proxyReady : apiKey.trim().startsWith('sk-ant-');
   const proxyHint =
     state.proxyStatus === 'ready'
-      ? 'The local server adds the demo key server-side, streams the answer back and enforces a per-tab budget.'
+      ? 'The local Node server adds the demo key server-side, streams the answer back and enforces a per-tab budget.'
       : state.proxyStatus === 'unconfigured'
         ? 'The local server is running without ANTHROPIC_API_KEY. Add it to the repo .env and restart, or use your own key.'
         : state.proxyStatus === 'absent'
-          ? 'Not available on this host (static deployment). Use your own key.'
-          : 'Checking the local server…';
+          ? 'GitHub Pages cannot run the Node proxy. Paste your own key below. Chat then calls api.anthropic.com from this tab; if Anthropic blocks the browser request, only the shop works.'
+          : 'Checking for a local proxy…';
 
   return (
     <div className="demo-dialog__backdrop" onClick={onClose} role="presentation">
@@ -41,7 +42,7 @@ export default function KeyDialog({ state, onClose, onSave }: Props) {
         <label className="demo-choice" data-active={mode === 'proxy'} data-disabled={!proxyReady}>
           <input type="radio" name="mode" checked={mode === 'proxy'} disabled={!proxyReady} onChange={() => setMode('proxy')} />
           <span>
-            <strong>Local demo proxy{proxyReady ? ' (default)' : ''}</strong>
+            <strong>Local Node proxy{proxyReady ? ' (this machine)' : ' (not on GitHub Pages)'}</strong>
             <span data-testid="proxy-hint">{proxyHint}</span>
           </span>
         </label>
@@ -51,8 +52,8 @@ export default function KeyDialog({ state, onClose, onSave }: Props) {
           <span>
             <strong>Bring your own key</strong>
             <span>
-              Sent directly to api.anthropic.com with <code>anthropic-dangerous-direct-browser-access</code>. Kept in this tab's memory only —
-              never stored, never sent anywhere else.
+              Sent from this tab to api.anthropic.com with <code>anthropic-dangerous-direct-browser-access</code>. Kept in memory only.
+              If Anthropic rejects the browser call, chat will fail; browsing the WASM shop does not need a key.
             </span>
             {mode === 'byok' ? (
               <>
