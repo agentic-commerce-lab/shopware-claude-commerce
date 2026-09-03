@@ -56,7 +56,8 @@ const engineFiles = ['browser-worker.js', 'service-worker.js'];
 const referenced = new Set();
 for (const file of engineFiles) {
   const source = readFileSync(join(PLAYGROUND_PUBLIC, file), 'utf8');
-  for (const match of source.matchAll(/["'](?:\/)?assets\/([A-Za-z0-9._-]+)["']/g)) referenced.add(match[1]);
+  // php-wasm side modules are referenced as `assets/<name>.so?url` — the query is not part of the file.
+  for (const match of source.matchAll(/["'](?:\/)?assets\/([A-Za-z0-9._-]+)(?:\?[A-Za-z0-9=&_-]*)?["']/g)) referenced.add(match[1]);
   const rewritten = injectPublicBaseBanner(rewriteEngineSource(source, publicPrefix), publicPrefix);
   writeFileSync(join(SITE_DIR, file), rewritten);
 }

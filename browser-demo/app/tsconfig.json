@@ -15,6 +15,7 @@
     "types": ["vite/client"],
     "paths": {
       "web-shared": ["./src/vendor/web-shared/index.ts"],
+      "web-shared/*": ["./src/vendor/web-shared/*"],
       "next/navigation": ["./src/shims/next-navigation.tsx"],
       "next/link": ["./src/shims/next-link.tsx"],
       "next/font/google": ["./src/shims/next-font-google.ts"]
