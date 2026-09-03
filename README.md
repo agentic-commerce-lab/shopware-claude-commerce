@@ -37,7 +37,27 @@ Three properties of Shopware make this a natural fit rather than a port:
 | Eval suite | 107 YAML cases (64 shopping, 43 merchant), deterministic scorers plus one pinned LLM judge, replay and live backends, CI-set selection and gate (`evals/gates.yaml`) | `evals/` |
 | CI workflows | `ci.yml` (ruff, pytest on 3.11/3.12, Next.js builds, handoff plugin PHPUnit; netless) and `integration.yml` (nightly Docker Shopware bootstrap + smoke, optional eval CI set) | `.github/workflows/` |
 | Shopware plugin (Phase 4, first increment) | `SwagCommerceAgentTools`: nine MCP tools in Shopware itself. Store API: `shopping-policy-search`, `shopping-disclosure`, `shopping-fulfillment-options`. Admin API: `agent-change-stage`, `-list`, `-apply`, `-discard`, `agent-business-snapshot`, `agent-metrics-series`. Staged-change entity, Flow Builder triggers, ACL role templates | `shopware-plugins/SwagCommerceAgentTools/` |
-| Browser demo (in progress) | Zero-install demo of the same stack on Shopware in PHP WASM; feasibility measured, build not started in this tree | `docs/browser-demo-feasibility.md` |
+| Browser demo (in progress) | Zero-install demo: Shopware 6.7 in PHP WASM + MariaDB WASM, blueprint agents on Pyodide, local Node server — see [Browser demo](#browser-demo) | [`browser-demo/README.md`](browser-demo/README.md) |
+
+## Browser demo
+
+**Work in progress** — a zero-install alternative to the Docker quick start: the same Shopware shop and both agents run entirely in your browser. Shopware 6.7.13.1 ships as PHP WASM + MariaDB WASM ([shopware-playground](https://github.com/FriendsOfShopware/shopware-playground)); the shopping and merchant hosts run on Pyodide with the blueprint packages unchanged. A small local Node server sends the cross-origin isolation headers the WASM engines need and proxies the Anthropic API (or you can bring your own key in the UI).
+
+```bash
+cd browser-demo
+npm install
+npm run build          # first time: needs PHP, Composer, Python, network (~10–30+ min)
+cp ../.env.example ../.env   # ANTHROPIC_API_KEY for proxied chat (optional)
+npm start              # → http://127.0.0.1:4188
+```
+
+| What | URL |
+|---|---|
+| Demo shell (boot UI + agent panels) | http://127.0.0.1:4188/ |
+| Shopware storefront (iframe, same origin) | `/index.php` after boot (~20–40 s cold) |
+| Anthropic proxy | `/api/anthropic/*` |
+
+Full build steps, prerequisites, configuration, and honest WIP notes: **[`browser-demo/README.md`](browser-demo/README.md)**. Feasibility spike that validated WASM UCP/MCP: [`docs/browser-demo-feasibility.md`](docs/browser-demo-feasibility.md).
 
 ## Demo video
 
@@ -233,6 +253,7 @@ Deployment notes that are yours to own (auth on the host routes, rate limits, me
 ├── evals/                    runner, harness, backends (replay | live), scorers, judge, ci, gates.yaml, cases/, tests/
 ├── shopware-plugins/SwagCommerceAgentTools/   Phase 4 Shopware plugin: Store API + Admin MCP tools, staged-change entity, PHPUnit
 ├── .github/workflows/        ci.yml (netless), integration.yml (nightly Docker Shopware + smoke, optional evals)
+├── browser-demo/             in-browser demo: WASM Shopware + Pyodide agents, build pipeline, local server (README inside)
 ├── docs/                     shopware-mapping.md, security.md, version-matrix.md, browser-demo-feasibility.md, screenshots/, media/
 └── progress.md               phase checklist
 ```
@@ -315,10 +336,6 @@ Plus the `swag_agent_staged_change` entity (staged → applied / discarded, `dry
 
 Test status: 149 PHPUnit tests (805 assertions) and PHPStan level max against `shopware/core` 6.7.13.1, without kernel or database. Not yet installed into the shared Docker container; install by symlinking the folder into `custom/plugins/`, then `bin/console plugin:refresh && bin/console plugin:install --activate SwagCommerceAgentTools && bin/console cache:clear` (on 6.7.11–6.7.13 with `MCP_SERVER=1`). Deferred: `promotion` / `campaign` change kinds, the `sw-agent-changes` admin module, `shopping-customer-preferences`, inventory-alert and order-issue tools, a persistent policy index, the auto-approve flow action, integration tests against a running shop. The host-side switch per backend method and the full tool reference are in [`shopware-plugins/SwagCommerceAgentTools/README.md`](shopware-plugins/SwagCommerceAgentTools/README.md).
 
-## Browser demo (in progress)
-
-Work in progress, nothing shipped yet. The feasibility spike in [`docs/browser-demo-feasibility.md`](docs/browser-demo-feasibility.md) verified that Shopware 6.7.13.1 runs in PHP WASM on top of FriendsOfShopware's `shopware-playground` with UCP (`/.well-known/ucp`, REST and `/ucp/mcp` with 14 tools) and the Admin MCP including `dryRun` upserts, given four small playground-level patches. The plan: the agents run in-browser via Pyodide (the blueprint packages unchanged), the Anthropic key stays behind a small Worker proxy with a bring-your-own-key toggle, and an overlay in the WASM storefront links to the shopping and merchant demo. Three phases: A, a playground fork with our Shopware, plugins and seed; B, the Anthropic proxy and the shopper demo in the browser; C, the merchant agent in the browser.
-
 ## Configuration
 
 `.env.example` documents every variable; `docker/.generated.env` (written by the bootstrap) fills the shop-specific ones. The ones you will touch:
@@ -362,7 +379,7 @@ In progress:
 
 - UCP Identity Linking (OAuth authorization code + PKCE) is implemented and covered by the netless replay; on the plain-http Docker shop `GET /api/auth/shopware/start` answers 503 because Shopware requires an https agent-profile `client_id`, so sessions stay guests until the profile is served over https.
 - The shared `/api/chat` routes (`demo_common`, vendored unmodified) still build their session clock from the server's naive `datetime.now()`; the browser timezone reaches only this repo's own routes until upstream exposes a clock hook (upstream note 5).
-- Browser demo (feasibility verified, build not started).
+- Browser demo: build pipeline and local server landed in `browser-demo/`; first runnable scaffold at http://127.0.0.1:4188 after `npm run build` — polish, hosted deploy, and CI still open ([`browser-demo/README.md`](browser-demo/README.md)).
 
 Not in this version:
 

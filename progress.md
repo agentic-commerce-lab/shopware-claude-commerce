@@ -131,6 +131,15 @@ twice then `curl -s http://localhost:8080/.well-known/ucp | jq '.signing_keys | 
 - `_money` bare-number heuristic: Shopware's UCP adapter emits both minor-unit integers and major floats; the dict form follows the schema.
 - `ruff check .` reports two findings in `browser-demo/host/bootstrap.py` (another agent's tree, not touched).
 
+## Browser demo (in progress)
+
+- [x] Feasibility measured — [`docs/browser-demo-feasibility.md`](docs/browser-demo-feasibility.md) (2026-09-03)
+- [x] Build pipeline in `browser-demo/`: playground fetch, Shopware 6.7.13.1 + pinned plugins, Node WASM seed, MEMFS bundle, Pyodide wheels, site assembly
+- [x] Local server (`server/index.mjs`): COOP/COEP, static `dist/site`, Anthropic proxy + BYOK; `npm test` (13 server/build tests)
+- [x] Demo shell: React boot UI, Shopware iframe, shopping/merchant panels, `DemoOverlay` plugin
+- [ ] End-to-end acceptance on a fresh build (cold boot, chat turn, cart, handoff) documented and gated in CI
+- [ ] Hosted static deploy (optional; upstream playground supports R2/static `_headers`)
+
 ## Phase 3 — not started
 
 - [ ] Claude Code plugin, evals, Managed Agents manifests
