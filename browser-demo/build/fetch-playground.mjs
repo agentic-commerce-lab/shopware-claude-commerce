@@ -10,7 +10,7 @@
  * Re-runnable: an existing clone is reset to the pinned commit before patching.
  * PLAYGROUND_DIR may point at an existing clone (e.g. a scratch checkout).
  */
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { DEMO_ROOT, PLAYGROUND_COMMIT, PLAYGROUND_DIR, PLAYGROUND_REPO } from './config.mjs';
 import { isDir, log, requireTool, run, tryRun } from './lib.mjs';
@@ -37,6 +37,15 @@ if (head !== PLAYGROUND_COMMIT) {
 // shopware/ (composer.json/lock get `composer require`d by install-shop.mjs) is left alone.
 run('git', ['checkout', '--quiet', '--', 'package.json', 'src'], { cwd: PLAYGROUND_DIR });
 run('bash', [join(DEMO_ROOT, 'patches/apply-patches.sh'), 'playground', PLAYGROUND_DIR]);
+
+
+const shimSrc = join(DEMO_ROOT, 'playground-shims/fs-ext-stub');
+const shimDst = join(PLAYGROUND_DIR, 'shims/fs-ext-stub');
+if (!existsSync(shimSrc)) {
+  throw new Error(`missing playground shim: ${shimSrc} (required for @php-wasm/node on CI)`);
+}
+mkdirSync(join(PLAYGROUND_DIR, 'shims'), { recursive: true });
+cpSync(shimSrc, shimDst, { recursive: true });
 
 // package.json changed (lite4mariadb pin) → `npm install` rather than `npm ci`.
 run('npm', ['install', '--no-audit', '--no-fund'], { cwd: PLAYGROUND_DIR });
