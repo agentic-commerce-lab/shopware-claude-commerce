@@ -1,9 +1,13 @@
 # Shopware × Claude Commerce Agents
 
-Anthropic's [Commerce Agents blueprint](https://github.com/anthropics/commerce-agents) running unmodified against a real Shopware 6.7 shop: shopping over UCP (MCP first), merchant operations over the Admin API MCP with server-side dry-run previews, checkout and payment left to Shopware.
+**[Open the live browser demo →](https://sthamann.github.io/shopware_claude_commerce/)** — Shopware 6.7, UCP/MCP, and both blueprint agents in one tab (PHP WASM + Pyodide). No clone required; paste your own Anthropic key for chat. First [Pages deploy](https://github.com/sthamann/shopware_claude_commerce/actions/workflows/pages.yml) can take 10–30+ minutes — until it succeeds, the URL may 404.
+
+Anthropic's [Commerce Agents blueprint](https://github.com/anthropics/commerce-agents) runs **unmodified** against a real Shopware 6.7 shop: shopping over UCP (MCP first), merchant ops over Admin API MCP with **server-side `dryRun` previews**, checkout and payment in Shopware.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Live demo](https://img.shields.io/badge/demo-GitHub%20Pages-24292f?style=for-the-badge&logo=github)](https://sthamann.github.io/shopware_claude_commerce/)
 [![Shopware 6.7](https://img.shields.io/badge/Shopware-6.7.13-189eff)](docs/version-matrix.md)
+[![Claude Code plugin](https://img.shields.io/badge/Claude%20Code-shopware--commerce--builder-d97757)](plugins/shopware-commerce-builder/)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776ab)](requirements.txt)
 [![Node 22](https://img.shields.io/badge/Node-22-339933)](package.json)
 [![Blueprint pinned @ fd4d5922](https://img.shields.io/badge/blueprint-pinned%20%40%20fd4d5922-8a2be2)](https://github.com/anthropics/commerce-agents/tree/fd4d59224ab96b43c6dc6888207c67b3bd5a24cf)
@@ -11,6 +15,17 @@ Anthropic's [Commerce Agents blueprint](https://github.com/anthropics/commerce-a
 [![CI](https://github.com/sthamann/shopware_claude_commerce/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sthamann/shopware_claude_commerce/actions/workflows/ci.yml)
 [![Integration (Docker Shopware)](https://github.com/sthamann/shopware_claude_commerce/actions/workflows/integration.yml/badge.svg)](https://github.com/sthamann/shopware_claude_commerce/actions/workflows/integration.yml)
 [![Pages](https://github.com/sthamann/shopware_claude_commerce/actions/workflows/pages.yml/badge.svg?branch=main)](https://sthamann.github.io/shopware_claude_commerce/)
+
+## What makes this special
+
+| | |
+|---|---|
+| **Zero-install demo** | [GitHub Pages](https://sthamann.github.io/shopware_claude_commerce/) ships the full WASM shop + agent shell. Local `npm` is for contributors only ([`browser-demo/README.md`](browser-demo/README.md)). |
+| **Claude Code plugin** | [`shopware-commerce-builder`](plugins/shopware-commerce-builder/) — five slash commands (scaffold, add flow, evals, review, UCP doctor) and six skills for UCP mapping, Admin MCP staging, promotions, variants, German disclosures, and handoff. Marketplace manifest: [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json). |
+| **Shopware plugins** | [`SwagCommerceAgentTools`](shopware-plugins/SwagCommerceAgentTools/) (Store + Admin MCP tools, staged changes, Flow Builder). [`CommerceAgentsHandoff`](docker/plugins/CommerceAgentsHandoff/) (one-time checkout handoff). [`SwagAgenticCommerce`](https://github.com/shopware/agentic-commerce) + UCP SDK on the shop. |
+| **Two agents, one shop** | Shopping host ([`storefront/api`](storefront/api/)) + merchant host ([`merchant/api`](merchant/api/)) on the pinned blueprint; Next.js UIs on :3005 / :3006 locally. |
+| **Safety by design** | Merchant writes go through **`dryRun=true`** previews on Shopware's Admin MCP; the host ledger + approval gate before `dryRun=false`. Cart provenance, fenced tool output, signed UCP, least-privilege integration — see [Safety model](#safety-model). |
+| **Explainer** | 2:29 walkthrough below ([1080p release asset](https://github.com/sthamann/shopware_claude_commerce/releases/download/v0.1.0-preview/explainer.mp4)). |
 
 ## Why this exists
 
@@ -42,13 +57,13 @@ Three properties of Shopware make this a natural fit rather than a port:
 
 ## Browser demo
 
-**[Open the live demo](https://sthamann.github.io/shopware_claude_commerce/)** — no clone, no `npm install`. Shopware 6.7.13.1 runs in the tab as PHP WASM + MariaDB WASM ([shopware-playground](https://github.com/FriendsOfShopware/shopware-playground)); the shopping and merchant hosts run on Pyodide. Cold boot downloads ~150 MB and takes ~20–40 s; a reload reuses the browser cache.
+Same [live URL](https://sthamann.github.io/shopware_claude_commerce/) as above — Shopware 6.7.13.1 in PHP WASM + MariaDB WASM ([shopware-playground](https://github.com/FriendsOfShopware/shopware-playground)); shopping and merchant hosts on Pyodide. Cold boot ≈150 MB download, ~20–40 s; reload uses browser cache.
 
-What that GitHub Pages build actually does:
+What the GitHub Pages build does:
 
 - **Runs in the browser:** demo shell, Shopware storefront (after WASM boot), catalog, cart, admin, UCP/MCP surfaces that the seed includes.
 - **Chat:** paste your own `ANTHROPIC_API_KEY` in the UI. Pages is a static host — there is no Node proxy and no repo key. The tab calls `api.anthropic.com` with Anthropic's browser-access header. If Anthropic rejects that call (CORS, key, or workspace), chat fails; the shop still works.
-- **First deploy:** [pages.yml](.github/workflows/pages.yml) builds the gitignored WASM shop on Actions (10–30+ min). Until that workflow has succeeded, the URL may 404.
+- **Deploy:** [pages.yml](.github/workflows/pages.yml) builds the gitignored WASM shop on Actions (macOS runner; often 10–30+ min). Until it has succeeded, the URL may 404.
 
 The Docker + FastAPI stack below is the full local product (handoff, signed UCP, merchant apply). The Pages demo is the zero-install shop + agents in one tab.
 

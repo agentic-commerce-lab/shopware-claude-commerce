@@ -6,6 +6,17 @@ Shopware 6.7.13.1 runs in the tab (PHP WASM + MariaDB WASM via [FriendsOfShopwar
 
 Cold boot downloads ≈ 150 MB and takes ~20–40 s on a typical laptop. A reload reuses the browser cache and the seeded database in IndexedDB. Use a current desktop Chromium or Firefox (service workers + SharedArrayBuffer). Mobile is not sensible.
 
+## Highlights (whole repo)
+
+| Piece | Link |
+|---|---|
+| Live demo (this folder) | [sthamann.github.io/shopware_claude_commerce](https://sthamann.github.io/shopware_claude_commerce/) |
+| Claude Code plugin | [`shopware-commerce-builder`](../plugins/shopware-commerce-builder/) |
+| Shopware MCP / staging plugin | [`SwagCommerceAgentTools`](../shopware-plugins/SwagCommerceAgentTools/) |
+| Checkout handoff plugin | [`CommerceAgentsHandoff`](../docker/plugins/CommerceAgentsHandoff/) |
+| Docker + FastAPI stack | [Root README](../README.md#quick-start) |
+
+
 ## What the Pages build does
 
 | Piece | On GitHub Pages |
@@ -14,10 +25,10 @@ Cold boot downloads ≈ 150 MB and takes ~20–40 s on a typical laptop. A reloa
 | Shopware storefront / admin / Store API / UCP / MCP in WASM | Yes, after the boot download (same pins as `docker/bootstrap.sh`) |
 | Catalog, cart, seeded products and orders | Yes |
 | Chat (Claude) | Only if you paste an `ANTHROPIC_API_KEY` in the UI. Pages cannot run the Node proxy. The tab calls `api.anthropic.com` with `anthropic-dangerous-direct-browser-access`. If Anthropic rejects that browser request, chat fails; the shop still works. |
-| Checkout handoff / full Docker parity | Implemented in the shell; treat as WIP until verified on a fresh Pages build |
+| Checkout handoff (agent cart → in-browser Shopware checkout) | Yes — verified end to end by `npm run e2e` against the local server (dev and static build); not yet re-verified on a fresh Pages build |
 | Cross-origin isolation | GitHub Pages cannot set COOP/COEP. The playground service worker adds those headers; the shell reloads once so `SharedArrayBuffer` works. |
 
-The first [pages.yml](../.github/workflows/pages.yml) run takes 10–30+ minutes. Until it has succeeded, the live URL may 404.
+The [pages.yml](../.github/workflows/pages.yml) workflow builds on **macOS** (PHP WASM seeding); first successful deploy often takes **10–30+ minutes**. Until then, the live URL may 404.
 
 Feasibility measurements: [`docs/browser-demo-feasibility.md`](../docs/browser-demo-feasibility.md).
 
