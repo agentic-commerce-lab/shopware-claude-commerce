@@ -44,8 +44,8 @@ env:
 jobs:
   build:
     name: build browser-demo
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
+    runs-on: macos-latest
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
 
@@ -88,7 +88,6 @@ jobs:
         with:
           path: |
             ~/.composer/cache
-            browser-demo/playground
             browser-demo/app/public/demo
             browser-demo/build/.cache
           key: browser-demo-${{ runner.os }}-${{ hashFiles('browser-demo/build/config.mjs', 'browser-demo/package-lock.json', 'browser-demo/playground-shims/**', 'requirements.txt') }}
