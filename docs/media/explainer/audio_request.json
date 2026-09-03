@@ -1,0 +1,53 @@
+{
+  "provider": "kokoro",
+  "speed": 1,
+  "lines": [
+    {
+      "id": "01",
+      "text": "September 2nd, 2026. Anthropic publishes an open-source blueprint for commerce agents. Shopify ships an implementation — the same day. This — is Shopware's."
+    },
+    {
+      "id": "02",
+      "text": "This is not a Claude shop. It's Shopware as the commerce execution layer — the system any agent runs on."
+    },
+    {
+      "id": "03",
+      "text": "Two agents ship in the box. A shopping agent — search, compare, build a real cart, hand off to Shopware checkout. And a merchant agent — analyze, stage a change, a human approves — then it's applied."
+    },
+    {
+      "id": "04",
+      "text": "Here's the wiring. Anthropic's blueprint packages — pinned, unmodified. Two thin Shopware backends. Shoppers go through UCP — discovery, then MCP. Merchants go through the Admin API and MCP — with dry-run previews computed on the server."
+    },
+    {
+      "id": "05",
+      "text": "One curl to the well-known endpoint, and Shopware announces what it speaks — catalog, cart, checkout, order, identity linking — and the keys it signs with."
+    },
+    {
+      "id": "06",
+      "text": "Three things Shopware brings that a bolt-on can't. Native UCP — discovery, signatures, identity linking. Dry-run previews — straight from the core. And commerce semantics where they belong — promotions, rules, variants, price disclosures."
+    },
+    {
+      "id": "07",
+      "text": "The rules are enforced, not prompted. The model proposes. A person — or a policy — applies. Provenance gates accept only IDs the session has seen. And checkout completes in Shopware — never in the agent."
+    },
+    {
+      "id": "08",
+      "text": "Watch it run. Search the live catalog. Add to a real Shopware cart. Then — Check out on Shopware. Same cart, same total — in the shop's own checkout."
+    },
+    {
+      "id": "09",
+      "text": "On the merchant side — a price change is staged. Before and after, previewed by the server. Nothing touches the shop until someone approves. Then one call applies it."
+    },
+    {
+      "id": "10",
+      "text": "Shopware is the Commerce Operating System for the Agent Economy. The repo is shopware slash claude-commerce-agents. Five commands — and it runs."
+    }
+  ],
+  "bgm": {
+    "mode": "retrieve",
+    "query": "dark minimal technical electronic underscore, steady pulse, no drums until late, confident",
+    "blob": "Shopware is the Commerce Operating System for the Agent Economy — the Anthropic commerce-agent blueprint runs on it unmodified.",
+    "arc": "Future Pacing with feature-benefit progression — hook (the moment) → name the idea → the two agents → mechanism (wiring, discovery) → advantages → safety → proof (two demos) → CTA"
+  },
+  "voice": "bm_george"
+}

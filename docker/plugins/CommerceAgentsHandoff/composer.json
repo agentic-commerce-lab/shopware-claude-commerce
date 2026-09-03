@@ -1,0 +1,19 @@
+{
+  "name": "commerce-agents/handoff",
+  "description": "Adopts a UCP cart context token and redirects the shopper to Shopware checkout.",
+  "version": "1.0.0",
+  "type": "shopware-platform-plugin",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "CommerceAgents\\Handoff\\": "src/"
+    }
+  },
+  "extra": {
+    "shopware-plugin-class": "CommerceAgents\\Handoff\\CommerceAgentsHandoff",
+    "label": {
+      "en-GB": "Claude Commerce checkout handoff",
+      "de-DE": "Claude Commerce Checkout-Handoff"
+    }
+  }
+}

@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+docker/.generated.env
+secrets/*.pem
+!secrets/.gitkeep
+
+# Node / Next.js
+node_modules/
+.next/
+next-env.d.ts
+*/web/AGENTS.md
+*/web/CLAUDE.md
+out/
+*.tsbuildinfo
+npm-debug.log*
+
+# Runtime state
+*/data/.memory-*.json
+merchant/data/ledger.db
+
+# Cloned Shopware plugins (SwagAgenticCommerce, SwagMcpMerchantTools)
+docker/plugins/*
+!docker/plugins/CommerceAgentsHandoff/
+!docker/plugins/CommerceAgentsHandoff/**
+
+# Internal planning documents (not published)
+MASTERPLAN.md
+kontext.txt
+
+# HyperFrames explainer renders (large MP4/PNG output; keep sources + poster)
+docs/media/explainer/**/render/
+docs/media/explainer/**/renders/
+docs/media/explainer/**/*.mp4
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+.claude/

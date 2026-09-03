@@ -1,0 +1,10 @@
+{
+  "name": "shopware-claude-commerce-agents",
+  "private": true,
+  "license": "MIT",
+  "workspaces": ["vendor/web-shared", "storefront/web"],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev:storefront": "npm run dev -w storefront/web"
+  }
+}

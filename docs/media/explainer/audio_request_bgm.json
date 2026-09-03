@@ -1,0 +1,9 @@
+{
+  "provider": "kokoro",
+  "lines": [],
+  "bgm": {
+    "mode": "generate",
+    "query": "dark minimal technical electronic underscore, steady pulse, confident",
+    "prompt": "dark minimal technical electronic underscore, deep soft sub bass, analog synth pulse, sparse muted percussion, steady 96 BPM, restrained and confident, cinematic tech documentary, no vocals, no melody lead"
+  }
+}
