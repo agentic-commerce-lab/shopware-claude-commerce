@@ -43,7 +43,7 @@ Three properties of Shopware make this a natural fit rather than a port:
 
 https://github.com/user-attachments/assets/00286df3-c81d-45ca-8a78-c0c2d01a4ce9
 
-The full-resolution file is [`docs/media/explainer.mp4`](docs/media/explainer.mp4) (1080p, 2 min), the poster is [`docs/media/explainer-poster.png`](docs/media/explainer-poster.png), and the script and re-render instructions are in [`docs/media/README.md`](docs/media/README.md).
+The full-resolution file is published as a release asset: [`explainer.mp4`](https://github.com/sthamann/shopware_claude_commerce/releases/download/v0.1.0-preview/explainer.mp4) (1080p, 2:29, 27 MB, from the [v0.1.0-preview](https://github.com/sthamann/shopware_claude_commerce/releases/tag/v0.1.0-preview) pre-release); the web variant is [`docs/media/explainer-web.mp4`](docs/media/explainer-web.mp4) (720p), the poster is [`docs/media/explainer-poster.png`](docs/media/explainer-poster.png), and the script and re-render instructions are in [`docs/media/README.md`](docs/media/README.md).
 
 ## Screenshots
 
