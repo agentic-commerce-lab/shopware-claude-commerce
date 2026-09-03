@@ -64,12 +64,19 @@ for app in storefront merchant; do
     --exclude 'next.config.ts' --exclude 'postcss.config.mjs' --exclude 'package.json' --exclude 'tsconfig.json' --exclude 'next-env.d.ts' \
     "$REPO/$app/web/" "$WEB_OUT/$app-web/"
 done
+# `@/` (each app's own root) → relative imports, so one tsconfig type-checks both copies.
+node "$HERE/build/relativize-imports.mjs" "$WEB_OUT/storefront-web" "$WEB_OUT/merchant-web"
 node "$HERE/build/scope-css.mjs" "$WEB_OUT/storefront-web/app/globals.css" "$WEB_OUT/storefront-web/app/globals.scoped.css" demo-theme-storefront
 node "$HERE/build/scope-css.mjs" "$WEB_OUT/merchant-web/app/globals.css" "$WEB_OUT/merchant-web/app/globals.scoped.css" demo-theme-merchant
 cp "$OUT/SYNC_INFO.json" "$WEB_OUT/SYNC_INFO.json"
 
-# Deterministic tar (sorted, no owner) so the browser cache key only changes with content.
-( cd "$OUT" && find . -type f | LC_ALL=C sort | tar -cf "$TAR" --no-recursion --uid 0 --gid 0 --numeric-owner -T - )
+# Deterministic tar (sorted, neutral owner) so the browser cache key only changes with content.
+# GNU tar (Linux CI) uses --owner/--group; BSD tar (macOS) uses --uid/--gid.
+TAR_OWNER_FLAGS=(--owner=0 --group=0 --numeric-owner)
+if tar --help 2>&1 | grep -qE '\-\-uid'; then
+  TAR_OWNER_FLAGS=(--uid 0 --gid 0 --numeric-owner)
+fi
+( cd "$OUT" && find . -type f | LC_ALL=C sort | tar -cf "$TAR" --no-recursion "${TAR_OWNER_FLAGS[@]}" -T - )
 cp "$TAR" "$DEST_DIR/repo-tree.tar"
 # The Pyodide-side bootstrap (httpx transport bridge + ASGI runner) is fetched by the worker.
 cp "$HERE/host/bootstrap.py" "$DEST_DIR/bootstrap.py"
