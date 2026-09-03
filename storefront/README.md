@@ -14,7 +14,7 @@ uvicorn storefront.api.main:app --port 8004
 - `GET /api/products` — display cache (filled by search / warmup)
 - `POST /api/cart/add` — direct add (provenance gate: product must have been seen)
 - `GET /api/cart` — cart plus `checkout_url` (Shopware handoff)
-- `POST /api/chat` — SSE turn; 503-style skip without `ANTHROPIC_API_KEY`
+- `POST /api/chat` — SSE turn; 503-style skip without `ANTHROPIC_API_KEY` (identity-linked keys also need `ANTHROPIC_WORKSPACE_ID`, sent as `anthropic-workspace-id` by `shopware_common/anthropic_client.py`)
 
 UCP REST is default (`UCP_TRANSPORT=rest`). MCP (`/ucp/mcp`, Shopware tool names) is the fallback after `initialize` + `Mcp-Session-Id`. Cart id is the Shopware context token. Checkout is `continue_url` only.
 

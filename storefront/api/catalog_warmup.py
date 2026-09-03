@@ -1,5 +1,5 @@
-# Copyright 2026 Shopware × Claude Commerce Agents authors.
-# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 shopware AG
+# SPDX-License-Identifier: MIT
 
 """Fill the product grid display cache at startup. Uses UCP search, then Store API."""
 

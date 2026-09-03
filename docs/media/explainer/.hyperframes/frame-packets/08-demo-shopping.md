@@ -14,7 +14,7 @@
 - voiceover: "Watch it run. Search the live catalog. Add to a real Shopware cart. Then — Check out on Shopware. Same cart, same total — in the shop's own checkout."
 - duration: 9.92s
 - transition_in: crossfade
-- status: outline
+- status: animated
 - src: compositions/frames/08-demo-shopping.html
 - type: feature_showcase
 - persuasion: Show-don't-tell proof on real screens

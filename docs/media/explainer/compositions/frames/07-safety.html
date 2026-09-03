@@ -1,0 +1,86 @@
+<template>
+  <style>
+    @font-face { font-family: "Inter"; font-weight: 400; font-style: normal; font-display: block; src: url("assets/fonts/Inter-400.woff2") format("woff2"); }
+    @font-face { font-family: "Inter"; font-weight: 700; font-style: normal; font-display: block; src: url("assets/fonts/Inter-700.woff2") format("woff2"); }
+    @font-face { font-family: "JetBrains Mono"; font-weight: 400; font-style: normal; font-display: block; src: url("assets/fonts/JetBrainsMono-400.woff2") format("woff2"); }
+
+    #root { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; font-family: "Inter", sans-serif; color: #F3F6FA; }
+    .f07-bg { background-color: #0B1220; }
+    .f07-kicker { position: absolute; left: 0; right: 0; top: 250px; display: flex; justify-content: center; align-items: center; gap: 14px;
+      font-family: "JetBrains Mono", monospace; font-size: 24px; letter-spacing: 0.16em; text-transform: uppercase; color: #8A94A6; }
+    .f07-kicker svg { width: 20px; height: 20px; }
+    .f07-line { position: absolute; left: 0; right: 0; top: 400px; text-align: center; font-size: 128px; line-height: 1.04; letter-spacing: -0.024em; white-space: nowrap; transform-origin: 50% 50%; }
+    .f07-mid { font-size: 104px; top: 412px; }
+    .f07-long { font-size: 84px; top: 380px; line-height: 1.14; white-space: normal; padding: 0 240px; }
+    .f07-chip { position: absolute; left: 0; right: 0; top: 570px; text-align: center; font-family: "JetBrains Mono", monospace; font-size: 22px; letter-spacing: 0.06em; color: #8A94A6; }
+    .f07-chip span { display: inline-block; border: 1px solid rgba(243,246,250,0.2); border-radius: 9999px; padding: 10px 20px; }
+    .f07-gate { position: absolute; left: 200px; top: 330px; width: 1520px; height: 300px; overflow: visible; }
+    .f07-gate rect { fill: none; stroke: rgba(243,246,250,0.28); stroke-width: 2; }
+    .f07-fin1 { top: 356px; font-size: 104px; }
+    .f07-fin2 { top: 500px; font-size: 128px; }
+    .f07-blue { color: #189EFF; }
+  </style>
+
+  <div id="root" data-composition-id="07-safety" data-duration="14.196" data-width="1920" data-height="1080">
+    <div id="f07-bg" class="clip f07-bg" data-start="0" data-duration="14.196" data-track-index="0"></div>
+
+    <div id="f07-stage" class="clip" data-start="0" data-duration="14.196" data-track-index="1">
+      <div id="f07-kicker" class="f07-kicker">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#189EFF" stroke-width="3" stroke-linecap="round" fill="none"/></svg>
+        <span>enforced, not prompted</span>
+      </div>
+
+      <div id="f07-a" class="f07-line">Enforced. Not prompted.</div>
+      <div id="f07-b" class="f07-line">The model proposes.</div>
+      <div id="f07-c" class="f07-line f07-mid">A person — or a policy — applies.</div>
+      <div id="f07-chip" class="f07-chip"><span>Rule Builder · Flow Builder · host approval</span></div>
+      <div id="f07-d" class="f07-line f07-long">Provenance gates: only IDs this session has seen.</div>
+      <svg id="f07-gate" class="f07-gate" viewBox="0 0 1520 300" aria-hidden="true"><rect id="f07-gate-rect" x="1" y="1" width="1518" height="298" rx="12"/></svg>
+      <div id="f07-e1" class="f07-line f07-fin1">Checkout completes in Shopware.</div>
+      <div id="f07-e2" class="f07-line f07-fin2"><span class="f07-blue">Never</span> in the agent.</div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      window.__timelines = window.__timelines || {};
+      var ID = "07-safety";
+      var tl = gsap.timeline({ paused: true });
+      var E = "power3.out";
+      var all = ["#f07-a", "#f07-b", "#f07-c", "#f07-chip", "#f07-d", "#f07-e1", "#f07-e2"];
+      gsap.set(all, { opacity: 0 });
+      var rect = document.getElementById("f07-gate-rect");
+      var L = rect.getTotalLength();
+      gsap.set(rect, { strokeDasharray: L, strokeDashoffset: L });
+
+      // Hard-cut relay: the outgoing state drops to 0 in the same instant the incoming lands (scale 1.08→1 settle, no overshoot).
+      function cut(outSel, inSel, at) {
+        if (outSel) tl.set(outSel, { opacity: 0 }, at);
+        tl.fromTo(inSel, { opacity: 0, scale: 1.08 }, { opacity: 1, scale: 1, duration: 0.45, ease: "expo.out" }, at);
+      }
+
+      // Scene 1 (0.0–2.2s): kicker; "Enforced. Not prompted." lands on "enforced" (@0.90).
+      tl.fromTo("#f07-kicker", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, ease: E }, 0);
+      cut(null, "#f07-a", 0.85);
+
+      // Scene 2 (2.2–4.4s): hard cut to "The model proposes." (@2.57).
+      cut("#f07-a", "#f07-b", 2.55);
+
+      // Scene 3 (4.4–7.0s): hard cut to "A person — or a policy — applies." (@4.11); chip on "policy" (@5.15).
+      cut("#f07-b", "#f07-c", 4.1);
+      tl.fromTo("#f07-chip", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, ease: E }, 5.15);
+
+      // Scene 4 (7.0–9.8s): hard cut to the provenance line (@6.97); the gate frame draws on around it.
+      tl.set("#f07-chip", { opacity: 0 }, 6.95);
+      cut("#f07-c", "#f07-d", 6.95);
+      tl.fromTo(rect, { strokeDashoffset: L }, { strokeDashoffset: 0, duration: 1.1, ease: E }, 7.5);
+
+      // Scene 5 (9.8–13.6s): locked finale — line 1 on "checkout completes in Shopware" (@10.65), line 2 on "never" (@12.60).
+      tl.to(rect, { opacity: 0, duration: 0.25, ease: "none" }, 10.55);
+      cut("#f07-d", "#f07-e1", 10.6);
+      cut(null, "#f07-e2", 12.55);
+
+      window.__timelines[ID] = tl;
+    })();
+  </script>
+</template>

@@ -1,5 +1,5 @@
-# Copyright 2026 Shopware × Claude Commerce Agents authors.
-# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 shopware AG
+# SPDX-License-Identifier: MIT
 #
 # Blueprint packages install from Anthropic's repository at the pinned commit.
 # vendor/ carries demo_common, web-shared, and skills — see NOTICE.

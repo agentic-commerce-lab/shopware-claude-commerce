@@ -1,0 +1,146 @@
+<template>
+  <style>
+    @font-face { font-family: "Inter"; font-weight: 400; font-style: normal; font-display: block; src: url("assets/fonts/Inter-400.woff2") format("woff2"); }
+    @font-face { font-family: "Inter"; font-weight: 700; font-style: normal; font-display: block; src: url("assets/fonts/Inter-700.woff2") format("woff2"); }
+    @font-face { font-family: "JetBrains Mono"; font-weight: 400; font-style: normal; font-display: block; src: url("assets/fonts/JetBrainsMono-400.woff2") format("woff2"); }
+    @font-face { font-family: "JetBrains Mono"; font-weight: 700; font-style: normal; font-display: block; src: url("assets/fonts/JetBrainsMono-700.woff2") format("woff2"); }
+
+    #root { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; font-family: "Inter", sans-serif; color: #F3F6FA; }
+    .f10-bg { background-color: #0B1220;
+      background-image: linear-gradient(rgba(243,246,250,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(243,246,250,0.04) 1px, transparent 1px);
+      background-size: 96px 96px; }
+    .f10-kicker { position: absolute; left: 0; right: 0; top: 92px; display: flex; justify-content: center; align-items: center; gap: 14px;
+      font-family: "JetBrains Mono", monospace; font-size: 24px; letter-spacing: 0.16em; text-transform: uppercase; color: #8A94A6; }
+    .f10-kicker svg { width: 20px; height: 20px; }
+    .f10-thesis { position: absolute; left: 0; right: 0; top: 230px; text-align: center; transform-origin: 50% 0; }
+    .f10-line { font-size: 104px; line-height: 1.12; letter-spacing: -0.022em; white-space: nowrap; }
+    .f10-blue { color: #189EFF; }
+    .f10-w { display: inline-block; will-change: transform, opacity; }
+
+    .f10-repo { position: absolute; left: 0; right: 0; top: 330px; display: flex; justify-content: center; align-items: center; gap: 20px;
+      font-family: "JetBrains Mono", monospace; font-size: 38px; letter-spacing: -0.01em; color: #F3F6FA; }
+    .f10-repo .f10-dim { color: #8A94A6; }
+    .f10-repo .f10-pill { font-size: 18px; letter-spacing: 0.08em; color: #8A94A6; border: 1px solid rgba(243,246,250,0.22); border-radius: 9999px; padding: 8px 16px; }
+
+    .f10-term { position: absolute; left: 260px; top: 430px; width: 1400px; height: 440px; border-radius: 8px; background: #060B16; border: 1px solid rgba(243,246,250,0.14);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 8px 32px rgba(0,0,0,0.25); overflow: hidden; }
+    .f10-titlebar { position: absolute; left: 0; right: 0; top: 0; height: 44px; background: #141F36; display: flex; align-items: center; padding: 0 18px; gap: 10px;
+      font-family: "JetBrains Mono", monospace; font-size: 17px; color: #8A94A6; }
+    .f10-titlebar .f10-dot { width: 12px; height: 12px; border-radius: 50%; background: rgba(243,246,250,0.18); }
+    .f10-titlebar .f10-title { margin-left: 12px; }
+    .f10-body { position: absolute; left: 0; right: 0; top: 44px; padding: 22px 30px; font-family: "JetBrains Mono", monospace; font-size: 23px; line-height: 44px; white-space: pre; }
+    .f10-ln { display: block; height: 44px; }
+    .f10-prompt { color: #189EFF; }
+    .f10-caret { display: inline-block; width: 12px; height: 26px; background: #F3F6FA; vertical-align: -4px; margin-left: 2px; }
+    .f10-status { position: absolute; left: 30px; bottom: 26px; font-family: "JetBrains Mono", monospace; font-size: 21px; color: #5DB872; }
+    .f10-status .f10-dim { color: #8A94A6; }
+  </style>
+
+  <div id="root" data-composition-id="10-close" data-duration="12.801" data-width="1920" data-height="1080">
+    <div id="f10-bg" class="clip f10-bg" data-start="0" data-duration="12.801" data-track-index="0"></div>
+
+    <div id="f10-stage" class="clip" data-start="0" data-duration="12.801" data-track-index="1">
+      <div id="f10-kicker" class="f10-kicker">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#189EFF" stroke-width="3" stroke-linecap="round" fill="none"/></svg>
+        <span>Shopware × Claude Commerce Agents</span>
+      </div>
+
+      <div id="f10-thesis" class="f10-thesis">
+        <div id="f10-t1" class="f10-line">Shopware is the <span class="f10-blue">Commerce Operating System</span></div>
+        <div id="f10-t2" class="f10-line">for the Agent Economy.</div>
+      </div>
+
+      <div id="f10-repo" class="f10-repo"><span><span class="f10-dim">github.com/</span>sthamann/shopware_claude_commerce</span><span class="f10-pill">MIT</span></div>
+
+      <div id="f10-term" class="f10-term">
+        <div class="f10-titlebar"><span class="f10-dot"></span><span class="f10-dot"></span><span class="f10-dot"></span><span class="f10-title">quick start — five commands</span></div>
+        <div class="f10-body"><span class="f10-ln"><span class="f10-prompt">$ </span><span id="f10-c1"></span></span><span class="f10-ln"><span class="f10-prompt" id="f10-p2">$ </span><span id="f10-c2"></span></span><span class="f10-ln"><span class="f10-prompt" id="f10-p3">$ </span><span id="f10-c3"></span></span><span class="f10-ln"><span class="f10-prompt" id="f10-p4">$ </span><span id="f10-c4"></span></span><span class="f10-ln"><span class="f10-prompt" id="f10-p5">$ </span><span id="f10-c5"></span><span id="f10-caret" class="f10-caret"></span></span></div>
+        <div id="f10-status" class="f10-status">→ shopping agent on <span class="f10-dim">http://localhost:8004</span> · UI on <span class="f10-dim">http://localhost:3005</span></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      window.__timelines = window.__timelines || {};
+      var ID = "10-close";
+      var tl = gsap.timeline({ paused: true });
+      var E = "power3.out";
+
+      function splitWords(el, cls) {
+        // Split text nodes only, keep the accent <span> intact as one word group.
+        var out = [];
+        Array.from(el.childNodes).forEach(function (node) {
+          if (node.nodeType === 3) {
+            var text = node.textContent.split(/(\s+)/);
+            var frag = document.createDocumentFragment();
+            text.forEach(function (tk) {
+              if (!tk) return;
+              if (/^\s+$/.test(tk)) { frag.appendChild(document.createTextNode(tk)); return; }
+              var s = document.createElement("span"); s.className = cls; s.textContent = tk; frag.appendChild(s); out.push(s);
+            });
+            el.replaceChild(frag, node);
+          } else if (node.nodeType === 1) {
+            var inner = node.textContent.split(/(\s+)/);
+            node.textContent = "";
+            inner.forEach(function (tk) {
+              if (!tk) return;
+              if (/^\s+$/.test(tk)) { node.appendChild(document.createTextNode(tk)); return; }
+              var s = document.createElement("span"); s.className = cls; s.textContent = tk; node.appendChild(s); out.push(s);
+            });
+          }
+        });
+        return out;
+      }
+      var w1 = splitWords(document.getElementById("f10-t1"), "f10-w");   // Shopware is the Commerce Operating System
+      var w2 = splitWords(document.getElementById("f10-t2"), "f10-w");   // for the Agent Economy.
+      gsap.set(w1.concat(w2), { opacity: 0 });
+      gsap.set(["#f10-repo", "#f10-term", "#f10-status", "#f10-p2", "#f10-p3", "#f10-p4", "#f10-p5"], { opacity: 0 });
+
+      function word(s, at) { tl.fromTo(s, { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.5, ease: E }, at); }
+
+      // Scene 1 (0.0–4.4s): kicker; the thesis lands word by word on its cues —
+      // Shopware @0.04, is @0.52, the @0.65, Commerce @0.85, Operating @1.38, System @2.00, for @2.66, the @2.94, Agent @3.12, Economy @3.59.
+      tl.fromTo("#f10-kicker", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, ease: E }, 0);
+      var times1 = [0.05, 0.52, 0.65, 0.85, 1.38, 2.0];
+      w1.forEach(function (s, i) { word(s, times1[i] != null ? times1[i] : 2.0 + i * 0.1); });
+      var times2 = [2.66, 2.94, 3.12, 3.59];
+      w2.forEach(function (s, i) { word(s, times2[i] != null ? times2[i] : 3.59 + i * 0.1); });
+
+      // Scene 2 (4.4–6.6s): thesis demotes on "The repository" (@4.42); the lockup pops once the demote has settled, on "link" (@5.36) — the URL is shown, not spoken.
+      tl.to("#f10-thesis", { scale: 0.58, y: -60, duration: 0.8, ease: "power3.inOut" }, 4.4);
+      tl.fromTo("#f10-repo", { opacity: 0, y: 16, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: E }, 5.2);
+
+      // Scene 3 (6.6–12.0s): terminal springs in ("Five commands" @7.03); the five README commands type on in cascade; status line on "and it runs" (@8.19 → lands after the last command).
+      tl.fromTo("#f10-term", { opacity: 0, y: 24, scale: 0.97 }, { opacity: 1, y: 0, scale: 1, duration: 0.7, ease: E }, 6.65);
+      var CMDS = [
+        "docker compose -f docker/compose.yaml up -d",
+        "./docker/bootstrap.sh",
+        "python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements-dev.txt",
+        "cp .env.example .env && cat docker/.generated.env >> .env",
+        "uvicorn storefront.api.main:app --port 8004"
+      ];
+      var starts = [7.1, 7.7, 8.1, 9.1, 9.75];
+      var durs = [0.55, 0.35, 0.95, 0.6, 0.55];
+      CMDS.forEach(function (cmd, i) {
+        var el = document.getElementById("f10-c" + (i + 1));
+        var st = { p: 0 };
+        if (i > 0) tl.set("#f10-p" + (i + 1), { opacity: 1 }, starts[i] - 0.02);
+        tl.fromTo(st, { p: 0 }, { p: 1, duration: durs[i], ease: "none", onUpdate: function () {
+          el.textContent = cmd.slice(0, Math.round(st.p * cmd.length));
+        } }, starts[i]);
+      });
+      tl.fromTo("#f10-status", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.5, ease: E }, 10.55);
+
+      // Scene 4 (12.0–12.8s): held lockup; only the caret blinks (square wave on timeline time).
+      var caret = document.getElementById("f10-caret");
+      var blink = { t: 0 };
+      tl.fromTo(blink, { t: 0 }, { t: 1, duration: 12.8, ease: "none", onUpdate: function () {
+        var t = tl.time();
+        caret.style.opacity = t < 9.75 ? "0" : ((t % 1.0) < 0.55 ? "1" : "0");
+      } }, 0);
+
+      window.__timelines[ID] = tl;
+    })();
+  </script>
+</template>

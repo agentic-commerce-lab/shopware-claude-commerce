@@ -22,6 +22,11 @@ Apache-2.0 material in this repository
      vendor/web-shared/      (from examples/web-shared)
      vendor/skills/          (shopping-agent/skills and merchant-agent/skills)
 
+   Adapted (not verbatim) under merchant/web/ from examples/retail/merchant-web
+   at the same commit: app/, components/views/, components/generative/,
+   lib/{api,format,kinds,types}.ts, next.config.ts, postcss.config.mjs.
+   They carry the "Copyright 2026 Anthropic PBC" header and remain Apache-2.0.
+
    Individual files elsewhere that carry a "Copyright 2026 Anthropic PBC"
    header (for example storefront/web/postcss.config.mjs) are likewise
    Apache-2.0.

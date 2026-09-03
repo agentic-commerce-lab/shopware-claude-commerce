@@ -14,7 +14,7 @@
 - voiceover: "The rules are enforced, not prompted. The model proposes. A person — or a policy — applies. Provenance gates accept only IDs the session has seen. And checkout completes in Shopware — never in the agent."
 - duration: 13.696s
 - transition_in: zoom-through
-- status: outline
+- status: animated
 - src: compositions/frames/07-safety.html
 - type: benefit_highlight
 - persuasion: Risk reversal — name the failure modes the architecture makes impossible

@@ -5,24 +5,41 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ActivityButton } from "web-shared";
-import { shopSignInUrl } from "@/lib/api";
+import { ActivityButton } from "web-shared/ActivityButton";
 import type { Brand } from "@/lib/types";
 
-/** The button leaves the app: sign-in is a top-level navigation through the host. */
+const SIGN_IN_ERROR_MS = 5000;
+
+/**
+ * Identity Linking leaves the app: the button asks the host for the authorization URL and
+ * the browser navigates there. While signed in, a small badge and a sign-out button show.
+ */
 function ShopSignIn({
   sessionId,
   signedIn,
+  onSignIn,
   onSignOut,
 }: {
   sessionId: string | null;
   signedIn: boolean;
+  onSignIn: () => Promise<boolean>;
   onSignOut: () => void;
 }) {
+  const [phase, setPhase] = useState<"idle" | "busy" | "error">("idle");
+  useEffect(() => {
+    if (phase !== "error") return;
+    const timer = window.setTimeout(() => setPhase("idle"), SIGN_IN_ERROR_MS);
+    return () => window.clearTimeout(timer);
+  }, [phase]);
+
   if (signedIn) {
     return (
-      <span className="flex items-center gap-1.5 rounded-full bg-(--accent-soft) py-1 pl-3 pr-1.5 text-[13px] font-semibold text-(--ink)">
-        Account ✓
+      <span
+        data-signed-in
+        className="flex items-center gap-1.5 rounded-full bg-(--accent-soft) py-1 pl-3 pr-1.5 text-[13px] font-semibold text-(--ink)"
+      >
+        <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+        Signed in
         <button
           type="button"
           onClick={onSignOut}
@@ -34,15 +51,22 @@ function ShopSignIn({
     );
   }
   return (
-    <a
-      href={sessionId ? shopSignInUrl(sessionId) : undefined}
-      aria-disabled={!sessionId}
-      className={`rounded-full bg-(--brand) px-3.5 py-1.5 text-[13px] font-semibold text-(--brand-contrast) transition hover:brightness-110 ${
-        sessionId ? "" : "pointer-events-none opacity-50"
+    <button
+      type="button"
+      disabled={!sessionId || phase === "busy"}
+      title={phase === "error" ? "Sign-in isn't available right now. You can keep shopping as a guest." : undefined}
+      onClick={async () => {
+        setPhase("busy");
+        const left = await onSignIn();
+        // On success the page is navigating away; only the failure needs a state.
+        if (!left) setPhase("error");
+      }}
+      className={`rounded-full bg-(--brand) px-3.5 py-1.5 text-[13px] font-semibold text-(--brand-contrast) transition hover:brightness-110 disabled:opacity-50 ${
+        phase === "busy" ? "animate-pulse" : ""
       }`}
     >
-      Sign in
-    </a>
+      {phase === "error" ? "Sign-in unavailable" : phase === "busy" ? "Opening…" : "Sign in"}
+    </button>
   );
 }
 
@@ -50,6 +74,7 @@ export default function Header({
   brand,
   sessionId,
   signedIn,
+  onSignIn,
   onSignOut,
   cartCount,
   onOpenCart,
@@ -62,6 +87,7 @@ export default function Header({
   brand: Brand | null;
   sessionId: string | null;
   signedIn: boolean;
+  onSignIn: () => Promise<boolean>;
   onSignOut: () => void;
   cartCount: number;
   onOpenCart: () => void;
@@ -99,7 +125,7 @@ export default function Header({
         ) : null}
       </Link>
       <div className="flex shrink-0 items-center gap-2">
-        <ShopSignIn sessionId={sessionId} signedIn={signedIn} onSignOut={onSignOut} />
+        <ShopSignIn sessionId={sessionId} signedIn={signedIn} onSignIn={onSignIn} onSignOut={onSignOut} />
         <ActivityButton streaming={streaming} newMemoryCount={newMemoryCount} onClick={onOpenActivity} />
         <button
           type="button"

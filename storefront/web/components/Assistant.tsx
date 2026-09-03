@@ -4,6 +4,7 @@
 "use client";
 
 import { type AgentTurn, AssistantRail, Chat as ChatShell } from "web-shared";
+import { Composer } from "web-shared/Composer";
 import GenerativeBlock from "./generative";
 
 const COPY = {
@@ -19,10 +20,11 @@ const STARTERS = [
   "What's in my cart?",
 ];
 
-function Hero({ chat }: { chat: AgentTurn }) {
+/** The conversation's home until the first message: a headline and the ways to begin. */
+function Home({ chat }: { chat: AgentTurn }) {
   return (
     <div className="mt-4">
-      <div className="rounded-2xl bg-gradient-to-b from-(--accent-soft) via-(--surface) to-transparent px-4 pb-2 pt-8 text-center">
+      <div className="rounded-2xl bg-gradient-to-b from-(--accent-soft) via-(--ground) to-transparent px-4 pb-2 pt-8 text-center">
         <div className="text-xl font-semibold text-(--ink)">Shopping assistant</div>
         <p className="mt-1 text-[15px] text-(--ink-soft)">
           Ask about products, compare options, or build a cart.
@@ -57,7 +59,7 @@ export default function Assistant({
   onClose: () => void;
   /** Resolves false when the host refuses the add. */
   onAdd: (productId: string) => Promise<boolean>;
-  /** Shopware's hosted checkout for the session's cart, for the checkout card's CTA. */
+  /** The storefront API's checkout handoff for the session's cart, for the checkout card's CTA. */
   checkoutUrl?: string | null;
 }) {
   return (
@@ -85,19 +87,31 @@ export default function Assistant({
               </button>
             </div>
           </div>
-          <ChatShell
-            chat={chat}
-            copy={COPY}
-            hero={<Hero chat={chat} />}
-            renderBlock={(segment) => (
-              <GenerativeBlock
-                block={segment.block}
-                status={segment.status}
-                onAdd={(product) => onAdd(product.product_id)}
-                checkoutUrl={checkoutUrl}
-              />
-            )}
-          />
+          <div className="min-h-0 flex-1">
+            <ChatShell
+              chat={chat}
+              home={<Home chat={chat} />}
+              renderBlock={(segment) => (
+                <GenerativeBlock
+                  block={segment.block}
+                  status={segment.status}
+                  onAdd={(product) => onAdd(product.product_id)}
+                  checkoutUrl={checkoutUrl}
+                />
+              )}
+            />
+          </div>
+          <div className="border-t border-(--line) p-3">
+            <Composer
+              send={(text) => void chat.send(text)}
+              ready={chat.ready}
+              busy={chat.busy}
+              label={COPY.label}
+              placeholder={COPY.placeholder}
+              variant="field"
+            />
+            <p className="mt-2 text-center text-[11px] leading-snug text-(--ink-soft)/80">{COPY.footnote}</p>
+          </div>
         </div>
       )}
     </AssistantRail>

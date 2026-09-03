@@ -1,5 +1,8 @@
 {
-  "low_stock": 8,
-  "slow_mover_sales_30d": 1,
-  "fulfilment_sla_days": 3
+  "default": 8,
+  "per_listing": {
+    "CA-CANDLE": 5
+  },
+  "delayed_after_days": 3,
+  "slow_mover_window_days": 30
 }

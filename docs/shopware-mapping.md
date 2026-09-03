@@ -1,92 +1,152 @@
-# Shopware mapping (spikes A–C)
+# Shopware mapping
 
-Discovered against dockware **Shopware 6.7.13.0** + `SwagAgenticCommerce`. Protocol version **2026-04-08**.
+Discovered against dockware **Shopware 6.7.13.0** (PHP 8.4, `MCP_SERVER=1`) with `SwagAgenticCommerce` pinned in `docker/bootstrap.sh`. UCP protocol version **2026-04-08**. Everything below was read from the live shop; the netless replay in `storefront/api/tests/replay.py` and `merchant/api/fake_admin.py` mirrors these shapes so the test suite pins them.
 
-## Transports
+## Transports (ADR-12)
 
-| Transport | Endpoint | When used |
-|---|---|---|
-| Discovery | `GET /.well-known/ucp` | Profile, capabilities, service URLs |
-| REST (default) | `/ucp/v1/*` | Storefront backend (`UCP_TRANSPORT=rest`) |
-| MCP | `POST /ucp/mcp` (Store API `/store-api/_mcp`) | Fallback if REST 404/405 without a UCP error document |
-| Embedded | checkout iframe origins | Not used; we hand off |
+| Side | Transport | Endpoint | Role |
+|---|---|---|---|
+| Shopper | Discovery | `GET /.well-known/ucp` | Profile, capabilities, service URLs, active signing keys |
+| Shopper | **UCP over MCP** (default) | `POST /ucp/mcp` (Streamable HTTP) | Primary. `UCP_TRANSPORT=mcp` |
+| Shopper | UCP REST | `/ucp/v1/*` | Fallback when MCP is unreachable, or `UCP_TRANSPORT=rest` |
+| Shopper | Store API | `/store-api/*` | Gaps: variants, delivery time, base price, shipping methods, CMS policies, orders, brand |
+| Shopper | Embedded checkout | iframe origins | Not used; checkout is a handoff (ADR-10) |
+| Merchant | **Admin API MCP** (default) | `POST /api/_mcp` | Reads, aggregations, `dryRun=true` previews, writes with `dryRun=false`. `SHOPWARE_ADMIN_TRANSPORT=mcp` |
+| Merchant | Admin REST | `/api/*` | Fallback (`SHOPWARE_ADMIN_TRANSPORT=rest`): `POST /api/search/*`, `PATCH /api/product/{id}` |
 
-Required header: `UCP-Agent: platform; profile="http://localhost/agent-profile.json"` (the shop fetches this URL **from inside Docker**, so the host must be reachable on container port 80 — not host `:8080`). Writes also send `Idempotency-Key`. Local policy is `signature-policy=log` (unsigned accepted). `SWAG_AGENTIC_COMMERCE_UCP_PROFILE_FETCHING_DEVELOPMENT_MODE=1` allows http profiles. Allowlist hosts: `localhost` and `127.0.0.1`. The agent profile must declare the same capability names as the shop (`dev.ucp.shopping.catalog`, `.cart`, `.checkout`, `.order`, `.discount`, `dev.ucp.common.identity_linking`) as **lists**, or Shopware returns `capabilities_incompatible`.
+Fallback is one-directional per call: a transport-level failure (connection refused, 404/405 without a UCP document, session expiry that does not recover) switches to the other transport; a UCP error document (`ucp.status=error`) is a business error and never triggers a fallback. `UcpClient(..., fallback=False)` pins one transport (used by `storefront/scripts/smoke.py --no-fallback`).
 
-## Agent profile (local Docker)
+### MCP session mechanics (`shopware_common/mcp_client.py`)
 
-Shopware fetches `UCP-Agent` `profile="..."` **from inside the container**. Use `http://localhost/agent-profile.json` (Apache on :80). Host `:8080` is not reachable from the shop process.
+1. `initialize` (`protocolVersion` `2025-06-18`) → response carries `Mcp-Session-Id`.
+2. `notifications/initialized` → `202 Accepted`.
+3. `tools/list`, `tools/call` with `Mcp-Session-Id` and `Mcp-Protocol-Version` on every request; bodies come back as JSON or as an SSE stream (`event: message`), both are handled.
+4. `404`/`400 session not found` → one transparent re-initialize and retry.
+5. `DELETE /ucp/mcp` ends the session on `close()`.
 
-Repo `agent-profile.json` must declare the same capability names as the shop, as **lists** (not objects). A missing intersection returns `capabilities_incompatible`. Bootstrap copies the file into `public/` and sets `SWAG_AGENTIC_COMMERCE_UCP_PROFILE_FETCHING_DEVELOPMENT_MODE=1` so http localhost is allowed. Recreating the container wipes plugin files; re-run `./docker/bootstrap.sh`.
+`/ucp/mcp` additionally requires the `UCP-Agent` header on **every** request including `initialize` (`422 $.headers.ucp-agent is required` otherwise). Signed requests (RFC 9421 + RFC 9530, see below) work on both transports because the signature covers the raw JSON-RPC body.
 
-## REST paths
+### Live UCP tool envelope
+
+`tools/call` results wrap the UCP document:
+
+```json
+{"success": true, "dryRun": false, "data": { ...UCP document... }}
+```
+
+Business errors arrive inside `data.messages[]` (`{"type":"error","code":"product-not-found","severity":"recoverable"}`), tool failures as `isError: true` text blocks. `UcpClient` unwraps the envelope, so the backend sees the same document on both transports.
+
+## Agent profile and required headers
+
+`UCP-Agent: platform; profile="http://localhost/agent-profile.json"` on every call. Shopware fetches the profile **from inside the container**, so bootstrap copies `agent-profile.json` into the shop's `public/` and sets `SWAG_AGENTIC_COMMERCE_UCP_PROFILE_FETCHING_DEVELOPMENT_MODE=1` so an http profile is accepted. Capabilities must be declared as **lists** and intersect with the shop's (`dev.ucp.shopping.catalog`, `.cart`, `.checkout`, `.order`, `.discount`, `dev.ucp.common.identity_linking`), otherwise `capabilities_incompatible`.
+
+Writes send `Idempotency-Key` (UUID per call; REST header, MCP `_meta`). Local policy is `signature-policy=log`; production runs `strict`.
+
+### Request signing (RFC 9421 + RFC 9530)
+
+`shopware_common/http_signing.py` — `RequestSigner` (ES256, `Content-Digest: sha-256=:…:`, `Signature-Input: sig=("@method" "@target-uri" "content-digest");created;expires;keyid;alg="ES256"`; lifetime 120 s). Configure with `UCP_AGENT_SIGNING_KEY_PEM_FILE` (+ `UCP_AGENT_SIGNING_KEY_ID`); the public JWK belongs in `agent-profile.json` → `signing_keys`. Unset → unsigned requests (fine under `log`). The replay verifies signatures with the test key, so the suite proves the canonical form.
+
+## UCP REST paths (fallback)
 
 | Operation | HTTP |
 |---|---|
 | catalog.search | `POST /ucp/v1/catalog/search` `{query, limit}` |
 | catalog.lookup | `POST /ucp/v1/catalog/lookup` `{ids}` |
-| catalog.product | `GET /ucp/v1/catalog/product/{id}` |
+| catalog.product | `GET /ucp/v1/catalog/product/{id}` — **quirk:** for a family id this answers the family's *first child* (`catalog.lookup` and the MCP tool answer the family). The backend disambiguates with the Store API (`parentId == requested id` ⇒ family). |
 | cart.create | `POST /ucp/v1/carts` |
-| cart.get | `GET /ucp/v1/carts/{id}` |
+| cart.get | `GET /ucp/v1/carts/{id}` — an unknown id yields an **empty cart with that id**, not 404 |
 | cart.update | `PATCH /ucp/v1/carts/{id}` replace-all `line_items` |
 | cart.cancel | `POST /ucp/v1/carts/{id}/cancel` |
-| checkout.create | `POST /ucp/v1/checkout-sessions` |
-| checkout.get/update | `GET` / `PATCH /ucp/v1/checkout-sessions/{id}` |
-| checkout.complete | `POST .../complete` — **never called** |
+| checkout.* | `/ucp/v1/checkout-sessions…` — **not used by the shopper host** (handoff instead) |
 | order.get | `GET /ucp/v1/orders/{id}` |
+| discount.apply | REST route absent on 6.7.13; MCP-only |
 
-## MCP tool names (not Shopify names)
+## UCP MCP tools (live `tools/list`, 14 tools)
 
-Mutating MCP tools default to `dryRun=true` on the server. This client sends `dryRun=false` for real cart/checkout writes.
+`*` = required. Mutating tools default to `dryRun=true` on the server; the host sends `dryRun=false` for real cart writes.
 
-MCP `tools/list` requires a session: `initialize` then `Mcp-Session-Id` on later calls. Live list on 6.7.13 + SwagAgenticCommerce 1.3.0:
+| Our method | Tool | Arguments |
+|---|---|---|
+| (context) | `shopware-store-api-context` | — |
+| search_catalog | `shopware-ucp-catalog-search` | `query:string`, `limit:int=10` (no price filter → applied client-side) |
+| lookup_catalog / get_product | `shopware-ucp-catalog-lookup` | `ids:string` (JSON array as string) |
+| create_cart | `shopware-ucp-cart-create` | `payload:string` (JSON `{line_items}`), `dryRun` |
+| get_cart | `shopware-ucp-cart-get` | `id*` |
+| update_cart | `shopware-ucp-cart-update` | `id*`, `payload:string`, `dryRun` |
+| cancel_cart | `shopware-ucp-cart-cancel` | `id*`, `dryRun` |
+| apply_discount | `shopware-ucp-discount-apply` | `cartId*`, `code*`, `dryRun` |
+| get_order | `shopware-ucp-order-get` | `id*` |
+| never called | `shopware-ucp-checkout-create/get/update/cancel/complete` | checkout stays in Shopware |
 
-| Our name | Shopware MCP tool |
-|---|---|
-| (Store API context) | `shopware-store-api-context` |
-| search_catalog | `shopware-ucp-catalog-search` |
-| lookup_catalog | `shopware-ucp-catalog-lookup` |
-| create_cart | `shopware-ucp-cart-create` |
-| update_cart | `shopware-ucp-cart-update` |
-| get_cart | `shopware-ucp-cart-get` |
-| cancel_cart | `shopware-ucp-cart-cancel` |
-| create_checkout | `shopware-ucp-checkout-create` |
-| update_checkout | `shopware-ucp-checkout-update` |
-| get_checkout | `shopware-ucp-checkout-get` |
-| complete_checkout | `shopware-ucp-checkout-complete` |
-| cancel_checkout | `shopware-ucp-checkout-cancel` |
-| apply_discount | `shopware-ucp-discount-apply` |
-| get_order | `shopware-ucp-order-get` |
+## Cart id
 
-On 6.7.13 MCP needs the `MCP_SERVER=1` feature flag (bootstrap sets it). REST UCP works without it.
+The UCP cart `id` **is** the Store API `sw-context-token` (ULID-like `01a0…` on 6.7.13). One cart per agent session; the token never reaches the model and never appears in a URL.
 
-## Spike B — cart id
+## Checkout handoff (ADR-10)
 
-Shopware's UCP cart `id` is the sales-channel context token (Store API `sw-context-token`). On 6.7.13 + plugin 1.3.0 the token looks like a ULID (`01a0…`), not a Shopify GID. `ShopwareDataMapper` uses `$cart->getToken() ?: $context->getToken()`.
+1. `GET /api/cart` gives the browser `checkout_url = {host}/api/checkout/handoff/{ticket}`. The ticket is a per-session random id; nothing is written to Shopware on GET.
+2. Opening it mints a **one-time handoff code** (`shopware_common/handoff.py`): `v1.<payload>.<mac>` — payload = `jti`, `iat`, `exp` (≤ 120 s), AES-256-GCM box of the context token (nonce ∥ ciphertext ∥ tag, AAD = `jti`); MAC = HMAC-SHA256 over the payload. Keys are derived from `COMMERCE_AGENTS_HANDOFF_SECRET` (bootstrap generates it once and writes it to `docker/.generated.env` and the plugin config).
+3. The host answers an HTML page that auto-submits `POST {shop}/claude-commerce/continue` with `code=…` (GET `?code=` only as `<noscript>` fallback; the raw token is never in a URL).
+4. `CommerceAgentsHandoff` verifies MAC, expiry and single use (`jti` cache), refuses when a customer is already logged in, `$session->migrate()`, sets the context token, redirects to `/checkout/confirm`. Payment stays on Shopware.
 
-## Spike C — checkout
+`complete_checkout` is never called; the opt-in flag was removed.
 
-Checkout is a **handoff**. Staging `create_checkout` still runs (Shopware session). The URL the host opens is:
+## Identity Linking
 
-`{shop}/claude-commerce/continue?token={cartId}`
+`storefront/api/identity.py` implements UCP OAuth (authorization code + PKCE) against the shop's AS from discovery (`/ucp/oauth/authorize`, `/ucp/oauth/token`). Shopware requires the `client_id` to be an **https** agent-profile URL and signed requests; on the plain-http Docker shop `GET /api/auth/shopware/start` therefore answers `503` with the reason. `GET /api/auth/status` reports availability; when linked, `get_orders` uses the customer's Store API context.
 
-`cartId` is the Store API context token. Plugin `CommerceAgentsHandoff` writes it into the storefront session and redirects to `/checkout/confirm`. A raw `continue_url` of `/checkout/confirm?checkoutId=…` does **not** restore the cart in the browser (different cookie).
+## Orders
 
-The agent never calls `complete_checkout` unless `SHOPWARE_AGENT_COMPLETE_CHECKOUT=1` (documented opt-in, default off). Payment stays on the Shopware storefront.
+`get_orders` / `get_order` read `POST /store-api/order` behind the cart's context token (or the linked customer's). A guest cart that has not ordered answers `403 CHECKOUT__CUSTOMER_NOT_LOGGED_IN` → empty list. The seeded order history (`docker/seed_orders.py`) belongs to the demo customer, so identity-linked sessions see it.
 
 ## IDs and catalog
 
-- Product / variant ids are 32-char hex UUIDs (`\b[0-9a-f]{32}\b`).
-- UCP product documents are often thin (no full variant matrix). The backend enriches via Store API `POST /store-api/product/{id}` with `children`, `options.group`, `deliveryTime`, `unit`, `calculatedPrice.referencePrice` (Grundpreis).
-- One out-of-stock variant raises `Unavailable` and lists in-stock sibling ids.
+- Product / variant ids are 32-char hex UUIDs.
+- UCP product documents are thin: no option matrix, no stock. The backend enriches from the Store API: `GET /store-api/product/{id}` (family → best child with `parentId`), `POST /store-api/product` filtered by `parentId` for the real children (incl. out of stock), `options.group`, `deliveryTime`, `unit`, `calculatedPrice.referencePrice` (PAngV base price).
+- `variant_of` maps every child to its family; `add_to_cart` on a family id resolves the requested option to a child and refuses the family row.
+- One out-of-stock variant raises `Unavailable` listing in-stock sibling ids.
 
-## Merchant Admin
+## Store API surfaces used
 
-- Auth: password grant (`client_id=administration`) or integration `client_credentials`.
-- Reads: `POST /api/search/product`, `POST /api/search/order`.
-- Writes (apply only): `PATCH /api/product/{id}` for name/description/price/stock/active.
-- Optional preview: `POST /api/_mcp` tool `shopware-entity-upsert` with `dryRun=true` when `SHOPWARE_ADMIN_TRANSPORT=mcp`.
+| Need | Store API |
+|---|---|
+| Brand / locale / currency | `GET /store-api/context` |
+| Variants, base price, delivery time | `GET /store-api/product/{id}`, `POST /store-api/product` (`parentId` filter) |
+| Shipping methods, fees, ETA | `POST /store-api/shipping-method` (`prices[].currencyPrice`, `deliveryTime.min/max/unit`) |
+| Policies | `GET /store-api/navigation/footer-navigation/footer-navigation`, `.../service-navigation/service-navigation` → `POST /store-api/category/{id}` → CMS `text` slots; plus `/agents.md`, `/llms.txt`; German fallback copy when the shop has none |
+| Orders | `POST /store-api/order` with `sw-context-token` |
 
-## Store API gaps
+All errors surface as `StoreApiError` (status, body logged); product 404 → `None`.
 
-Policies (footer CMS, `/agents.md`, `/llms.txt`), disclosures (PAngV Grundpreis, Lieferzeit, MwSt.), fulfillment (shipping methods), brand (sales-channel context). Fallback German copy lives in `storefront/api/policies.py` when the shop has no CMS pages.
+## Merchant (ADR-12/13/14)
+
+### Identity
+
+Bootstrap creates a Shopware **Integration** plus ACL role `claude-merchant-agent` (read: `product`, `product_price`, `order`, `order_line_item`, `customer`, `promotion`, `sales_channel`, `currency`, `tax`, `category`; update/create where the staged writes need it: `product`, `promotion`, `promotion_discount`, `promotion_sales_channel`, `promotion_discount_rule`). The host authenticates with `client_credentials` (`SHOPWARE_INTEGRATION_ACCESS_KEY` / `SHOPWARE_INTEGRATION_SECRET_KEY`); the admin password grant is gone. The integration is also on the Admin MCP allowlist.
+
+### Admin MCP tools (live `tools/list`, 20 tools)
+
+| Used for | Tool | Arguments |
+|---|---|---|
+| Catalog / order / customer / promotion reads | `shopware-entity-search` | `entity*`, `criteria:string={}`, `limit=25`, `page=1`, `term` |
+| Single entity | `shopware-entity-read` | `entity*`, `id*`, `criteria` |
+| Snapshot, metrics, slow movers | `shopware-entity-aggregate` | `entity*`, `aggregations*` (JSON string), `filters` |
+| Stage preview (`before`/`after`) | `shopware-entity-upsert` | `entity*`, `payload*` (JSON string), **`dryRun=true`** |
+| Apply | `shopware-entity-upsert` | same payload, `dryRun=false` |
+| Schema discovery (dev) | `shopware-entity-schema` | `entity*` |
+| Not used | `merchant-*` (order-summary, customer-lookup, product-create, revenue-report, bestseller-report, storefront-search, cart-manage, cart-checkout, checkout-methods), `shopware-media-upload`, `shopware-order-state`, `shopware-entity-delete`, `shopware-system-config-*`, `shopware-theme-config` | out of the blueprint's `MerchantBackend` scope |
+
+`/api/_mcp` uses the same OAuth bearer as the REST Admin API.
+
+### Writes
+
+| Change kind | Entity / fields |
+|---|---|
+| `listing_update` | `product`: `name`, `description`, `metaTitle`, `metaDescription` (whitelist at stage time) |
+| `price_update` | `product.price`: read current, replace **only** the sales-channel currency entry, `net = gross / (1 + taxRate/100)` from the product's tax |
+| `inventory_action` restock | `product.stock`: delta against **fresh** stock read at apply time |
+| `inventory_action` pause / activate | `product.active` on the family **and every child** |
+| `promotion` (ADR-13) | `promotion` (`active=true`, `useCodes=false`, `validFrom`/`validUntil`, `salesChannels`) + `promotion_discount` (`scope=cart`, `type=percentage`, `considerAdvancedRules=true`, product rule) — partial failure reports what was written |
+| `campaign` | `ChangeNotApplicable` |
+
+`apply_change` / `discard_change` refuse anything that is not `STAGED`. The ledger is SQLite (`MERCHANT_LEDGER_DSN`, default `merchant/data/ledger.sqlite`) and survives restarts.

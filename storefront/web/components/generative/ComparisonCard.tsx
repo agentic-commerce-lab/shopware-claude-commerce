@@ -4,7 +4,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { formatMoney } from "web-shared";
+import { formatMoney } from "@/lib/format";
 import type { ComparisonPayload, Product } from "@/lib/types";
 import { AddButton, ProductImage, Rating } from "../ProductTile";
 

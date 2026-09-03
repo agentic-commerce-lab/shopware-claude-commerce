@@ -8,7 +8,7 @@
     .f02-bg { background-color: #0B1220;
       background-image: linear-gradient(rgba(243,246,250,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(243,246,250,0.04) 1px, transparent 1px);
       background-size: 96px 96px; }
-    .f02-kicker { position: absolute; left: 0; right: 0; top: 232px; display: flex; justify-content: center; align-items: center; gap: 14px;
+    .f02-kicker { position: absolute; left: 0; right: 0; top: 150px; display: flex; justify-content: center; align-items: center; gap: 14px;
       font-family: "JetBrains Mono", monospace; font-size: 26px; letter-spacing: 0.16em; text-transform: uppercase; color: #8A94A6; }
     .f02-kicker svg { width: 22px; height: 22px; }
     .f02-reject { position: absolute; left: 0; right: 0; top: 330px; text-align: center; font-size: 120px; line-height: 1.05; letter-spacing: -0.012em; font-style: italic; white-space: nowrap; transform-origin: 50% 0; }
@@ -21,10 +21,10 @@
     .f02-w { display: inline-block; will-change: transform, opacity; }
   </style>
 
-  <div id="root" data-composition-id="02-execution-layer" data-width="1920" data-height="1080">
-    <div id="f02-bg" class="clip f02-bg" data-start="0" data-duration="7.275" data-track-index="0"></div>
+  <div id="root" data-composition-id="02-execution-layer" data-duration="7.675" data-width="1920" data-height="1080">
+    <div id="f02-bg" class="clip f02-bg" data-start="0" data-duration="7.675" data-track-index="0"></div>
 
-    <div id="f02-stage" class="clip" data-start="0" data-duration="7.275" data-track-index="1">
+    <div id="f02-stage" class="clip" data-start="0" data-duration="7.675" data-track-index="1">
       <div id="f02-kicker" class="f02-kicker">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#189EFF" stroke-width="3" stroke-linecap="round" fill="none"/></svg>
         <span>the idea</span>
@@ -81,7 +81,7 @@
       // Scene 1 (0.0–2.0s): kicker, then "Not a Claude shop." word by word ("not" @0.59, "Claude" @0.99, "shop" @1.49); strike draws on.
       tl.fromTo(kicker, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, ease: E }, 0.0);
       arrive(rw[0], 0.15); arrive(rw[1], 0.45); arrive(rw[2], 0.85); arrive(rw[3], 1.3);
-      tl.fromTo(strike, { scaleX: 0 }, { scaleX: 1, duration: 0.55, ease: E }, 1.6);
+      tl.fromTo(strike, { scaleX: 0 }, { scaleX: 1, duration: 0.42, ease: E }, 1.6);
 
       // Scene 2 (2.0–4.8s): the struck line nudges up and dims; "Shopware is the / commerce execution layer" arrives on its cues
       // (Shopware @2.30, commerce @3.28, execution @4.01, layer @4.58).

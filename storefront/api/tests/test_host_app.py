@@ -1,11 +1,13 @@
-# Copyright 2026 Shopware × Claude Commerce Agents authors.
-# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 shopware AG
+# SPDX-License-Identifier: MIT
 
-"""The wired storefront app, on routes that reach no network."""
+"""The wired storefront app, on routes that reach no network: the grid's add button (details
+first, then the gated add), cart attach, the click-time handoff page, identity linking."""
 
 from __future__ import annotations
 
 import asyncio
+import re
 
 import httpx
 import pytest
@@ -14,11 +16,24 @@ from fastapi.testclient import TestClient
 from demo_common import SESSION_HEADER
 from shopping_agent import ShoppingSessionContext
 from shopping_agent.types import ProductDetails
+from shopware_common.handoff import HandoffCodeVerifier
+from shopware_common.http_signing import RequestSigner
 from storefront.api import main as main_module
+from storefront.api.identity import ShopwareIdentityLinking
 from storefront.api.store_api import StoreApiClient
 from storefront.api.ucp_client import UcpClient
 
-from .replay import GONE_CART_ID, PRODUCT_ID, replay_transport
+from .conftest import HANDOFF_SECRET
+from .replay import (
+    CART_ID,
+    CUSTOMER_EMAIL,
+    CUSTOMER_PASSWORD,
+    CUSTOMER_TOKEN,
+    GONE_CART_ID,
+    PRODUCT_ID,
+    VARIANT_S,
+    ShopwareReplay,
+)
 
 
 @pytest.fixture
@@ -31,27 +46,34 @@ def start(client: TestClient) -> dict[str, str]:
     return {SESSION_HEADER: token}
 
 
-def _bind_replay(monkeypatch, transport: httpx.MockTransport | None = None) -> httpx.MockTransport:
-    transport = transport or replay_transport()
-    monkeypatch.setattr(
-        main_module.backend,
-        "client",
-        UcpClient(
-            shop_url="http://shopware.test",
-            http=httpx.AsyncClient(transport=transport),
-            retry_backoff=0.0,
-        ),
+def _bind_replay(
+    monkeypatch, shop: ShopwareReplay | None = None, signer: RequestSigner | None = None
+) -> ShopwareReplay:
+    shop = shop or ShopwareReplay(public_key=signer.public_key if signer else None)
+    transport = httpx.MockTransport(shop.handle)
+    ucp = UcpClient(
+        shop_url="http://shopware.test",
+        http=httpx.AsyncClient(transport=transport),
+        retry_backoff=0.0,
+        transport="mcp",
+        signer=signer,
     )
-    monkeypatch.setattr(
-        main_module.backend,
-        "store_api",
-        StoreApiClient(
-            "http://shopware.test",
-            access_key="test-key",
-            http=httpx.AsyncClient(transport=transport),
-        ),
+    store = StoreApiClient(
+        "http://shopware.test", access_key="test-key", http=httpx.AsyncClient(transport=transport)
     )
-    return transport
+    monkeypatch.setattr(main_module.backend, "client", ucp)
+    monkeypatch.setattr(main_module.backend, "store_api", store)
+    monkeypatch.setattr(main_module.backend.policies, "_store_api", store)
+    monkeypatch.setattr(
+        main_module.backend.handoff,
+        "_issuer",
+        main_module.HandoffBroker(
+            "http://shopware.test", public_url="http://host.test", secret=HANDOFF_SECRET
+        )._issuer,
+    )
+    monkeypatch.setattr(main_module.backend.handoff, "public_url", "http://host.test")
+    monkeypatch.setattr(main_module.backend.handoff, "shop_url", "http://shopware.test")
+    return shop
 
 
 def test_health_and_session(client):
@@ -77,46 +99,77 @@ def test_a_fresh_session_has_an_empty_cart_and_no_checkout_url(client):
     payload = client.get("/api/cart", headers=start(client)).json()
     assert payload["items"] == []
     assert payload["checkout_url"] is None
+    assert payload["cart_id"] is None
 
 
-def test_the_cart_payload_carries_the_backends_staged_handoff_url(client, monkeypatch):
+def test_the_add_button_reads_details_first_so_a_variant_enters_provenance(client, monkeypatch):
+    _bind_replay(monkeypatch)
     headers = start(client)
-    sid = headers[SESSION_HEADER]
+    response = client.post(
+        "/api/cart/add", json={"product_id": VARIANT_S, "quantity": 1}, headers=headers
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["cart"]["item_count"] == 1
+    assert body["cart_id"] == CART_ID
+    assert body["checkout_url"].startswith("http://host.test/api/checkout/handoff/")
+    record = main_module.host.sessions.require(headers[SESSION_HEADER])
+    assert record.state.seen_products[VARIANT_S].variant_of == PRODUCT_ID
 
-    async def staged(session_id):
-        assert session_id == sid
-        return "http://localhost:8080/checkout/confirm?checkoutId=abc"
 
-    monkeypatch.setattr(main_module.backend, "checkout_url_for", staged)
-    payload = client.get("/api/cart", headers=headers).json()
-    assert payload["checkout_url"] == "http://localhost:8080/checkout/confirm?checkoutId=abc"
+def test_the_add_button_on_a_family_is_held_with_the_route_to_a_variant(client, monkeypatch):
+    _bind_replay(monkeypatch)
+    response = client.post(
+        "/api/cart/add", json={"product_id": PRODUCT_ID, "quantity": 1}, headers=start(client)
+    )
+    assert response.status_code == 400
+    assert (
+        "variant" in response.json()["detail"].lower()
+        or "option" in response.json()["detail"].lower()
+    )
 
 
-def test_the_direct_add_button_holds_without_provenance(client, monkeypatch):
+def test_the_add_button_on_an_unknown_product_is_404(client, monkeypatch):
     _bind_replay(monkeypatch)
     response = client.post(
         "/api/cart/add",
-        json={"product_id": PRODUCT_ID, "quantity": 1},
+        json={"product_id": "ffffffffffffffffffffffffffffffff", "quantity": 1},
         headers=start(client),
     )
-    assert response.status_code == 400
+    assert response.status_code == 404
 
 
-def test_the_direct_add_button_works_for_a_product_already_on_the_grid(client, monkeypatch):
+def test_the_handoff_page_mints_a_one_time_code_and_posts_it_to_the_shop(client, monkeypatch):
     _bind_replay(monkeypatch)
-    product = ProductDetails(product_id=PRODUCT_ID, title="Claude Commerce T-Shirt", price=29.99, currency="EUR")
-    main_module.backend.products[PRODUCT_ID] = product
-    try:
-        response = client.post(
-            "/api/cart/add",
-            json={"product_id": PRODUCT_ID, "quantity": 1},
-            headers=start(client),
-        )
-        assert response.status_code == 200, response.text
-        assert response.json()["cart"]["item_count"] >= 1
-        assert response.json().get("checkout_url")
-    finally:
-        main_module.backend.products.pop(PRODUCT_ID, None)
+    headers = start(client)
+    added = client.post(
+        "/api/cart/add", json={"product_id": VARIANT_S, "quantity": 1}, headers=headers
+    ).json()
+    ticket_url = added["checkout_url"]
+    path = ticket_url[len("http://host.test") :]
+    page = client.get(path)
+    assert page.status_code == 200
+    assert page.headers["cache-control"] == "no-store"
+    html = page.text
+    assert 'method="post" action="http://shopware.test/claude-commerce/continue"' in html
+    assert CART_ID not in html
+    code = re.search(r'name="code" value="([^"]+)"', html).group(1)
+    assert HandoffCodeVerifier(HANDOFF_SECRET).verify(code) == CART_ID
+    # A second click mints a fresh code (the plugin refuses replays of the first).
+    second = re.search(r'name="code" value="([^"]+)"', client.get(path).text).group(1)
+    assert second != code
+    assert client.get("/api/checkout/handoff/unknown-ticket").status_code == 404
+
+
+def test_the_handoff_page_refuses_when_the_cart_is_gone(client, monkeypatch):
+    _bind_replay(monkeypatch)
+    headers = start(client)
+    added = client.post(
+        "/api/cart/add", json={"product_id": VARIANT_S, "quantity": 1}, headers=headers
+    ).json()
+    path = added["checkout_url"][len("http://host.test") :]
+    client.post("/api/reset", json={}, headers=headers)
+    assert client.get(path).status_code == 404
 
 
 def test_attach_binds_the_session_to_a_shopware_cart(client, monkeypatch):
@@ -143,21 +196,77 @@ def test_attach_binds_the_session_to_a_shopware_cart(client, monkeypatch):
     assert client.get("/api/cart", headers=headers).json()["cart_id"] == cart_id
 
 
-def test_a_fresh_session_is_signed_out(client):
-    assert client.get("/api/auth/status", headers=start(client)).json() == {"signed_in": False}
+# ---------------------------------------------------------------------------- identity linking
+
+
+def test_a_fresh_session_is_signed_out_and_says_why_linking_is_off(client):
+    status = client.get("/api/auth/status", headers=start(client)).json()
+    assert status["signed_in"] is False
+    assert status["available"] is False
+    assert "HTTPS" in status["reason"] or "signing key" in status["reason"]
 
 
 def test_signin_start_requires_a_session(client):
     assert client.get("/api/auth/shopware/start", follow_redirects=False).status_code == 401
 
 
-def test_signin_start_without_credentials_says_whats_missing(client, monkeypatch):
-    monkeypatch.delenv("SHOPWARE_UCP_OAUTH_CLIENT_ID", raising=False)
-    monkeypatch.delenv("SHOPWARE_UCP_OAUTH_CLIENT_SECRET", raising=False)
+def test_signin_start_without_a_signer_or_https_profile_answers_503(client):
     response = client.get(
-        "/api/auth/shopware/start",
-        params={"session_id": start(client)[SESSION_HEADER]},
-        follow_redirects=False,
+        "/api/auth/shopware/start", params={"session_id": start(client)[SESSION_HEADER]}
     )
     assert response.status_code == 503
-    assert "SHOPWARE_UCP_OAUTH_CLIENT_ID" in response.json()["detail"]
+    assert "Identity Linking" in response.json()["detail"]
+
+
+def test_identity_linking_runs_the_signed_pkce_flow_and_adopts_the_customer_cart(
+    client, monkeypatch
+):
+    signer = RequestSigner.generate()
+    shop = _bind_replay(monkeypatch, signer=signer)
+    linking = ShopwareIdentityLinking(
+        main_module.backend.client,
+        main_module.backend.store_api,
+        public_url="http://localhost:8004",
+        http=httpx.AsyncClient(transport=httpx.MockTransport(shop.handle)),
+    )
+    linking.client_id = "https://platform.example/agent-profile.json"
+    monkeypatch.setattr(main_module, "identity", linking)
+    monkeypatch.setattr(main_module.backend, "_token_provider", linking.bearer)
+
+    def customer_token(session_id: str) -> str | None:
+        linked = linking.identity(session_id)
+        return linked.customer_context_token if linked else None
+
+    monkeypatch.setattr(main_module.backend, "_customer_token_provider", customer_token)
+    headers = start(client)
+    assert client.get("/api/auth/shopware/start", headers=headers).json()["mode"] == "credentials"
+
+    bad = client.post(
+        "/api/auth/shopware/login",
+        json={"email": CUSTOMER_EMAIL, "password": "wrong"},
+        headers=headers,
+    )
+    assert bad.status_code == 401
+
+    ok = client.post(
+        "/api/auth/shopware/login",
+        json={"email": CUSTOMER_EMAIL, "password": CUSTOMER_PASSWORD},
+        headers=headers,
+    )
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["signed_in"] is True
+    assert client.get("/api/auth/status", headers=headers).json()["signed_in"] is True
+    # The customer's context token is now the session's cart …
+    assert client.get("/api/cart", headers=headers).json()["cart_id"] == CUSTOMER_TOKEN
+    # … and UCP calls carry the linked bearer token.
+    authorized = [
+        r for r in shop.requests if r.url.path == "/ucp/mcp" and r.headers.get("authorization")
+    ]
+    assert authorized and authorized[-1].headers["authorization"] == "Bearer replay-access-token"
+    authorize = next(r for r in shop.requests if r.url.path == "/ucp/v1/oauth/authorize")
+    assert authorize.headers["sw-context-token"] == CUSTOMER_TOKEN
+    assert authorize.headers["signature-input"].startswith("sig=(")
+    assert "code_challenge_method=S256" in str(authorize.url)
+
+    assert client.post("/api/auth/signout", headers=headers).json() == {"signed_in": False}
+    assert client.get("/api/auth/status", headers=headers).json()["signed_in"] is False

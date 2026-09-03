@@ -6,7 +6,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { formatMoney } from "web-shared";
+import { formatMoney } from "@/lib/format";
 import { fetchProduct } from "@/lib/api";
 import type { Product, ProductDetails } from "@/lib/types";
 import { ProductImage, Rating } from "@/components/ProductTile";

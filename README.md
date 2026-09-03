@@ -32,9 +32,9 @@ Three properties of Shopware make this a natural fit rather than a port:
 
 ## Demo video
 
-Explainer video: [`docs/media/explainer.mp4`](docs/media/explainer.mp4). GIF fallback (`docs/media/explainer.gif`, if present):
+[![Shopware × Claude Commerce Agents explainer (2 min)](docs/media/explainer-poster.png)](docs/media/explainer.mp4)
 
-![Explainer](docs/media/explainer.gif)
+The full-resolution file is [`docs/media/explainer.mp4`](docs/media/explainer.mp4) (1080p, 2 min), the poster is [`docs/media/explainer-poster.png`](docs/media/explainer-poster.png), and the script and re-render instructions are in [`docs/media/README.md`](docs/media/README.md).
 
 ## Architecture
 
@@ -242,6 +242,7 @@ npm run build
 | Variable | Default | Purpose |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | empty | Required for chat turns only |
+| `ANTHROPIC_WORKSPACE_ID` | empty | Only for identity-linked keys (API answers 400 `anthropic-workspace-id is required` without it); Console → Settings → Workspaces, `wrkspc_…` |
 | `SHOPWARE_URL`, `SHOPWARE_ADMIN_URL` | `http://localhost:8080` | Sales-channel domain serving `/.well-known/ucp`; Admin API base |
 | `SHOPWARE_SALES_CHANNEL_ACCESS_KEY` | from `docker/.generated.env` | Store API `sw-access-key` |
 | `UCP_TRANSPORT` | `rest` | `rest` or `mcp` for the shopping backend |

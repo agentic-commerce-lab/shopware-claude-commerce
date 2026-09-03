@@ -3,7 +3,8 @@
 line-length = 100
 target-version = "py311"
 exclude = ["*.md", ".venv", "node_modules", ".next", "docs/media"]
-src = ["storefront", "merchant", "vendor", "docker"]
+# "." makes the repo-root package shopware_common first-party.
+src = [".", "storefront", "merchant", "vendor", "docker"]
 
 [lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "W291", "W293"]

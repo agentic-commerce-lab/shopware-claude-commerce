@@ -1,5 +1,5 @@
-# Copyright 2026 Shopware × Claude Commerce Agents authors.
-# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 shopware AG
+# SPDX-License-Identifier: MIT
 
 """Shopping-agent config for the Shopware storefront. Identity never travels in
 tool arguments; IDs are Shopware hex UUIDs."""
@@ -24,8 +24,9 @@ def build_shopping_config(store_name: str) -> ShoppingAgentConfig:
             "and payment happen on the shop's own checkout page — hand the customer to it "
             "rather than promising to place an order. German mandatory facts (Grundpreis, "
             "delivery time, VAT) come from get_disclosure, not from the product description. "
-            "Order lookups only cover checkouts this agent staged; otherwise point the "
-            "customer at their Shopware confirmation email."
+            "Order lookups cover the orders placed with this session's cart (or the linked "
+            "Shopware account); for anything older point the customer at their Shopware "
+            "confirmation email or account."
         ),
         product_id_patterns=(_SHOPWARE_UUID,),
     )

@@ -1,5 +1,5 @@
-# Copyright 2026 Shopware × Claude Commerce Agents authors.
-# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 shopware AG
+# SPDX-License-Identifier: MIT
 
 """Shop branding for the web surface, from Store API context (sales-channel name)."""
 
@@ -9,7 +9,7 @@ import os
 import time
 from typing import Any
 
-from .store_api import StoreApiClient
+from .store_api import StoreApiClient, StoreApiError
 
 CACHE_TTL = 600.0
 DEFAULT_TAGLINE = "Shop with an assistant that knows the store."
@@ -26,9 +26,14 @@ class BrandSource:
     async def brand(self, _buyer_ip: str | None = None) -> dict[str, Any]:
         if self._cached is not None and time.monotonic() - self._fetched_at < CACHE_TTL:
             return self._cached
-        context = await self._store_api.context()
+        try:
+            context = await self._store_api.context()
+        except StoreApiError:
+            context = {}
         channel = context.get("salesChannel") or {}
-        name = channel.get("translated", {}).get("name") or channel.get("name") or self._fallback_name
+        name = (
+            channel.get("translated", {}).get("name") or channel.get("name") or self._fallback_name
+        )
         payload = {
             "name": name,
             "slogan": None,

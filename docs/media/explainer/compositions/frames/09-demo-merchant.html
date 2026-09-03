@@ -1,0 +1,157 @@
+<template>
+  <style>
+    @font-face { font-family: "Inter"; font-weight: 400; font-style: normal; font-display: block; src: url("assets/fonts/Inter-400.woff2") format("woff2"); }
+    @font-face { font-family: "JetBrains Mono"; font-weight: 400; font-style: normal; font-display: block; src: url("assets/fonts/JetBrainsMono-400.woff2") format("woff2"); }
+    @font-face { font-family: "JetBrains Mono"; font-weight: 700; font-style: normal; font-display: block; src: url("assets/fonts/JetBrainsMono-700.woff2") format("woff2"); }
+
+    #root { position: absolute; inset: 0; width: 1920px; height: 1080px; overflow: hidden; font-family: "Inter", sans-serif; color: #F3F6FA; }
+    .f09-bg { background-color: #0B1220;
+      background-image: linear-gradient(rgba(243,246,250,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(243,246,250,0.04) 1px, transparent 1px);
+      background-size: 96px 96px; }
+    .f09-mono { font-family: "JetBrains Mono", monospace; }
+    .f09-kicker { position: absolute; left: 120px; top: 84px; display: flex; align-items: center; gap: 14px;
+      font-family: "JetBrains Mono", monospace; font-size: 24px; letter-spacing: 0.16em; text-transform: uppercase; color: #8A94A6; }
+    .f09-kicker svg { width: 20px; height: 20px; }
+    .f09-call { position: absolute; left: 120px; top: 148px; font-family: "JetBrains Mono", monospace; font-size: 28px; color: #F3F6FA; white-space: pre; }
+    .f09-call .f09-fn { color: #189EFF; }
+    .f09-caret { display: inline-block; width: 14px; height: 30px; background: #F3F6FA; vertical-align: -5px; margin-left: 2px; }
+
+    .f09-panel { position: absolute; left: 120px; top: 232px; width: 1080px; height: 600px; border-radius: 12px; background: #111A2E; border: 1px solid rgba(243,246,250,0.12);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3), 0 8px 32px rgba(0,0,0,0.25); overflow: hidden; }
+    .f09-toprule { position: absolute; left: 0; top: 0; width: 100%; height: 4px; background: #189EFF; transform-origin: 0 50%; }
+    .f09-strip { position: absolute; left: 0; right: 0; top: 0; height: 60px; background: #141F36; display: flex; align-items: center; padding: 0 28px; gap: 18px;
+      font-family: "JetBrains Mono", monospace; font-size: 20px; color: #8A94A6; }
+    .f09-strip .f09-k { color: #F3F6FA; }
+    .f09-pillwrap { position: absolute; right: 28px; top: 13px; height: 34px; }
+    .f09-pill { position: absolute; right: 0; top: 0; height: 34px; display: flex; align-items: center; font-family: "JetBrains Mono", monospace; font-size: 18px; letter-spacing: 0.04em; border-radius: 9999px; padding: 0 16px; white-space: nowrap; }
+    .f09-p1 { color: #8A94A6; border: 1px solid rgba(243,246,250,0.2); }
+    .f09-p2 { color: #E8A55A; border: 1px solid rgba(232,165,90,0.5); background: rgba(232,165,90,0.1); }
+    .f09-p3 { color: #5DB872; border: 1px solid rgba(93,184,114,0.5); background: rgba(93,184,114,0.12); }
+    .f09-rows { position: absolute; left: 28px; right: 28px; top: 92px; font-family: "JetBrains Mono", monospace; font-size: 27px; line-height: 64px; }
+    .f09-row { display: flex; gap: 0; will-change: transform, opacity; }
+    .f09-row .f09-lbl { width: 200px; color: #8A94A6; flex: none; }
+    .f09-num { color: #E8A55A; }
+    .f09-after { position: relative; display: inline-block; padding: 0 10px; margin-left: -10px; }
+    .f09-after-bg { position: absolute; left: 0; top: 12px; bottom: 12px; width: 100%; background: #1B2740; border-radius: 6px; transform-origin: 0 50%; z-index: -1; }
+    .f09-chip { position: absolute; left: 28px; top: 430px; font-family: "JetBrains Mono", monospace; font-size: 20px; color: #F3F6FA; border: 1px solid rgba(243,246,250,0.22); border-radius: 6px; padding: 10px 14px; background: rgba(6,11,22,0.5); }
+    .f09-chip .f09-k { color: #189EFF; }
+    .f09-note { position: absolute; left: 28px; bottom: 22px; font-family: "JetBrains Mono", monospace; font-size: 16px; letter-spacing: 0.1em; text-transform: uppercase; color: #8A94A6; }
+    .f09-dots { display: inline-block; width: 60px; text-align: left; color: #F3F6FA; }
+
+    .f09-gate { position: absolute; left: 1206px; top: 480px; width: 48px; height: 100px; overflow: visible; }
+    .f09-gate path { fill: none; stroke: rgba(243,246,250,0.45); stroke-width: 2.5; stroke-linecap: round; }
+
+    .f09-log { position: absolute; left: 1260px; top: 232px; width: 540px; height: 600px; border-radius: 12px; background: #060B16; border: 1px solid rgba(243,246,250,0.14); padding: 26px 24px;
+      font-family: "JetBrains Mono", monospace; font-size: 20px; line-height: 42px; color: #F3F6FA; white-space: pre; }
+    .f09-log .f09-h { color: #8A94A6; letter-spacing: 0.14em; text-transform: uppercase; font-size: 17px; margin-bottom: 8px; display: block; }
+    .f09-ln { display: block; will-change: transform, opacity; }
+    .f09-dim { color: #8A94A6; }
+    .f09-ok { color: #5DB872; }
+    .f09-warn { color: #E8A55A; }
+  </style>
+
+  <div id="root" data-composition-id="09-demo-merchant" data-duration="11.28" data-width="1920" data-height="1080">
+    <div id="f09-bg" class="clip f09-bg" data-start="0" data-duration="11.28" data-track-index="0"></div>
+
+    <div id="f09-stage" class="clip" data-start="0" data-duration="11.28" data-track-index="1">
+      <div id="f09-kicker" class="f09-kicker">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1" stroke="#189EFF" stroke-width="3" stroke-linecap="round" fill="none"/></svg>
+        <span>demo · merchant agent</span>
+      </div>
+      <div id="f09-call" class="f09-call"><span id="f09-call-text"></span><span id="f09-caret" class="f09-caret"></span></div>
+
+      <div id="f09-panel" class="f09-panel">
+        <div id="f09-toprule" class="f09-toprule"></div>
+        <div class="f09-strip"><span class="f09-k">StagedChange</span><span>kind: price_update</span><span>id: chg_…9f2</span>
+          <div class="f09-pillwrap">
+            <div id="f09-p1" class="f09-pill f09-p1">staging<span class="f09-dots" id="f09-dots"></span></div>
+            <div id="f09-p2" class="f09-pill f09-p2">pending approval</div>
+            <div id="f09-p3" class="f09-pill f09-p3">applied</div>
+          </div>
+        </div>
+        <div class="f09-rows">
+          <div class="f09-row" id="f09-r1"><span class="f09-lbl">target</span><span>Claude Commerce T-Shirt</span></div>
+          <div class="f09-row" id="f09-r2"><span class="f09-lbl">field</span><span>price</span></div>
+          <div class="f09-row" id="f09-r3"><span class="f09-lbl">before</span><span class="f09-num">29.99</span><span class="f09-dim">&nbsp;EUR</span></div>
+          <div class="f09-row" id="f09-r4"><span class="f09-lbl">after</span><span class="f09-after"><span class="f09-after-bg" id="f09-after-bg"></span><span class="f09-num">27.99</span><span class="f09-dim">&nbsp;EUR</span></span></div>
+          <div class="f09-row" id="f09-r5"><span class="f09-lbl">guardrails</span><span class="f09-ok">ok</span><span class="f09-dim">&nbsp;· price move −6.7 % within cap</span></div>
+        </div>
+        <div id="f09-chip" class="f09-chip">preview: <span class="f09-k">dryRun=true</span> · shopware-entity-upsert · 0 writes</div>
+        <div class="f09-note">example values · seeded catalog</div>
+      </div>
+
+      <svg id="f09-gate" class="f09-gate" viewBox="0 0 48 100" aria-hidden="true">
+        <path id="f09-gate-p" d="M24 4 V34 M8 34 H40 V72 H8 Z M24 72 V96 M16 50 H32"/>
+      </svg>
+
+      <div id="f09-log" class="f09-log"><span class="f09-h">host · merchant/api</span><span class="f09-ln" id="f09-l1"><span class="f09-dim">PATCH</span> /api/product/{id}   <span class="f09-warn">— not sent</span></span><span class="f09-ln" id="f09-l2">ledger: staged · <span class="f09-warn">0 writes</span></span><span class="f09-ln" id="f09-l3">approval: <span class="f09-warn">required</span> (host)</span><span class="f09-ln" id="f09-l4"> </span><span class="f09-ln" id="f09-l5"><span class="f09-dim">POST</span> <span id="f09-apply"></span></span><span class="f09-ln" id="f09-l6"><span class="f09-dim">PATCH</span> /api/product/{id}   <span class="f09-ok">200</span></span><span class="f09-ln" id="f09-l7">ledger: <span class="f09-ok">applied</span> · actor: operator</span></div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      window.__timelines = window.__timelines || {};
+      var ID = "09-demo-merchant";
+      var tl = gsap.timeline({ paused: true });
+      var E = "power3.out";
+
+      var CALL = 'stage_price_update(listing="Claude Commerce T-Shirt", price=27.99)';
+      var callEl = document.getElementById("f09-call-text");
+      var caret = document.getElementById("f09-caret");
+      var APPLY = "/api/merchant/changes/{id}/apply";
+      var applyEl = document.getElementById("f09-apply");
+      var dots = document.getElementById("f09-dots");
+
+      gsap.set(["#f09-panel", "#f09-log", "#f09-p2", "#f09-p3", "#f09-chip", "#f09-r1", "#f09-r2", "#f09-r3", "#f09-r4", "#f09-r5",
+        "#f09-l1", "#f09-l2", "#f09-l3", "#f09-l6", "#f09-l7"], { opacity: 0 });
+      gsap.set(["#f09-toprule", "#f09-after-bg"], { scaleX: 0 });
+      var gate = document.getElementById("f09-gate-p");
+      var GL = gate.getTotalLength();
+      gsap.set(gate, { strokeDasharray: GL, strokeDashoffset: GL });
+
+      // Scene 1 (0.0–2.2s): kicker; the stage call types on (a pure function of time) — "a price change is staged" @1.43–2.55; empty panel with working dots.
+      tl.fromTo("#f09-kicker", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, ease: E }, 0);
+      var typing = { p: 0 };
+      tl.fromTo(typing, { p: 0 }, { p: 1, duration: 1.7, ease: "none", onUpdate: function () {
+        callEl.textContent = CALL.slice(0, Math.round(typing.p * CALL.length));
+      } }, 0.3);
+      var blink = { t: 0 };
+      tl.fromTo(blink, { t: 0 }, { t: 1, duration: 10.8, ease: "none", onUpdate: function () {
+        var t = tl.time();
+        caret.style.opacity = (t % 1.0) < 0.55 ? "1" : "0";
+        // finite stepping dots while "staging…" (t 1.2–3.3): 0..3 dots, a pure function of time
+        var n = t < 1.2 ? 0 : Math.floor(((t - 1.2) * 3) % 4);
+        dots.textContent = "...".slice(0, n);
+      } }, 0);
+      tl.fromTo("#f09-panel", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.6, ease: E }, 1.3);
+
+      // Scene 2 (2.2–5.6s): receipt cascade — target/field on "staged" (@2.55), before (@3.39), after (@4.06) with highlight sweep,
+      // guardrails + dryRun preview chip on "previewed by the server" (@4.72); status flips to pending approval.
+      function row(sel, at) { tl.fromTo(sel, { opacity: 0, x: -20 }, { opacity: 1, x: 0, duration: 0.45, ease: E }, at); }
+      row("#f09-r1", 2.5); row("#f09-r2", 2.9); row("#f09-r3", 3.35); row("#f09-r4", 4.0);
+      tl.fromTo("#f09-after-bg", { scaleX: 0 }, { scaleX: 1, duration: 0.5, ease: E }, 4.15);
+      row("#f09-r5", 4.7);
+      tl.fromTo("#f09-chip", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5, ease: E }, 5.0);
+      tl.set("#f09-p1", { opacity: 0 }, 5.5);
+      tl.fromTo("#f09-p2", { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.4, ease: E }, 5.5);
+
+      // Scene 3 (5.6–8.6s): host log reveals — nothing sent, 0 writes, approval required ("Nothing touches the shop" @6.23–7.56); the gate icon draws on.
+      tl.fromTo("#f09-log", { opacity: 0, x: 20 }, { opacity: 1, x: 0, duration: 0.6, ease: E }, 6.0);
+      function ln(sel, at) { tl.fromTo(sel, { opacity: 0, x: 12 }, { opacity: 1, x: 0, duration: 0.4, ease: E }, at); }
+      ln("#f09-l1", 6.3); ln("#f09-l2", 6.9); ln("#f09-l3", 7.6);
+      tl.fromTo(gate, { strokeDashoffset: GL }, { strokeDashoffset: 0, duration: 0.9, ease: E }, 7.3);
+
+      // Scene 4 (8.6–10.8s): the approve call types on ("Then one call" @9.39); 200, ledger applied; status flips to applied; top rule turns blue.
+      var typing2 = { p: 0 };
+      tl.fromTo(typing2, { p: 0 }, { p: 1, duration: 0.9, ease: "none", onUpdate: function () {
+        applyEl.textContent = APPLY.slice(0, Math.round(typing2.p * APPLY.length));
+      } }, 9.0);
+      ln("#f09-l6", 10.0); ln("#f09-l7", 10.3);
+      tl.set("#f09-p2", { opacity: 0 }, 10.15);
+      tl.fromTo("#f09-p3", { opacity: 0, scale: 0.92 }, { opacity: 1, scale: 1, duration: 0.4, ease: E }, 10.15);
+      tl.fromTo("#f09-toprule", { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: E }, 10.2);
+
+      window.__timelines[ID] = tl;
+    })();
+  </script>
+</template>

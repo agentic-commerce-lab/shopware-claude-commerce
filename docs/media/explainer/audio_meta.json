@@ -1,137 +1,130 @@
 {
-  "bgm": null,
+  "bgm": {
+    "path": "assets/bgm/track.wav",
+    "volume": 0.12,
+    "query": "dark minimal technical electronic underscore",
+    "duration_s": 122.583
+  },
   "bgm_pending": false,
   "voices": [
     {
       "frame": 1,
       "path": "assets/voice/01.wav",
-      "duration_s": 12.331,
+      "duration_s": 11.584,
       "words": [
         {
           "text": "September",
-          "start": 0.05,
-          "end": 0.96,
+          "start": 0.04,
+          "end": 0.95,
           "id": "w0"
         },
         {
           "text": "2nd,",
-          "start": 1.22,
+          "start": 1.24,
           "end": 1.87,
           "id": "w1"
         },
         {
           "text": "2026.",
           "start": 1.87,
-          "end": 3.36,
+          "end": 3.38,
           "id": "w2"
         },
         {
           "text": "Anthropic",
-          "start": 3.41,
-          "end": 3.91,
+          "start": 3.43,
+          "end": 3.96,
           "id": "w3"
         },
         {
           "text": "publishes",
-          "start": 3.91,
-          "end": 4.32,
+          "start": 3.97,
+          "end": 4.33,
           "id": "w4"
         },
         {
           "text": "an",
-          "start": 4.58,
-          "end": 4.65,
+          "start": 4.62,
+          "end": 4.73,
           "id": "w5"
         },
         {
           "text": "open-source",
-          "start": 4.65,
-          "end": 5.29,
+          "start": 4.73,
+          "end": 5.34,
           "id": "w6"
         },
         {
           "text": "blueprint",
-          "start": 5.37,
-          "end": 5.85,
+          "start": 5.44,
+          "end": 5.94,
           "id": "w7"
         },
         {
           "text": "for",
-          "start": 5.97,
+          "start": 6.05,
           "end": 6.17,
           "id": "w8"
         },
         {
           "text": "commerce",
-          "start": 6.17,
-          "end": 6.84,
+          "start": 6.24,
+          "end": 6.81,
           "id": "w9"
         },
         {
           "text": "agents.",
-          "start": 6.84,
-          "end": 7.38,
+          "start": 6.81,
+          "end": 7.44,
           "id": "w10"
         },
         {
-          "text": "Shopify",
-          "start": 7.43,
-          "end": 7.89,
+          "text": "One",
+          "start": 7.53,
+          "end": 7.74,
           "id": "w11"
         },
         {
-          "text": "ships",
-          "start": 7.89,
-          "end": 8.25,
+          "text": "day",
+          "start": 7.76,
+          "end": 8.02,
           "id": "w12"
         },
         {
-          "text": "an",
-          "start": 8.25,
-          "end": 8.35,
+          "text": "later",
+          "start": 8.02,
+          "end": 8.66,
           "id": "w13"
         },
         {
-          "text": "implementation",
-          "start": 8.6,
-          "end": 9.51,
+          "text": "this",
+          "start": 8.72,
+          "end": 8.85,
           "id": "w14"
         },
         {
-          "text": "the",
-          "start": 9.59,
-          "end": 9.8,
+          "text": "is",
+          "start": 8.85,
+          "end": 8.91,
           "id": "w15"
         },
         {
-          "text": "same",
-          "start": 9.8,
-          "end": 10.18,
+          "text": "Shopware's",
+          "start": 8.99,
+          "end": 9.79,
           "id": "w16"
         },
         {
-          "text": "day.",
-          "start": 10.18,
-          "end": 10.76,
+          "text": "implementation.",
+          "start": 9.79,
+          "end": 11,
           "id": "w17"
         },
         {
-          "text": "This",
-          "start": 10.81,
-          "end": 11.12,
+          "text": "Running.",
+          "start": 11.05,
+          "end": 11.584,
           "id": "w18"
-        },
-        {
-          "text": "is",
-          "start": 11.12,
-          "end": 11.3,
-          "id": "w19"
-        },
-        {
-          "text": "Shopware's.",
-          "start": 11.3,
-          "end": 12.42,
-          "id": "w20"
         }
       ]
     },
@@ -1574,133 +1567,139 @@
     {
       "frame": 10,
       "path": "assets/voice/10.wav",
-      "duration_s": 13.313,
+      "duration_s": 12.801,
       "words": [
         {
           "text": "Shopware",
-          "start": 0.05,
-          "end": 0.5,
+          "start": 0.04,
+          "end": 0.52,
           "id": "w0"
         },
         {
           "text": "is",
-          "start": 0.5,
-          "end": 0.62,
+          "start": 0.52,
+          "end": 0.56,
           "id": "w1"
         },
         {
           "text": "the",
-          "start": 0.62,
-          "end": 0.81,
+          "start": 0.65,
+          "end": 0.85,
           "id": "w2"
         },
         {
           "text": "Commerce",
-          "start": 0.81,
-          "end": 1.32,
+          "start": 0.85,
+          "end": 1.38,
           "id": "w3"
         },
         {
           "text": "Operating",
-          "start": 1.32,
-          "end": 1.94,
+          "start": 1.38,
+          "end": 2,
           "id": "w4"
         },
         {
           "text": "System",
-          "start": 1.94,
-          "end": 2.45,
+          "start": 2,
+          "end": 2.54,
           "id": "w5"
         },
         {
           "text": "for",
-          "start": 2.55,
-          "end": 2.71,
+          "start": 2.66,
+          "end": 2.84,
           "id": "w6"
         },
         {
           "text": "the",
-          "start": 2.8,
-          "end": 2.96,
+          "start": 2.94,
+          "end": 3.12,
           "id": "w7"
         },
         {
           "text": "Agent",
-          "start": 2.96,
-          "end": 3.35,
+          "start": 3.12,
+          "end": 3.52,
           "id": "w8"
         },
         {
           "text": "Economy.",
-          "start": 3.35,
-          "end": 4.16,
+          "start": 3.59,
+          "end": 4.38,
           "id": "w9"
         },
         {
           "text": "The",
-          "start": 4.21,
-          "end": 4.37,
+          "start": 4.42,
+          "end": 4.59,
           "id": "w10"
         },
         {
-          "text": "repo",
-          "start": 4.46,
-          "end": 4.67,
+          "text": "repository",
+          "start": 4.7,
+          "end": 5.27,
           "id": "w11"
         },
         {
-          "text": "is",
-          "start": 4.76,
-          "end": 4.88,
+          "text": "link",
+          "start": 5.36,
+          "end": 5.63,
           "id": "w12"
         },
         {
-          "text": "shopware",
-          "start": 4.88,
-          "end": 5.51,
+          "text": "is",
+          "start": 5.63,
+          "end": 5.77,
           "id": "w13"
         },
         {
-          "text": "slash",
-          "start": 5.62,
-          "end": 5.94,
+          "text": "in",
+          "start": 5.77,
+          "end": 5.91,
           "id": "w14"
         },
         {
-          "text": "claude-commerce-agents.",
-          "start": 5.94,
-          "end": 7.66,
+          "text": "the",
+          "start": 5.91,
+          "end": 6.13,
           "id": "w15"
         },
         {
-          "text": "Five",
-          "start": 7.71,
-          "end": 8.04,
+          "text": "description.",
+          "start": 6.13,
+          "end": 6.98,
           "id": "w16"
         },
         {
-          "text": "commands",
-          "start": 8.04,
-          "end": 8.79,
+          "text": "Five",
+          "start": 7.03,
+          "end": 7.38,
           "id": "w17"
         },
         {
-          "text": "and",
-          "start": 8.79,
-          "end": 9.01,
+          "text": "commands",
+          "start": 7.38,
+          "end": 8.19,
           "id": "w18"
         },
         {
-          "text": "it",
-          "start": 9.11,
-          "end": 9.2,
+          "text": "and",
+          "start": 8.19,
+          "end": 8.49,
           "id": "w19"
         },
         {
-          "text": "runs.",
-          "start": 9.26,
-          "end": 9.94,
+          "text": "it",
+          "start": 8.49,
+          "end": 8.69,
           "id": "w20"
+        },
+        {
+          "text": "runs.",
+          "start": 8.69,
+          "end": 9.42,
+          "id": "w21"
         }
       ]
     }

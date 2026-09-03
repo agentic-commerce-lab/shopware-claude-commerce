@@ -14,7 +14,7 @@
 - voiceover: "On the merchant side — a price change is staged. Before and after, previewed by the server. Nothing touches the shop until someone approves. Then one call applies it."
 - duration: 10.88s
 - transition_in: push-slide LEFT
-- status: outline
+- status: animated
 - src: compositions/frames/09-demo-merchant.html
 - type: feature_showcase
 - persuasion: Show-don't-tell of the approval gate itself

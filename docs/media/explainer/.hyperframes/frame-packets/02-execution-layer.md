@@ -14,7 +14,7 @@
 - voiceover: "This is not a Claude shop. It's Shopware as the commerce execution layer — the system any agent runs on."
 - duration: 7.275s
 - transition_in: crossfade
-- status: outline
+- status: animated
 - src: compositions/frames/02-execution-layer.html
 - type: product_intro
 - persuasion: Negative contrast — reject the obvious framing, then name the real one

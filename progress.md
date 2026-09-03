@@ -17,7 +17,7 @@ Shopware × Claude Commerce Agents — first working version.
 ## Phase 1 — Storefront shopping agent
 
 - [x] Blueprint packages pinned in `requirements.txt`
-- [x] `vendor/` with NOTICE (Apache-2.0)
+- [x] `vendor/` with NOTICE (vendored Anthropic/Shopify material stays Apache-2.0; this repo's own code is MIT, `Copyright 2026 shopware AG`)
 - [x] `storefront/api` FastAPI host + Shopware `StorefrontBackend`
 - [x] UCP client (REST primary, MCP fallback)
 - [x] Store API gaps: policies, disclosures, fulfillment, variant listing by `parentId`

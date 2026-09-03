@@ -19,9 +19,14 @@ import Assistant from "./Assistant";
 import CartDrawer from "./CartDrawer";
 import Header from "./Header";
 
+/** The Identity Linking callback lands on `WEB_APP_URL?signed_in=1` (or `0` when it failed). */
+const SIGNED_IN_PARAM = "signed_in";
+const SIGN_IN_FLAG_MS = 6000;
+
 interface StoreContextValue {
   sessionId: string | null;
   signedIn: boolean;
+  signIn: () => Promise<boolean>;
   signOut: () => Promise<void>;
   brand: Brand | null;
   cart: CartPayload | null;
@@ -46,7 +51,7 @@ export function useStore(): StoreContextValue {
 }
 
 export default function StoreShell({ children }: { children: ReactNode }) {
-  const { sessionId, signedIn, refreshAuth, signOut } = useStoreSession();
+  const { sessionId, signedIn, refreshAuth, signIn, signOut } = useStoreSession();
   const [brand, setBrand] = useState<Brand | null>(null);
   const [cart, setCart] = useState<CartPayload | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
@@ -125,16 +130,16 @@ export default function StoreShell({ children }: { children: ReactNode }) {
     if (window.matchMedia("(min-width: 1024px)").matches) setAssistantOpen(true);
   }, []);
 
-  // The Shop sign-in callback returns here with ?shop_signin=ok|error on a fresh page load.
+  // The Shopware sign-in callback returns here with ?signed_in=1 (or 0) on a fresh page load.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const flag = params.get("shop_signin");
-    if (flag !== "ok" && flag !== "error") return;
-    setSignInFlag(flag);
-    params.delete("shop_signin");
+    const flag = params.get(SIGNED_IN_PARAM);
+    if (flag === null) return;
+    setSignInFlag(flag === "1" ? "ok" : "error");
+    params.delete(SIGNED_IN_PARAM);
     const query = params.toString();
     window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
-    const timer = window.setTimeout(() => setSignInFlag(null), 6000);
+    const timer = window.setTimeout(() => setSignInFlag(null), SIGN_IN_FLAG_MS);
     return () => window.clearTimeout(timer);
   }, []);
   useEffect(() => {
@@ -162,6 +167,7 @@ export default function StoreShell({ children }: { children: ReactNode }) {
   const value: StoreContextValue = {
     sessionId,
     signedIn,
+    signIn,
     signOut,
     brand,
     cart,
@@ -178,6 +184,7 @@ export default function StoreShell({ children }: { children: ReactNode }) {
           brand={brand}
           sessionId={sessionId}
           signedIn={signedIn}
+          onSignIn={signIn}
           onSignOut={() => void signOut()}
           cartCount={cart?.item_count ?? 0}
           onOpenCart={() => setCartOpen(true)}
@@ -195,8 +202,8 @@ export default function StoreShell({ children }: { children: ReactNode }) {
             }`}
           >
             {signInFlag === "ok"
-              ? "Signed in with Shop. Results now reflect your profile."
-              : "Shop sign-in didn't complete. You can keep browsing as a guest and try again."}
+              ? "Signed in with your Shopware account. Results now reflect your profile."
+              : "Shopware sign-in didn't complete. You can keep browsing as a guest and try again."}
             <button
               type="button"
               onClick={() => setSignInFlag(null)}

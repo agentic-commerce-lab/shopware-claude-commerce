@@ -1,9 +1,9 @@
-# Copyright 2026 Shopware × Claude Commerce Agents authors.
-# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 shopware AG
+# SPDX-License-Identifier: MIT
 
 """Shopware merchant API.
 
-    uvicorn merchant.api.main:app --port 8005
+uvicorn merchant.api.main:app --port 8005
 """
 
 from __future__ import annotations
@@ -61,8 +61,9 @@ def create_app() -> FastAPI:
             try:
                 await portal.backend.warm()
                 logger.info(
-                    "connected to %s (%d listings)",
+                    "connected to %s via %s (%d listings)",
                     portal.backend.store_name,
+                    portal.client.name,
                     len(portal.backend.catalog.cached()),
                 )
             except Exception:
@@ -70,11 +71,12 @@ def create_app() -> FastAPI:
             try:
                 yield
             finally:
-                if portal.client is not None:
-                    await portal.client.aclose()
+                await portal.client.aclose()
+                portal.backend.ledger.close()
 
     app.router.lifespan_context = lifespan
     app.include_router(portal.router, prefix="/api/merchant")
+    app.include_router(portal.portal_router, prefix="/api/merchant")
     return app
 
 

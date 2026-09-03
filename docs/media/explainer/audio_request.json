@@ -4,7 +4,7 @@
   "lines": [
     {
       "id": "01",
-      "text": "September 2nd, 2026. Anthropic publishes an open-source blueprint for commerce agents. Shopify ships an implementation — the same day. This — is Shopware's."
+      "text": "September 2nd, 2026. Anthropic publishes an open-source blueprint for commerce agents. One day later — this is Shopware's implementation. Running."
     },
     {
       "id": "02",
@@ -40,7 +40,7 @@
     },
     {
       "id": "10",
-      "text": "Shopware is the Commerce Operating System for the Agent Economy. The repo is shopware slash claude-commerce-agents. Five commands — and it runs."
+      "text": "Shopware is the Commerce Operating System for the Agent Economy. The repository link is in the description. Five commands — and it runs."
     }
   ],
   "bgm": {

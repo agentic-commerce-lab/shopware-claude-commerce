@@ -14,7 +14,7 @@
 - voiceover: "Two agents ship in the box. A shopping agent — search, compare, build a real cart, hand off to Shopware checkout. And a merchant agent — analyze, stage a change, a human approves — then it's applied."
 - duration: 13.163s
 - transition_in: zoom-through
-- status: outline
+- status: animated
 - src: compositions/frames/03-two-agents.html
 - type: feature_showcase
 - persuasion: Rule of two — two complementary capabilities weighed at once

@@ -3,7 +3,7 @@
 
 "use client";
 
-import { formatMoney } from "web-shared";
+import { formatMoney, isSafeCheckoutUrl } from "@/lib/format";
 import type { CartItem, CartPayload } from "@/lib/types";
 import { ProductImage } from "./ProductTile";
 
@@ -132,14 +132,11 @@ export default function CartDrawer({
               {formatMoney(cart?.subtotal ?? 0, cart?.currency)}
             </span>
           </div>
-          {cart?.checkout_url && items.length > 0 ? (
-            <a
-              href={cart.checkout_url}
-              target="_blank"
-              rel="noreferrer"
-              className="btn-primary mt-2.5 block w-full text-center"
-            >
-              Check out on Shopware
+          {isSafeCheckoutUrl(cart?.checkout_url) && items.length > 0 ? (
+            // A plain same-tab navigation: the handoff page auto-submits a POST form to
+            // Shopware's checkout, which a fetch or a popup could not follow.
+            <a href={cart.checkout_url} data-checkout-link className="btn-primary mt-2.5 block w-full text-center">
+              Checkout in Shopware
             </a>
           ) : (
             <button

@@ -10,11 +10,11 @@
 
 ## Frame 1 — The moment
 
-- scene: Kinetic date line — "September 2, 2026" — then three claims stack: Anthropic publishes the blueprint · Shopify ships the same day · "This is Shopware's."
-- voiceover: "September 2nd, 2026. Anthropic publishes an open-source blueprint for commerce agents. Shopify ships an implementation — the same day. This — is Shopware's."
-- duration: 12.331s
+- scene: Kinetic date line — "September 2, 2026" — then three claims stack: Anthropic publishes the blueprint · One day later. · "This is Shopware's." with a green `● RUNNING` status tag.
+- voiceover: "September 2nd, 2026. Anthropic publishes an open-source blueprint for commerce agents. One day later — this is Shopware's implementation. Running."
+- duration: 11.584s
 - transition_in: cut
-- status: outline
+- status: animated
 - src: compositions/frames/01-the-moment.html
 - type: hook
 - persuasion: Urgency by association — a dated industry moment the viewer already knows, resolved on "this is ours"
@@ -29,9 +29,9 @@ keyMessage: The blueprint is real, the race is on, and Shopware has an implement
 
 Adapt: keep the signature — the words ARE the motion, each claim landing as its own full-frame beat by hard cut — but the beats stack into a left-aligned ledger instead of swapping in place, so the three claims can be read together when the payoff lands.
 Scene 1 (0.0–1.6s): ground only, faint static grid. A mono kicker `✱ 2026-09-02` sits upper-left; the date "September 2, 2026" enters as `display` via **per-word staggered reveal** (`waterfall-entry`, word granularity) with a long-tail settle — left-aligned, upper third, ~60% width; nothing else on screen.
-Scene 2 (1.6–4.6s): as the voice says "Anthropic publishes", the date shrinks to `headline` scale and rises (a velocity-matched slow-fast-slow nudge, power3); line 1 "Anthropic publishes an open-source blueprint for commerce agents." arrives as a **waterfall entry** (`waterfall-entry`) beneath it, `headline` size, with a small `warm` word-mark tag "anthropics/commerce-agents" in mono to its right — the only warm element of the frame.
-Scene 3 (4.6–7.2s): on "Shopify ships", line 2 "Shopify ships an implementation — the same day." waterfalls in under line 1 (`waterfall-entry`); a thin ink@20% **section rule draws on** between the lines (`svg-path-draw`). Ledger layout, asymmetric 70/30, the right 30% empty.
-Scene 4 (7.2–10.0s): on "This — is Shopware's.", lines 1–2 dim to `muted`; line 3 "This is Shopware's." slams in at `display` scale (a single scale-slam arrival via `waterfall-entry`, no overshoot) and a **blue underline draws on** beneath "Shopware's" (`svg-path-draw`, `coral`) — the frame's one voltage. Hold still to the cut.
+Scene 2 (3.2–7.3s): as the voice says "Anthropic publishes", the date shrinks to `headline` scale and rises (a velocity-matched slow-fast-slow nudge, power3); line 1 "Anthropic publishes an open-source blueprint for commerce agents." arrives as a **waterfall entry** (`waterfall-entry`) beneath it, `headline` size, with a small `warm` word-mark tag "anthropics/commerce-agents" in mono to its right — the only warm element of the frame.
+Scene 3 (7.3–8.6s): on "One day later", line 2 "One day later." waterfalls in under line 1 (`waterfall-entry`); a thin ink@20% **section rule draws on** between the lines (`svg-path-draw`). Ledger layout, asymmetric 70/30, the right 30% empty.
+Scene 4 (8.6–11.6s): on "this is Shopware's implementation", lines 1–2 dim to `muted`; line 3 "This is Shopware's." slams in at `display` scale (a single scale-slam arrival via `waterfall-entry`, no overshoot) and a **blue underline draws on** beneath "Shopware's" (`svg-path-draw`, `coral`) — the frame's one voltage. On "Running." a small mono status tag `● RUNNING` (success green `#5DB872`) lands to the right of the underline. Hold still to the cut.
 
 ## Selected blueprint: kinetic-type-beats
 

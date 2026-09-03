@@ -1,19 +1,31 @@
-# Copyright 2026 Shopware × Claude Commerce Agents authors.
-# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 shopware AG
+# SPDX-License-Identifier: MIT
 
-"""Keyword policy index: Store API footer/service navigation + /agents.md + /llms.txt."""
+"""Keyword policy index over the shop's own pages: the Store API footer and service
+navigation (CMS pages seeded by ``docker/seed_catalog.py``: Widerruf, Versand, AGB,
+Datenschutz, Kontakt) plus ``/agents.md`` and ``/llms.txt``. A static fallback copy is
+used only when the shop exposes nothing."""
 
 from __future__ import annotations
 
+import logging
 import re
-from typing import TYPE_CHECKING
 
 from shopping_agent import Policy, ShoppingSessionContext
 
-if TYPE_CHECKING:
-    from .store_api import StoreApiClient
+from .store_api import StoreApiClient, StoreApiError
+
+logger = logging.getLogger(__name__)
 
 _TAG = re.compile(r"<[^>]+>")
+MAX_POLICY_CHARS = 4000
+_CATEGORY_NEEDLES = {
+    "returns": ("widerruf", "rückgabe", "retoure", "return"),
+    "shipping": ("versand", "liefer", "shipping"),
+    "terms": ("agb", "geschäftsbedingungen", "terms"),
+    "privacy": ("datenschutz", "privacy"),
+    "contact": ("kontakt", "contact", "impressum"),
+}
 _FALLBACK = [
     Policy(
         policy_id="returns",
@@ -53,35 +65,73 @@ class PolicyIndex:
         self._store_api = store_api
         self._policies: list[Policy] | None = None
 
+    @property
+    def live(self) -> bool:
+        """True once the index holds shop-authored pages rather than the fallback copy."""
+        fallback_ids = {policy.policy_id for policy in _FALLBACK}
+        return any(policy.policy_id not in fallback_ids for policy in self._policies or [])
+
     async def rebuild(self) -> list[Policy]:
+        """Walk the footer and service navigation of the sales channel, read every CMS
+        page behind it, then append ``/agents.md`` and ``/llms.txt``. The static fallback
+        copy is used only when the shop exposes no page at all."""
         policies: list[Policy] = []
+        seen: set[str] = set()
         for name in ("footer-navigation", "service-navigation"):
-            tree = await self._store_api.navigation(name)
-            await self._walk(tree, policies)
+            try:
+                tree = await self._store_api.navigation(name)
+            except StoreApiError as error:
+                logger.warning("policy index: navigation %s unavailable: %s", name, error)
+                continue
+            await self._walk(tree, policies, seen)
         for path, title in (("/agents.md", "agents.md"), ("/llms.txt", "llms.txt")):
             text = await self._store_api.text_file(path)
             if text.strip():
                 policies.append(
-                    Policy(policy_id=path.strip("/").replace(".", "-"), title=title, content=text[:4000])
+                    Policy(
+                        policy_id=path.strip("/").replace(".", "-"),
+                        title=title,
+                        content=text[:MAX_POLICY_CHARS],
+                    )
                 )
+        if not policies:
+            logger.warning(
+                "policy index: the shop exposes no policy pages; using the fallback copy"
+            )
         self._policies = policies or list(_FALLBACK)
         return self._policies
 
-    async def _walk(self, nodes: list[dict], policies: list[Policy]) -> None:
+    async def _walk(self, nodes: list[dict], policies: list[Policy], seen: set[str]) -> None:
         for node in nodes:
             category_id = node.get("id") or node.get("categoryId")
-            name = node.get("name") or node.get("translated", {}).get("name") or "Policy"
-            if category_id:
-                record = await self._store_api.category(str(category_id))
+            name = node.get("translated", {}).get("name") or node.get("name") or "Policy"
+            if category_id and str(category_id) not in seen:
+                seen.add(str(category_id))
+                try:
+                    record = await self._store_api.category(str(category_id))
+                except StoreApiError as error:
+                    logger.info("policy index: category %s skipped: %s", category_id, error)
+                    record = {}
                 cms = record.get("cmsPage") or record.get("slotConfig") or {}
-                text = _extract_cms_text(cms) or _strip(str(record.get("description") or ""))
+                text = _extract_cms_text(cms) or _strip(
+                    str(
+                        record.get("translated", {}).get("description")
+                        or record.get("description")
+                        or ""
+                    )
+                )
                 if text:
                     policies.append(
-                        Policy(policy_id=str(category_id), title=str(name), content=text[:4000])
+                        Policy(
+                            policy_id=str(category_id),
+                            title=str(name),
+                            category=_category_of(str(name)),
+                            content=text[:MAX_POLICY_CHARS],
+                        )
                     )
             children = node.get("children") or node.get("elements") or []
             if children:
-                await self._walk(children, policies)
+                await self._walk(children, policies, seen)
 
     async def search(self, session: ShoppingSessionContext, query: str) -> list[Policy]:
         if self._policies is None:
@@ -101,18 +151,38 @@ class PolicyIndex:
 
 
 def _extract_cms_text(cms: dict) -> str:
+    """Text of a Shopware CMS page: ``sections[].blocks[].slots[]`` carry their copy in
+    ``config.content.value`` (``{"source": "static", "value": "<p>…</p>"}``), resolved
+    slots in ``data.content``; ``translated.config`` mirrors the former."""
     chunks: list[str] = []
 
     def walk(value: object) -> None:
         if isinstance(value, dict):
-            for key in ("plain", "content", "value", "html"):
-                if key in value and isinstance(value[key], str):
-                    chunks.append(_strip(value[key]))
-            for child in value.values():
+            content = value.get("content")
+            if isinstance(content, dict) and isinstance(content.get("value"), str):
+                chunks.append(_strip(content["value"]))  # slot config
+            data = value.get("data")
+            if isinstance(data, dict) and isinstance(data.get("content"), str):
+                chunks.append(_strip(data["content"]))  # resolved slot data
+            for key, child in value.items():
+                if key in {"content", "data"} and isinstance(child, dict):
+                    continue
                 walk(child)
         elif isinstance(value, list):
             for child in value:
                 walk(child)
 
     walk(cms)
-    return " ".join(chunk for chunk in chunks if chunk)
+    unique: list[str] = []
+    for chunk in chunks:
+        if chunk and chunk not in unique:
+            unique.append(chunk)
+    return " ".join(unique)
+
+
+def _category_of(title: str) -> str | None:
+    lowered = title.lower()
+    for category, needles in _CATEGORY_NEEDLES.items():
+        if any(needle in lowered for needle in needles):
+            return category
+    return None

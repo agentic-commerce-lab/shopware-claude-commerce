@@ -1,19 +1,25 @@
-# Copyright 2026 Shopware × Claude Commerce Agents authors.
-# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 shopware AG
+# SPDX-License-Identifier: MIT
 
-"""Shopware storefront backend over recorded UCP REST documents."""
+"""Shopware storefront backend over recorded UCP documents — every test runs over MCP and
+over REST (``client`` fixture), signed, against a replay that verifies the signatures."""
 
 from __future__ import annotations
 
+import pytest
+
 from commerce_common.skills import SkillRegistry
-from shopping_agent import SearchFilters, ShoppingSessionContext, Unavailable
+from shopping_agent import OrderStatus, SearchFilters, ShoppingSessionContext, Unavailable
 from shopping_agent.executor import ShoppingToolExecutor
+from shopware_common.handoff import HandoffCodeVerifier
 from storefront.api.agent_config import build_shopping_config
 
+from .conftest import HANDOFF_SECRET
 from .replay import (
     CART_ID,
     GONE_CART_ID,
     OIL_ID,
+    ORDER_NUMBER,
     PRODUCT_ID,
     SEARCH_QUERY,
     VARIANT_L,
@@ -25,23 +31,39 @@ async def search(backend, session):
     return await backend.search_products(session, SEARCH_QUERY, limit=3)
 
 
+# ---------------------------------------------------------------------------- catalog
+
+
 async def test_search_maps_hex_ids_and_minor_unit_prices(backend, session):
     products = await search(backend, session)
-    assert products[0].product_id == PRODUCT_ID
     first = products[0]
+    assert first.product_id == PRODUCT_ID
     assert first.title == "Claude Commerce T-Shirt"
     assert (first.price, first.currency) == (29.99, "EUR")
     assert first.in_stock
     assert first.image_url == "https://cdn.example/shirt.jpg"
 
 
-async def test_details_list_variants_including_out_of_stock(backend, session):
+async def test_the_parent_row_in_variants_is_not_a_child_sku(backend, session):
+    products = await search(backend, session)
+    details = backend.products[products[0].product_id]
+    assert PRODUCT_ID not in {v.product_id for v in details.variants}
+    assert {v.product_id for v in details.variants} == {
+        VARIANT_S,
+        "33333333333333333333333333333333",
+        VARIANT_L,
+    }
+
+
+async def test_details_list_real_children_including_out_of_stock(backend, session):
     details = await backend.get_product_details(session, PRODUCT_ID)
     assert details is not None
     assert {v.product_id for v in details.variants} >= {VARIANT_S, VARIANT_L}
     sold_out = next(v for v in details.variants if v.product_id == VARIANT_L)
     assert sold_out.in_stock is False
-    assert details.specs.get("deliveryTime")
+    assert details.options == {"Size": ["S", "M", "L"]}
+    assert details.specs.get("deliveryTime") == "1–3 Werktage"
+    assert all(v.variant_of == PRODUCT_ID for v in details.variants)
 
 
 async def test_a_seen_variant_id_resolves_to_its_own_details(backend, session):
@@ -49,43 +71,68 @@ async def test_a_seen_variant_id_resolves_to_its_own_details(backend, session):
     details = await backend.get_product_details(session, VARIANT_S)
     assert details is not None
     assert details.product_id == VARIANT_S
-    assert "S" in details.title
+    assert details.title.endswith("S")
+    assert details.variant_of == PRODUCT_ID
+
+
+async def test_a_variant_id_resolves_from_a_fresh_session_too(backend):
+    other = ShoppingSessionContext(session_id="s-fresh", user_id="guest")
+    details = await backend.get_product_details(other, VARIANT_L)
+    assert details is not None
+    assert details.product_id == VARIANT_L
+    assert details.in_stock is False
 
 
 async def test_an_unknown_product_id_is_none(backend, session):
     assert await backend.get_product_details(session, "ffffffffffffffffffffffffffffffff") is None
 
 
-async def test_price_filters_travel_as_minor_units(backend, session, client):
-    sent = {}
-    original = client.call_ucp
+async def test_price_filters_are_enforced_on_the_result(backend, session):
+    cheap = await backend.search_products(
+        session, "", filters=SearchFilters(max_price=20.0), limit=5
+    )
+    assert [p.product_id for p in cheap] == [OIL_ID]
+    pricey = await backend.search_products(
+        session, "", filters=SearchFilters(min_price=20.0), limit=5
+    )
+    assert [p.product_id for p in pricey] == [PRODUCT_ID]
 
-    async def spy(name, arguments, **kwargs):
-        sent.update(arguments)
-        return await original(name, arguments, **kwargs)
 
-    client.call_ucp = spy
-    filters = SearchFilters(min_price=10.0, max_price=50.0)
-    await backend.search_products(session, SEARCH_QUERY, filters=filters, limit=3)
-    assert sent["catalog"]["filters"] == {"price": {"min": 1000, "max": 5000}}
+# ---------------------------------------------------------------------------- cart & handoff
 
 
 async def test_the_cart_lifecycle_keeps_one_token_per_session(backend, session):
     assert (await backend.get_cart(session)).items == []
+    assert backend.checkout_url_for(session.session_id) is None
 
     products = await search(backend, session)
     cart = await backend.add_to_cart(session, products[0].product_id, 1)
     assert [(i.product_id, i.quantity, i.price) for i in cart.items] == [(VARIANT_S, 1, 29.99)]
     assert cart.currency == "EUR"
-    checkout = await backend.checkout_url_for(session.session_id)
-    assert checkout == f"http://shopware.test/claude-commerce/continue?token={CART_ID}"
     assert backend.cart_id_for(session.session_id) == CART_ID
+
+    checkout = backend.checkout_url_for(session.session_id)
+    assert checkout and checkout.startswith("http://host.test/api/checkout/handoff/")
+    assert CART_ID not in checkout
 
     assert (await backend.get_cart(session)).item_count == 1
     updated = await backend.update_cart_item(session, VARIANT_S, 2)
     assert updated.item_count == 2
     removed = await backend.remove_from_cart(session, VARIANT_S)
     assert removed.items == []
+    assert backend.checkout_url_for(session.session_id) is None
+
+
+async def test_the_handoff_code_decrypts_to_the_cart_token_and_is_single_use(backend, session):
+    await search(backend, session)
+    await backend.add_to_cart(session, VARIANT_S, 1)
+    code = backend.handoff_code_for(session.session_id)
+    assert code is not None
+    verifier = HandoffCodeVerifier(HANDOFF_SECRET)
+    assert verifier.verify(code.code) == CART_ID
+    with pytest.raises(ValueError):
+        verifier.verify(code.code)
+    assert backend.handoff_code_for("no-such-session") is None
 
 
 async def test_adding_a_variant_id_directly_skips_default_resolution(backend, session):
@@ -94,21 +141,20 @@ async def test_adding_a_variant_id_directly_skips_default_resolution(backend, se
     assert cart.items[0].product_id == VARIANT_S
 
 
-async def test_out_of_stock_variant_raises_unavailable(backend, session):
+async def test_out_of_stock_variant_raises_unavailable_with_siblings(backend, session):
     await backend.get_product_details(session, PRODUCT_ID)
-    try:
+    with pytest.raises(Unavailable, match=VARIANT_S):
         await backend.add_to_cart(session, VARIANT_L, 1)
-        raise AssertionError("expected Unavailable")
-    except Unavailable as error:
-        assert VARIANT_S in str(error) or "unavailable" in str(error).lower()
 
 
 async def test_reset_session_drops_the_cart_binding(backend, session):
     await search(backend, session)
     await backend.add_to_cart(session, PRODUCT_ID, 1)
+    ticket_url = backend.checkout_url_for(session.session_id)
     backend.reset_session(session.session_id)
     assert (await backend.get_cart(session)).items == []
-    assert await backend.checkout_url_for(session.session_id) is None
+    assert backend.checkout_url_for(session.session_id) is None
+    assert backend.handoff.session_for(ticket_url.rsplit("/", 1)[-1]) is None
 
 
 async def test_sessions_do_not_share_carts(backend, session):
@@ -136,18 +182,56 @@ async def test_adding_into_a_dropped_cart_starts_a_fresh_one(backend, session):
     assert backend._sessions[session.session_id].cart_id != GONE_CART_ID
 
 
-async def test_checkout_handoff_never_completes(backend, session):
+async def test_checkout_handoff_points_at_the_ticket_and_never_completes(backend, session, shop):
     await search(backend, session)
     cart = await backend.add_to_cart(session, PRODUCT_ID, 1)
     handoff = await backend.checkout_handoff(session, cart)
-    assert handoff and handoff[0].url == f"http://shopware.test/claude-commerce/continue?token={CART_ID}"
+    assert handoff and handoff[0].url == backend.checkout_url_for(session.session_id)
     assert "Shopware" in handoff[0].label
+    assert not any("checkout" in r.url.path for r in shop.requests)
 
 
-async def test_policies_and_disclosures(backend, session):
+# ---------------------------------------------------------------------------- orders
+
+
+async def test_orders_come_from_the_store_api_behind_the_cart_token(backend, session):
+    assert await backend.get_orders(session) == []
+    await search(backend, session)
+    await backend.add_to_cart(session, VARIANT_S, 1)
+    orders = await backend.get_orders(session, limit=5)
+    assert len(orders) == 1
+    order = orders[0]
+    assert order.order_id == ORDER_NUMBER
+    assert order.status == OrderStatus.SHIPPED
+    assert order.total == 64.88 and order.currency == "EUR"
+    assert order.tracking_url == "https://track.example/1Z999"
+    assert order.estimated_delivery == "2026-09-03"
+    assert [(i.product_id, i.quantity, i.option_values) for i in order.items] == [
+        (VARIANT_S, 2, {"Size": "S"})
+    ]
+    assert order.items[0].variant_of == PRODUCT_ID
+
+    assert (await backend.get_order(session, ORDER_NUMBER)) is not None
+    assert (await backend.get_order(session, "88888888888888888888888888888888")) is not None
+    assert await backend.get_order(session, "nope") is None
+
+
+# ---------------------------------------------------------------------------- policies, facts, fulfillment
+
+
+async def test_policies_come_from_the_shops_cms_pages(backend, session):
     policies = await backend.search_policies(session, "widerruf")
     assert policies
-    assert any("Widerruf" in p.title or "widerruf" in p.content.lower() for p in policies)
+    assert policies[0].title == "Widerrufsbelehrung"
+    assert "14 Tagen" in policies[0].content
+    assert "flex-start" not in policies[0].content
+    assert policies[0].category == "returns"
+    assert backend.policies.live
+    contact = await backend.search_policies(session, "kontakt")
+    assert contact[0].title == "Kontakt"
+
+
+async def test_disclosures(backend, session):
     disclosure = await backend.get_disclosure(session, PRODUCT_ID)
     assert disclosure is not None
     oil = await backend.get_disclosure(session, OIL_ID)
@@ -155,10 +239,15 @@ async def test_policies_and_disclosures(backend, session):
     assert any("Grundpreis" in row.label or "25,80" in row.value for row in oil.rows)
 
 
-async def test_fulfillment_options_use_shipping_methods(backend, session):
+async def test_fulfillment_options_carry_fee_and_eta_from_shipping_methods(backend, session):
+    await backend.get_product_details(session, PRODUCT_ID)
     options = await backend.get_fulfillment_options(session, [PRODUCT_ID])
-    assert options
-    assert "Standard" in options[0].eta
+    assert [(o.method, o.fee) for o in options] == [("shipping", 4.9), ("shipping", 9.9)]
+    assert options[0].eta == "Standard: 2–4 Tage (Verfügbarkeit: 1–3 Werktage)"
+    assert options[1].eta.startswith("Express: 1–2 Tage")
+
+
+# ---------------------------------------------------------------------------- gates
 
 
 def make_executor(backend, session, state) -> ShoppingToolExecutor:

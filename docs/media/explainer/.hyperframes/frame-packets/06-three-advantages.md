@@ -14,7 +14,7 @@
 - voiceover: "Three things Shopware brings that a bolt-on can't. Native UCP — discovery, signatures, identity linking. Dry-run previews — straight from the core. And commerce semantics where they belong — promotions, rules, variants, price disclosures."
 - duration: 15.744s
 - transition_in: push-slide LEFT
-- status: outline
+- status: animated
 - src: compositions/frames/06-three-advantages.html
 - type: benefit_highlight
 - persuasion: Rule of three + feature-to-benefit translation (structural advantages a competitor cannot bolt on)

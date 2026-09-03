@@ -3,7 +3,7 @@
 
 "use client";
 
-import { formatMoney } from "web-shared";
+import { formatMoney } from "@/lib/format";
 import type { OrderStatusPayload } from "@/lib/types";
 
 export default function OrderStatusCard({ payload }: { payload: OrderStatusPayload }) {

@@ -4,7 +4,7 @@
 "use client";
 
 import { useState } from "react";
-import { formatMoney } from "web-shared";
+import { formatMoney } from "@/lib/format";
 import type { Product } from "@/lib/types";
 
 export function ProductImage({ product, className = "" }: { product: Product; className?: string }) {

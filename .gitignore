@@ -53,3 +53,6 @@ docs/media/explainer/**/*.mp4
 .idea/
 .vscode/
 .claude/
+
+# LinkedIn article drafts (not published)
+linkedin/

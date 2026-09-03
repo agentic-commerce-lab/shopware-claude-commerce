@@ -14,7 +14,7 @@
 - voiceover: "One curl to the well-known endpoint, and Shopware announces what it speaks — catalog, cart, checkout, order, identity linking — and the keys it signs with."
 - duration: 10.069s
 - transition_in: crossfade
-- status: outline
+- status: animated
 - src: compositions/frames/05-curl-ucp.html
 - type: feature_showcase
 - persuasion: Show-don't-tell proof — real output from the running shop

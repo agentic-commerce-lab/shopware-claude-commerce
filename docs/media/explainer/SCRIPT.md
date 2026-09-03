@@ -1,4 +1,4 @@
-# SCRIPT — shopware-claude-commerce-agents explainer
+# SCRIPT — Shopware × Claude Commerce Agents explainer (github.com/sthamann/shopware_claude_commerce)
 
 **Voice:** Kokoro `bm_george` (offline; British male, measured) — HeyGen not signed in
 **Voice settings:** speed 1.0
@@ -9,9 +9,9 @@
 ## Line 1 — The moment (Frame 1)
 
 **Time:** 0.0 – 10.0s
-**Delivery:** Date as a headline. Three flat claims, then a small lift on "This — is Shopware's."
+**Delivery:** Date as a headline. Two flat claims, then a small lift on "this is Shopware's implementation" and a clipped, final "Running."
 
-    September 2nd, 2026. Anthropic publishes an open-source blueprint for commerce agents. Shopify ships an implementation — the same day. This — is Shopware's.
+    September 2nd, 2026. Anthropic publishes an open-source blueprint for commerce agents. One day later — this is Shopware's implementation. Running.
 
 ## Line 2 — Not a Claude shop (Frame 2)
 
@@ -72,6 +72,6 @@
 ## Line 10 — Commerce Operating System (Frame 10)
 
 **Time:** 108.0 – 122.0s
-**Delivery:** The thesis, stated plainly. Then the repo, then the promise. Leave air at the end.
+**Delivery:** The thesis, stated plainly. Then point at the repo (the URL is on screen, not spoken), then the promise. Leave air at the end.
 
-    Shopware is the Commerce Operating System for the Agent Economy. The repo is shopware slash claude-commerce-agents. Five commands — and it runs.
+    Shopware is the Commerce Operating System for the Agent Economy. The repository link is in the description. Five commands — and it runs.

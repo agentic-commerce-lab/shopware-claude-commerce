@@ -20,11 +20,11 @@ language: en
 
 ## Frame 1 — The moment
 
-- scene: Kinetic date line — "September 2, 2026" — then three claims stack: Anthropic publishes the blueprint · Shopify ships the same day · "This is Shopware's."
-- voiceover: "September 2nd, 2026. Anthropic publishes an open-source blueprint for commerce agents. Shopify ships an implementation — the same day. This — is Shopware's."
-- duration: 12.331s
+- scene: Kinetic date line — "September 2, 2026" — then three claims stack: Anthropic publishes the blueprint · One day later. · "This is Shopware's." with a green `● RUNNING` status tag.
+- voiceover: "September 2nd, 2026. Anthropic publishes an open-source blueprint for commerce agents. One day later — this is Shopware's implementation. Running."
+- duration: 11.584s
 - transition_in: cut
-- status: outline
+- status: animated
 - src: compositions/frames/01-the-moment.html
 - type: hook
 - persuasion: Urgency by association — a dated industry moment the viewer already knows, resolved on "this is ours"
@@ -39,9 +39,9 @@ keyMessage: The blueprint is real, the race is on, and Shopware has an implement
 
 Adapt: keep the signature — the words ARE the motion, each claim landing as its own full-frame beat by hard cut — but the beats stack into a left-aligned ledger instead of swapping in place, so the three claims can be read together when the payoff lands.
 Scene 1 (0.0–1.6s): ground only, faint static grid. A mono kicker `✱ 2026-09-02` sits upper-left; the date "September 2, 2026" enters as `display` via **per-word staggered reveal** (`waterfall-entry`, word granularity) with a long-tail settle — left-aligned, upper third, ~60% width; nothing else on screen.
-Scene 2 (1.6–4.6s): as the voice says "Anthropic publishes", the date shrinks to `headline` scale and rises (a velocity-matched slow-fast-slow nudge, power3); line 1 "Anthropic publishes an open-source blueprint for commerce agents." arrives as a **waterfall entry** (`waterfall-entry`) beneath it, `headline` size, with a small `warm` word-mark tag "anthropics/commerce-agents" in mono to its right — the only warm element of the frame.
-Scene 3 (4.6–7.2s): on "Shopify ships", line 2 "Shopify ships an implementation — the same day." waterfalls in under line 1 (`waterfall-entry`); a thin ink@20% **section rule draws on** between the lines (`svg-path-draw`). Ledger layout, asymmetric 70/30, the right 30% empty.
-Scene 4 (7.2–10.0s): on "This — is Shopware's.", lines 1–2 dim to `muted`; line 3 "This is Shopware's." slams in at `display` scale (a single scale-slam arrival via `waterfall-entry`, no overshoot) and a **blue underline draws on** beneath "Shopware's" (`svg-path-draw`, `coral`) — the frame's one voltage. Hold still to the cut.
+Scene 2 (3.2–7.3s): as the voice says "Anthropic publishes", the date shrinks to `headline` scale and rises (a velocity-matched slow-fast-slow nudge, power3); line 1 "Anthropic publishes an open-source blueprint for commerce agents." arrives as a **waterfall entry** (`waterfall-entry`) beneath it, `headline` size, with a small `warm` word-mark tag "anthropics/commerce-agents" in mono to its right — the only warm element of the frame.
+Scene 3 (7.3–8.6s): on "One day later", line 2 "One day later." waterfalls in under line 1 (`waterfall-entry`); a thin ink@20% **section rule draws on** between the lines (`svg-path-draw`). Ledger layout, asymmetric 70/30, the right 30% empty.
+Scene 4 (8.6–11.6s): on "this is Shopware's implementation", lines 1–2 dim to `muted`; line 3 "This is Shopware's." slams in at `display` scale (a single scale-slam arrival via `waterfall-entry`, no overshoot) and a **blue underline draws on** beneath "Shopware's" (`svg-path-draw`, `coral`) — the frame's one voltage. On "Running." a small mono status tag `● RUNNING` (success green `#5DB872`) lands to the right of the underline. Hold still to the cut.
 
 ## Frame 2 — Not a Claude shop
 
@@ -49,7 +49,7 @@ Scene 4 (7.2–10.0s): on "This — is Shopware's.", lines 1–2 dim to `muted`;
 - voiceover: "This is not a Claude shop. It's Shopware as the commerce execution layer — the system any agent runs on."
 - duration: 7.275s
 - transition_in: crossfade
-- status: outline
+- status: animated
 - src: compositions/frames/02-execution-layer.html
 - type: product_intro
 - persuasion: Negative contrast — reject the obvious framing, then name the real one
@@ -73,7 +73,7 @@ Scene 3 (5.6–8.0s): on "any agent runs on", the tail "— any agent runs on." 
 - voiceover: "Two agents ship in the box. A shopping agent — search, compare, build a real cart, hand off to Shopware checkout. And a merchant agent — analyze, stage a change, a human approves — then it's applied."
 - duration: 13.163s
 - transition_in: zoom-through
-- status: outline
+- status: animated
 - src: compositions/frames/03-two-agents.html
 - type: feature_showcase
 - persuasion: Rule of two — two complementary capabilities weighed at once
@@ -100,7 +100,7 @@ Scene 6 (11.6–13.0s): both cards hold; a **section rule draws on** across the 
 - voiceover: "Here's the wiring. Anthropic's blueprint packages — pinned, unmodified. Two thin Shopware backends. Shoppers go through UCP — discovery, then MCP. Merchants go through the Admin API and MCP — with dry-run previews computed on the server."
 - duration: 17.451s
 - transition_in: crossfade
-- status: outline
+- status: animated
 - src: compositions/frames/04-wiring.html
 - type: feature_showcase
 - persuasion: Show-don't-tell mechanism — the real layer names and endpoints, drawn in the order the request travels
@@ -116,7 +116,7 @@ keyMessage: Blueprint untouched on top, thin adapters in the middle, Shopware su
 Adapt: keep the signature — labeled stations on one canvas revealed in traversal order with callouts — but the camera stays locked (a vertical diagram fits the frame) and the traversal is the **connector drawing on** top-down (`svg-path-draw`) from station to station; each station reveals on its cue.
 Scene 1 (0.0–1.4s): ground + grid; kicker `✱ HOW IT'S WIRED` upper-left; only the TOP station appears: a small hairline pill "Claude" (Messages API · Agent SDK) centered in the upper band, with a `warm` dot — the frame's only warm.
 Scene 2 (1.4–4.6s): on "Anthropic's blueprint packages", a connector draws down (`svg-path-draw`) into station 2: a wide tile card `anthropics/commerce-agents` with two mono chips `shopping_agent · StorefrontBackend` and `merchant_agent · MerchantBackend`; on "pinned, unmodified" a mono badge `pinned @ fd4d5922 · 0 changes` **spring-pops** in on its right edge (`spring-pop-entrance`, smooth settle). Layout: vertical stack, centered, ~72% width, four bands within the safe area.
-Scene 3 (4.6–7.0s): on "Two thin Shopware backends", two connectors draw down in parallel (`svg-path-draw`) into two side-by-side tile cards: `storefront/api` (mono: `ucp_client.py · shopware_backend.py`) and `merchant/api` (mono: `admin_transport.py · staging.py`), both under the mono label `shopware/claude-commerce-agents`. Reveal left then right via **staggered reveal** (`dynamic-content-sequencing`).
+Scene 3 (4.6–7.0s): on "Two thin Shopware backends", two connectors draw down in parallel (`svg-path-draw`) into two side-by-side tile cards: `storefront/api` (mono: `ucp_client.py · shopware_backend.py`) and `merchant/api` (mono: `admin_transport.py · staging.py`), both under the mono label `github.com/sthamann/shopware_claude_commerce`. Reveal left then right via **staggered reveal** (`dynamic-content-sequencing`).
 Scene 4 (7.0–10.4s): on "Shoppers go through UCP — discovery, then MCP", the LEFT connector draws down into the SHOPWARE band (a wide `tile-strong` card with a **blue hairline top rule** — the frame's one blue, drawn on with `svg-path-draw`) and two endpoint chips light up in order on their cues: `/.well-known/ucp` then `/ucp/mcp` (**keyword glow** on each chip as named → `asr-keyword-glow`).
 Scene 5 (10.4–13.6s): on "Merchants go through the Admin API and MCP", the RIGHT connector draws down into the same band; chips `/api/_mcp` and `/api/search/*` light in order; on "dry-run previews" a chip `dryRun=true` glows and a mono callout `preview computed server-side` **spring-pops** beside it (`spring-pop-entrance`).
 Scene 6 (13.6–15.0s): the band label "SHOPWARE 6.7" (mono, kicker style) fades up at the band's left; the whole diagram holds still.
@@ -127,7 +127,7 @@ Scene 6 (13.6–15.0s): the band label "SHOPWARE 6.7" (mono, kicker style) fades
 - voiceover: "One curl to the well-known endpoint, and Shopware announces what it speaks — catalog, cart, checkout, order, identity linking — and the keys it signs with."
 - duration: 10.069s
 - transition_in: crossfade
-- status: outline
+- status: animated
 - src: compositions/frames/05-curl-ucp.html
 - type: feature_showcase
 - persuasion: Show-don't-tell proof — real output from the running shop
@@ -153,7 +153,7 @@ Scene 4 (7.4–10.0s): on "the keys it signs with", the panel **scrolls up** one
 - voiceover: "Three things Shopware brings that a bolt-on can't. Native UCP — discovery, signatures, identity linking. Dry-run previews — straight from the core. And commerce semantics where they belong — promotions, rules, variants, price disclosures."
 - duration: 15.744s
 - transition_in: push-slide LEFT
-- status: outline
+- status: animated
 - src: compositions/frames/06-three-advantages.html
 - type: benefit_highlight
 - persuasion: Rule of three + feature-to-benefit translation (structural advantages a competitor cannot bolt on)
@@ -179,7 +179,7 @@ Scene 5 (12.8–14.0s): a **section rule draws on** under the three cards (`svg-
 - voiceover: "The rules are enforced, not prompted. The model proposes. A person — or a policy — applies. Provenance gates accept only IDs the session has seen. And checkout completes in Shopware — never in the agent."
 - duration: 13.696s
 - transition_in: zoom-through
-- status: outline
+- status: animated
 - src: compositions/frames/07-safety.html
 - type: benefit_highlight
 - persuasion: Risk reversal — name the failure modes the architecture makes impossible
@@ -205,7 +205,7 @@ Scene 5 (9.8–13.0s): hard cut to the finale, two lines: "Checkout completes in
 - voiceover: "Watch it run. Search the live catalog. Add to a real Shopware cart. Then — Check out on Shopware. Same cart, same total — in the shop's own checkout."
 - duration: 9.92s
 - transition_in: crossfade
-- status: outline
+- status: animated
 - src: compositions/frames/08-demo-shopping.html
 - type: feature_showcase
 - persuasion: Show-don't-tell proof on real screens
@@ -231,7 +231,7 @@ Scene 4 (8.6–13.0s): on "Same cart, same total", **inverse zoom-through** (`cu
 - voiceover: "On the merchant side — a price change is staged. Before and after, previewed by the server. Nothing touches the shop until someone approves. Then one call applies it."
 - duration: 10.88s
 - transition_in: push-slide LEFT
-- status: outline
+- status: animated
 - src: compositions/frames/09-demo-merchant.html
 - type: feature_showcase
 - persuasion: Show-don't-tell of the approval gate itself
@@ -252,11 +252,11 @@ Scene 4 (8.6–12.0s): on "Then one call applies it", the log column gets `POST 
 
 ## Frame 10 — Commerce Operating System
 
-- scene: Statement lands — "Shopware is the Commerce Operating System for the Agent Economy." — then the repo name `shopware/claude-commerce-agents` and a terminal pill types the five-command quick start (docker compose up · bootstrap · venv + pip · env · uvicorn). Holds on the lockup.
-- voiceover: "Shopware is the Commerce Operating System for the Agent Economy. The repo is shopware slash claude-commerce-agents. Five commands — and it runs."
-- duration: 13.313s
+- scene: Statement lands — "Shopware is the Commerce Operating System for the Agent Economy." — then the repo lockup `github.com/sthamann/shopware_claude_commerce` (on screen only; the voice points to the link in the description) and a terminal pill types the five-command quick start (docker compose up · bootstrap · venv + pip · env · uvicorn). Holds on the lockup.
+- voiceover: "Shopware is the Commerce Operating System for the Agent Economy. The repository link is in the description. Five commands — and it runs."
+- duration: 12.801s
 - transition_in: zoom-through
-- status: outline
+- status: animated
 - src: compositions/frames/10-close.html
 - type: cta
 - persuasion: Friction reduction — the whole install fits on one screen
@@ -271,6 +271,6 @@ keyMessage: The tagline, the repo, five commands.
 
 Adapt: keep the signature of the install-command end card — the headline demotes, a terminal springs in, the commands type and hold with a blinking caret — with five commands instead of one, typed in cascade, and the thesis line as the headline.
 Scene 1 (0.0–4.2s): ground + grid; kicker `✱ SHOPWARE × CLAUDE COMMERCE AGENTS` centered; the thesis "Shopware is the Commerce Operating System for the Agent Economy." enters centered at `display` via **per-word staggered reveal** (`dynamic-content-sequencing`), each word on its spoken beat; "Commerce Operating System" carries the frame's one blue (`coral`). Hold briefly.
-Scene 2 (4.2–6.8s): on "The repo is", the thesis **nudges** up to `headline` scale (slow-fast-slow, power3); a mono lockup `github.com/shopware/claude-commerce-agents` with a hairline pill `Apache-2.0` **spring-pops** beneath it (`spring-pop-entrance`, smooth settle).
-Scene 3 (6.8–12.6s): on "Five commands", a terminal pill (`code-surface`, ~70% width, centered, upper-middle so the caption band stays clear) springs in; the five README commands **type on** in cascade (`discrete-text-sequence`), one per line, each with a `$` prompt: `docker compose -f docker/compose.yaml up -d` · `./docker/bootstrap.sh` · `python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements-dev.txt` · `cp .env.example .env && cat docker/.generated.env >> .env` · `uvicorn storefront.api.main:app --port 8004`; a status line `→ http://localhost:8004 · http://localhost:3005` fades up on "and it runs".
-Scene 4 (12.6–14.0s): caret blinks (square-wave on timeline time); everything else still — the film's final held frame. No exit motion beyond the hold.
+Scene 2 (4.4–6.6s): on "The repository link", the thesis **nudges** up to `headline` scale (slow-fast-slow, power3); a mono lockup `github.com/sthamann/shopware_claude_commerce` with a hairline pill `MIT` **spring-pops** beneath it (`spring-pop-entrance`, smooth settle).
+Scene 3 (6.6–12.0s): on "Five commands", a terminal pill (`code-surface`, ~70% width, centered, upper-middle so the caption band stays clear) springs in; the five README commands **type on** in cascade (`discrete-text-sequence`), one per line, each with a `$` prompt: `docker compose -f docker/compose.yaml up -d` · `./docker/bootstrap.sh` · `python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements-dev.txt` · `cp .env.example .env && cat docker/.generated.env >> .env` · `uvicorn storefront.api.main:app --port 8004`; a status line `→ http://localhost:8004 · http://localhost:3005` fades up on "and it runs".
+Scene 4 (12.0–12.8s): caret blinks (square-wave on timeline time); everything else still — the film's final held frame. No exit motion beyond the hold.

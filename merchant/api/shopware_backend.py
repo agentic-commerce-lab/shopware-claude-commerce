@@ -1,11 +1,19 @@
-# Copyright 2026 Shopware × Claude Commerce Agents authors.
-# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 shopware AG
+# SPDX-License-Identifier: MIT
 
-"""``MerchantBackend`` over Shopware Admin REST. Staging writes the ledger only;
-``apply_change`` is the sole live write (via ``ShopwareWriter``)."""
+"""``MerchantBackend`` over the Shopware Admin MCP tools (REST as fallback).
+
+Reads come from ``shopware-entity-search`` / ``-read`` / ``-aggregate``. Every
+``stage_*`` builds the exact write payload, previews it with ``shopware-entity-upsert``
+``dryRun=true`` (Shopware runs the write in a transaction and rolls it back), records
+the server's verdict in ``guardrail_notes`` and stores the payload with the change.
+``apply_change`` is the only live write: it replays that payload with ``dryRun=false``.
+"""
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -18,7 +26,7 @@ from merchant_agent import (
     CampaignDraft,
     ChangeItem,
     ChangeKind,
-    ChangeLedger,
+    ChangeStatus,
     InventoryActionItem,
     InventoryAlert,
     Listing,
@@ -27,7 +35,6 @@ from merchant_agent import (
     MerchantAgentConfig,
     MerchantBackend,
     MerchantSessionContext,
-    MetricPoint,
     MetricSeries,
     OrderIssue,
     PriceUpdateItem,
@@ -36,11 +43,73 @@ from merchant_agent import (
     StagedChange,
 )
 from merchant_agent.changes import ChangeNotApplicable, GuardrailViolation, check_guardrails
+from shopping_agent import Order
 
-from .admin_client import AdminTransport
-from .agent_config import ShopwareSettings
+from .admin_client import EUR_CURRENCY_ID, AdminAPIError, AdminTransport
+from .agent_config import DATA_DIR, ShopwareSettings
 from .catalog import CatalogCache, ProductRecord
-from .staging import LISTING_FIELDS, ShopwareWriter, WriteFailed
+from .insights import (
+    GRANULARITIES,
+    OPEN_ORDER_STATES,
+    PAYMENT_PROBLEM_STATES,
+    Period,
+    change_pct,
+    derive_issues,
+    histogram_aggregation,
+    line_item_period_filters,
+    load_pricing_policy,
+    load_thresholds,
+    order_associations,
+    parse_period,
+    period_filters,
+    portal_order,
+    read_count,
+    read_sum,
+    series_points,
+    to_shopping_order,
+    totals_aggregations,
+    units_by_product,
+    units_sold_aggregation,
+)
+from .ledger import SqliteChangeLedger
+from .staging import (
+    LISTING_FIELDS,
+    PreviewRejected,
+    ShopwareWriter,
+    WriteFailed,
+    WritePayload,
+    current_gross,
+    current_price_entries,
+    listing_payload,
+    preview_note,
+    price_payload,
+    promotion_payload,
+    tax_rate_for,
+)
+
+logger = logging.getLogger(__name__)
+
+CURRENCY = "EUR"
+RECENT_ORDERS_LIMIT = 50
+ISSUE_SEARCH_LIMIT = 100
+METRIC_ALIASES = {
+    "sales": "sales",
+    "revenue": "sales",
+    "turnover": "sales",
+    "orders": "orders",
+    "order_count": "orders",
+    "aov": "aov",
+    "average_order_value": "aov",
+    "average order value": "aov",
+}
+STOREFRONT_CHANNEL_NAME = "Storefront"
+Clock = Callable[[], datetime]
+
+
+def _margin_pct(price: float, unit_cost: float | None) -> float | None:
+    if unit_cost is None or price <= 0:
+        return None
+    return round((price - unit_cost) / price * 100, 1)
 
 
 class ShopwareMerchantBackend(MerchantBackend):
@@ -49,67 +118,113 @@ class ShopwareMerchantBackend(MerchantBackend):
         admin: AdminTransport,
         settings: ShopwareSettings,
         config: MerchantAgentConfig,
+        *,
+        ledger: SqliteChangeLedger | None = None,
+        clock: Clock | None = None,
     ) -> None:
         self.admin = admin
         self._settings = settings
         self._config = config
-        self.ledger = ChangeLedger(config)
+        self.ledger = ledger or SqliteChangeLedger(config, settings.ledger_dsn)
         self.catalog = CatalogCache(admin)
         self._writer = ShopwareWriter(admin, self.catalog)
-        self._orders: list[dict[str, Any]] = []
+        self.thresholds = load_thresholds(
+            DATA_DIR / "thresholds.json", fallback_default=settings.low_stock_default
+        )
+        self.pricing_policy = load_pricing_policy(DATA_DIR / "pricing_policy.json")
+        self._clock = clock
+        self._recent_orders: list[dict[str, Any]] = []
+        self._sales_channel_id: str | None = settings.sales_channel_id or None
+        self._sales_channel_name: str | None = None
+
+    # ------------------------------------------------------------------ identity
 
     @property
     def store_name(self) -> str:
-        return self._settings.store_name or "Shopware"
+        return self._settings.store_name or self._sales_channel_name or "Shopware"
 
     @property
     def display_currency(self) -> str:
-        return "EUR"
+        return CURRENCY
+
+    @property
+    def sales_channel_id(self) -> str | None:
+        return self._sales_channel_id
+
+    def now(self) -> datetime:
+        return (self._clock() if self._clock else datetime.now(UTC)).astimezone(UTC)
 
     def all_listings(self) -> list[Listing]:
         return self.catalog.all_listings()
 
     async def warm(self) -> None:
+        """Catalog, sales channel and the recent-order feed. The catalog must load; the
+        other two degrade to empty with a warning."""
         await self.catalog.refresh()
         try:
-            payload = await self.admin.search(
-                "order",
-                {
-                    "limit": 50,
-                    "sort": [{"field": "orderDateTime", "order": "DESC"}],
-                    "includes": {"order": ["id", "orderNumber", "amountTotal", "orderDateTime", "stateId"]},
-                },
+            await self._resolve_sales_channel()
+        except AdminAPIError as error:
+            logger.warning("sales channel lookup failed: %s", error)
+        try:
+            self._recent_orders = await self._search_orders(
+                [], limit=RECENT_ORDERS_LIMIT, sort_desc=True
             )
-            self._orders = payload.get("data") or []
-        except Exception:
-            self._orders = []
+        except AdminAPIError as error:
+            logger.warning("recent orders unavailable: %s", error)
+            self._recent_orders = []
+
+    async def _resolve_sales_channel(self) -> None:
+        criteria: dict[str, Any] = {"includes": {"sales_channel": ["id", "name", "translated"]}}
+        if self._sales_channel_id:
+            criteria["filter"] = [
+                {"type": "equals", "field": "id", "value": self._sales_channel_id}
+            ]
+        result = await self.admin.search("sales_channel", criteria, limit=25)
+        rows = result.rows
+        if not rows:
+            return
+        chosen = next(
+            (r for r in rows if _name(r) == STOREFRONT_CHANNEL_NAME),
+            rows[0],
+        )
+        self._sales_channel_id = self._sales_channel_id or str(chosen.get("id"))
+        self._sales_channel_name = _name(chosen)
+
+    # ------------------------------------------------------------------ performance
+
+    async def _totals(self, period: Period) -> tuple[float, int]:
+        aggregations = await self.admin.aggregate(
+            "order", totals_aggregations(), period_filters(period)
+        )
+        return read_sum(aggregations, "sales"), read_count(aggregations, "orders")
 
     async def get_business_snapshot(
         self, session: MerchantSessionContext, period: str | None = None
     ) -> BusinessSnapshot:
-        await self._ensure_catalog()
-        sales = 0.0
-        for row in self._orders:
-            attrs = row.get("attributes") or row
-            try:
-                sales += float(attrs.get("amountTotal") or 0)
-            except (TypeError, ValueError):
-                pass
+        window = parse_period(period, now=self.now())
+        sales, orders = await self._totals(window)
+        previous_sales, previous_orders = await self._totals(window.previous)
         alerts = await self.get_inventory_alerts(session)
         issues = await self.get_order_issues(session)
         return BusinessSnapshot(
-            period=period or "last_30d",
-            sales=round(sales, 2),
-            orders=len(self._orders),
-            average_order_value=round(sales / len(self._orders), 2) if self._orders else None,
-            currency="EUR",
+            period=window.label,
+            compare_to=window.previous.label,
+            sales=sales,
+            orders=orders,
+            traffic=None,
+            conversion_rate=None,
+            average_order_value=round(sales / orders, 2) if orders else None,
+            sales_change_pct=change_pct(sales, previous_sales),
+            orders_change_pct=change_pct(orders, previous_orders),
+            currency=CURRENCY,
             alerts=AlertCounts(
                 low_stock=sum(1 for a in alerts if a.kind == "low_stock"),
                 slow_movers=sum(1 for a in alerts if a.kind == "slow_mover"),
                 order_issues=len(issues),
                 pending_changes=len(self.ledger.pending()),
             ),
-            note="Order totals from Admin API search (last 50). Traffic is not available.",
+            note="Totals from Admin order aggregations, cancelled orders excluded; "
+            "Shopware has no traffic or conversion source.",
         )
 
     async def query_metrics(
@@ -120,26 +235,80 @@ class ShopwareMerchantBackend(MerchantBackend):
         granularity: str = "day",
         segment: str | None = None,
     ) -> MetricSeries:
-        if metric not in {"sales", "orders"}:
+        key = METRIC_ALIASES.get((metric or "").strip().lower())
+        window = parse_period(period, now=self.now())
+        step = granularity if granularity in GRANULARITIES else "day"
+        if key is None:
             return MetricSeries(
                 metric=metric,
+                granularity=step,  # type: ignore[arg-type]
+                period=window.label,
                 points=[],
-                note=f"{metric} is not sourced from Shopware Admin in this deployment",
+                note=f"{metric} is not sourced from Shopware — no traffic or conversion data",
             )
-        points: list[MetricPoint] = []
-        today = datetime.now(UTC).date()
-        by_day: dict[str, float] = {}
-        for row in self._orders:
-            attrs = row.get("attributes") or row
-            stamp = str(attrs.get("orderDateTime") or "")[:10]
-            if not stamp:
-                continue
-            value = float(attrs.get("amountTotal") or 0) if metric == "sales" else 1.0
-            by_day[stamp] = by_day.get(stamp, 0.0) + value
-        for offset in range(6, -1, -1):
-            day = (today - timedelta(days=offset)).isoformat()
-            points.append(MetricPoint(date=day, value=round(by_day.get(day, 0.0), 2)))
-        return MetricSeries(metric=metric, unit="EUR" if metric == "sales" else "count", points=points)
+        unit = CURRENCY if key in {"sales", "aov"} else "count"
+        note: str | None = None
+        if segment:
+            await self._ensure_catalog()
+            product_ids = self._segment_product_ids(segment)
+            if not product_ids:
+                return MetricSeries(
+                    metric=key,
+                    unit=unit,
+                    granularity=step,  # type: ignore[arg-type]
+                    period=window.label,
+                    segment=segment,
+                    points=[],
+                    note=f"segment {segment!r} matches no category or listing",
+                )
+            aggregations = await self.admin.aggregate(
+                "order_line_item",
+                [
+                    {
+                        "name": "series",
+                        "type": "histogram",
+                        "field": "order.orderDateTime",
+                        "interval": step,
+                        "aggregation": {"name": "sales", "type": "sum", "field": "totalPrice"},
+                    }
+                ],
+                [
+                    {"type": "equalsAny", "field": "productId", "value": product_ids},
+                    *line_item_period_filters(window),
+                ],
+            )
+            if key == "orders":
+                note = "segment series counts order lines for the segment's products"
+        else:
+            aggregations = await self.admin.aggregate(
+                "order", histogram_aggregation(step), period_filters(window)
+            )
+        return MetricSeries(
+            metric=key,
+            unit=unit,
+            granularity=step,  # type: ignore[arg-type]
+            period=window.label,
+            segment=segment,
+            points=series_points(aggregations, window, step, key),
+            note=note,
+        )
+
+    def _segment_product_ids(self, segment: str) -> list[str]:
+        wanted = segment.strip().casefold()
+        ids: list[str] = []
+        for record in self.catalog.cached():
+            category = (record.category or "").casefold()
+            matches = wanted in {
+                category,
+                record.listing_id.casefold(),
+                record.product_number.casefold(),
+            }
+            if not matches and category and wanted in category:
+                matches = True
+            if matches:
+                ids.append(record.listing_id)
+                ids.extend(c.listing_id for c in record.children)
+        return list(dict.fromkeys(ids))
 
     async def get_campaign_performance(
         self, session: MerchantSessionContext, campaign_id: str | None = None
@@ -149,6 +318,8 @@ class ShopwareMerchantBackend(MerchantBackend):
             "read in this deployment"
         )
 
+    # ------------------------------------------------------------------ catalog
+
     async def search_listings(
         self,
         session: MerchantSessionContext,
@@ -157,15 +328,21 @@ class ShopwareMerchantBackend(MerchantBackend):
         limit: int = 8,
     ) -> list[Listing]:
         await self._ensure_catalog()
-        listings = self.catalog.all_listings()
-        tokens = {t.lower() for t in query.split() if len(t) > 1}
-        if tokens and query.strip() not in {"", "*", "all"}:
-            listings = [
-                listing
-                for listing in listings
-                if any(token in f"{listing.title} {listing.listing_id}".lower() for token in tokens)
+        records = self.catalog.cached()
+        cleaned = query.strip()
+        if cleaned and cleaned not in {"*", "all"}:
+            tokens = {t.casefold() for t in cleaned.replace(",", " ").split() if len(t) > 1}
+            exact = [
+                r
+                for r in records
+                if r.listing_id.casefold() in tokens
+                or r.product_number.casefold() in tokens
+                or any(c.product_number.casefold() in tokens for c in r.children)
             ]
-        return filter_listings(listings, filters, limit, sales_of=lambda _id: 0.0)
+            records = exact or [r for r in records if any(t in _haystack(r) for t in tokens)]
+        return filter_listings(
+            [r.to_listing() for r in records], filters, limit, sales_of=lambda _id: 0.0
+        )
 
     async def get_listing(
         self, session: MerchantSessionContext, listing_id: str
@@ -173,27 +350,130 @@ class ShopwareMerchantBackend(MerchantBackend):
         record = await self.catalog.get(listing_id)
         return None if record is None else record.to_details()
 
+    # ------------------------------------------------------------------ inventory / orders
+
     async def get_inventory_alerts(self, session: MerchantSessionContext) -> list[InventoryAlert]:
         await self._ensure_catalog()
-        threshold = self._settings.low_stock_default
         alerts: list[InventoryAlert] = []
-        for record in self._iter_stock_rows():
+        rows = self.catalog.stock_rows()
+        for record in rows:
+            threshold = self.thresholds.low_stock_for(record.product_number)
             if record.stock <= threshold:
                 alerts.append(
                     InventoryAlert(
                         listing_id=record.listing_id,
                         title=record.title,
                         kind="low_stock",
+                        option_values={"sku": record.product_number} if record.parent_id else {},
+                        variant_of=record.parent_id,
                         stock=record.stock,
                         threshold=threshold,
+                        storefront_visible=record.active and record.stock > 0,
+                    )
+                )
+        window = Period(
+            start=self.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            - timedelta(days=self.thresholds.slow_mover_window_days - 1),
+            end=self.now() + timedelta(seconds=1),
+            label=f"last_{self.thresholds.slow_mover_window_days}d",
+        )
+        try:
+            sold = units_by_product(
+                await self.admin.aggregate(
+                    "order_line_item", units_sold_aggregation(), line_item_period_filters(window)
+                )
+            )
+        except AdminAPIError as error:
+            logger.warning("slow-mover aggregation unavailable: %s", error)
+            return alerts
+        for record in rows:
+            if record.stock > 0 and record.active and sold.get(record.listing_id, 0) == 0:
+                alerts.append(
+                    InventoryAlert(
+                        listing_id=record.listing_id,
+                        title=record.title,
+                        kind="slow_mover",
+                        option_values={"sku": record.product_number} if record.parent_id else {},
                         variant_of=record.parent_id,
-                        storefront_visible=record.active,
+                        stock=record.stock,
+                        sales_last_30d=0,
+                        storefront_visible=True,
                     )
                 )
         return alerts
 
+    async def _search_orders(
+        self, filters: list[dict[str, Any]], *, limit: int, sort_desc: bool = True
+    ) -> list[dict[str, Any]]:
+        criteria: dict[str, Any] = {
+            "associations": order_associations(),
+            "sort": [{"field": "orderDateTime", "order": "DESC" if sort_desc else "ASC"}],
+        }
+        if filters:
+            criteria["filter"] = filters
+        result = await self.admin.search("order", criteria, limit=limit)
+        return result.rows
+
     async def get_order_issues(self, session: MerchantSessionContext) -> list[OrderIssue]:
-        return []
+        stuck = await self._search_orders(
+            [
+                {
+                    "type": "equalsAny",
+                    "field": "stateMachineState.technicalName",
+                    "value": list(OPEN_ORDER_STATES),
+                }
+            ],
+            limit=ISSUE_SEARCH_LIMIT,
+        )
+        payment = await self._search_orders(
+            [
+                {
+                    "type": "equalsAny",
+                    "field": "transactions.stateMachineState.technicalName",
+                    "value": list(PAYMENT_PROBLEM_STATES),
+                }
+            ],
+            limit=ISSUE_SEARCH_LIMIT,
+        )
+        commented = await self._search_orders(
+            [
+                {
+                    "type": "not",
+                    "operator": "or",
+                    "queries": [
+                        {"type": "equals", "field": "customerComment", "value": None},
+                        {"type": "equals", "field": "customerComment", "value": ""},
+                    ],
+                }
+            ],
+            limit=ISSUE_SEARCH_LIMIT,
+        )
+        merged: dict[str, dict[str, Any]] = {}
+        for row in [*stuck, *payment, *commented]:
+            merged.setdefault(str(row.get("id")), row)
+        return derive_issues(
+            list(merged.values()),
+            now=self.now(),
+            delayed_after_days=self.thresholds.delayed_after_days,
+        )
+
+    # ------------------------------------------------------------------ pricing
+
+    def _pricing_context(self, record: ProductRecord) -> PricingContext:
+        price = record.price
+        floor, basis = self.pricing_policy.floor_for(record.product_number, record.purchase_price)
+        return PricingContext(
+            listing_id=record.listing_id,
+            current_price=price,
+            currency=CURRENCY,
+            unit_cost=record.purchase_price,
+            margin_pct=_margin_pct(price, record.purchase_price),
+            min_price=floor,
+            min_price_basis=basis,  # type: ignore[arg-type]
+            max_price_delta_pct=self._config.max_price_delta_pct,
+            max_promotion_discount_pct=self._config.max_promotion_discount_pct,
+            option_values={"sku": record.product_number} if record.parent_id else {},
+        )
 
     async def get_pricing_context(
         self, session: MerchantSessionContext, listing_id: str
@@ -201,25 +481,62 @@ class ShopwareMerchantBackend(MerchantBackend):
         record = await self.catalog.get(listing_id)
         if record is None:
             return None
-        variants = [
-            PricingContext(
-                listing_id=child.listing_id,
-                current_price=child.price,
-                currency="EUR",
-                max_price_delta_pct=self._config.max_price_delta_pct,
-                max_promotion_discount_pct=self._config.max_promotion_discount_pct,
-            )
-            for child in record.children
-        ]
+        if not record.children:
+            return self._pricing_context(record)
+        variants = [self._pricing_context(child) for child in record.children]
         return PricingContext(
             listing_id=record.listing_id,
-            current_price=record.price,
-            currency="EUR",
-            margin_pct=None,
+            current_price=min(v.current_price for v in variants),
+            currency=CURRENCY,
             max_price_delta_pct=self._config.max_price_delta_pct,
             max_promotion_discount_pct=self._config.max_promotion_discount_pct,
             variants=variants,
         )
+
+    # ------------------------------------------------------------------ staging
+
+    async def _stage(
+        self,
+        *,
+        session: MerchantSessionContext,
+        kind: ChangeKind,
+        summary: str,
+        items: list[ChangeItem],
+        payloads: list[WritePayload],
+        notes: list[str] | None = None,
+        margin_impact: float | None = None,
+        margin_before_pct: float | None = None,
+        margin_after_pct: float | None = None,
+    ) -> StagedChange:
+        """Guardrails, then the server dry run for every payload, then the ledger. A
+        payload Shopware refuses never reaches the ledger."""
+        if violations := check_guardrails(kind, items, self._config):
+            raise GuardrailViolation(violations)
+        preview_notes: list[str] = []
+        for entity, payload in payloads:
+            try:
+                result = await self._writer.preview(entity, payload)
+            except PreviewRejected as error:
+                raise ChangeNotApplicable(f"Shopware rejected the preview: {error}") from error
+            except AdminAPIError as error:
+                raise ChangeNotApplicable(
+                    f"Shopware could not preview the change: {error}"
+                ) from error
+            preview_notes.append(preview_note(result))
+        change = self.ledger.stage(
+            kind=kind,
+            summary=summary,
+            items=items,
+            actor=session.operator,
+            actor_kind=ActorKind.AGENT,
+            currency=CURRENCY,
+            margin_impact=margin_impact,
+            margin_before_pct=margin_before_pct,
+            margin_after_pct=margin_after_pct,
+            guardrail_notes=[*(notes or []), *preview_notes],
+        )
+        self.ledger.set_payloads(change.change_id, payloads)
+        return change
 
     async def stage_listing_update(
         self,
@@ -229,21 +546,30 @@ class ShopwareMerchantBackend(MerchantBackend):
         note: str | None = None,
     ) -> StagedChange:
         record = await self._require_record(listing_id)
-        items: list[ChangeItem] = []
-        for field, after in fields.items():
-            if field not in LISTING_FIELDS:
-                raise ChangeNotApplicable(
-                    f"field {field!r} cannot be staged as a listing update on Shopware"
-                )
-            before = record.title if field in {"title", "name"} else record.description
-            items.append(ChangeItem(target=listing_id, field=field, before=before, after=after))
-        return self.ledger.stage(
+        unknown = [name for name in fields if name not in LISTING_FIELDS]
+        if unknown:
+            raise ChangeNotApplicable(
+                f"field {unknown[0]!r} cannot be staged as a listing update on Shopware; "
+                f"writable: {', '.join(sorted(LISTING_FIELDS))}"
+            )
+        if not fields:
+            raise ChangeNotApplicable("the listing update names no field")
+        fresh = await self.catalog.fresh(record.listing_id) or {}
+        items = [
+            ChangeItem(
+                target=record.listing_id,
+                field=name,
+                before=_current_text(fresh, record, LISTING_FIELDS[name]),
+                after=value,
+            )
+            for name, value in fields.items()
+        ]
+        return await self._stage(
+            session=session,
             kind=ChangeKind.LISTING_UPDATE,
             summary=note or f"Update listing {record.title}",
             items=items,
-            actor=session.operator,
-            actor_kind=ActorKind.AGENT,
-            currency="EUR",
+            payloads=[("product", listing_payload(record.listing_id, fields))],
         )
 
     async def stage_price_update(
@@ -253,28 +579,78 @@ class ShopwareMerchantBackend(MerchantBackend):
         note: str | None = None,
     ) -> StagedChange:
         change_items: list[ChangeItem] = []
+        rows: list[dict[str, Any]] = []
         notes: list[str] = []
+        margins: list[tuple[float, float]] = []
         for item in items:
             record = await self._require_record(item.listing_id)
-            change_items.append(
-                ChangeItem(
-                    target=item.listing_id,
-                    field="price",
-                    before=record.price,
-                    after=item.new_price,
+            targets = self._price_targets(record)
+            for target in targets:
+                fresh = await self.catalog.fresh(target.listing_id)
+                if fresh is None:
+                    raise ChangeNotApplicable(
+                        f"listing {target.listing_id} is no longer in Shopware"
+                    )
+                before = current_gross(target, fresh)
+                inherited = before is None and target.parent is not None
+                if before is None:
+                    before = target.price
+                tax_rate, tax_note = tax_rate_for(target, fresh)
+                if tax_note:
+                    notes.append(tax_note)
+                entries = price_payload(
+                    current_price_entries(target, fresh), item.new_price, tax_rate
                 )
-            )
-            if record.price:
-                notes.append(f"{record.title}: {record.price} → {item.new_price} EUR")
-        return self.ledger.stage(
+                rows.append({"id": target.listing_id, "price": entries})
+                change_items.append(
+                    ChangeItem(
+                        target=target.listing_id, field="price", before=before, after=item.new_price
+                    )
+                )
+                label = target.product_number or target.title
+                eur = next(e for e in entries if e["currencyId"] == EUR_CURRENCY_ID)
+                notes.append(
+                    f"{label}: {before:.2f} → {item.new_price:.2f} {CURRENCY} "
+                    f"(net {eur['net']:.2f} at {tax_rate:g} %)"
+                )
+                if inherited:
+                    notes.append(
+                        f"{label} inherited the family price until now; it will carry its own price"
+                    )
+                if target.purchase_price is not None:
+                    margin_before = _margin_pct(before, target.purchase_price)
+                    margin_after = _margin_pct(item.new_price, target.purchase_price)
+                    if margin_before is not None and margin_after is not None:
+                        margins.append((margin_before, margin_after))
+                        notes.append(
+                            f"{label} margin: {margin_before}% → {margin_after}% "
+                            f"({margin_after - margin_before:+.1f} pts)"
+                        )
+        return await self._stage(
+            session=session,
             kind=ChangeKind.PRICE_UPDATE,
-            summary=note or "Price update",
+            summary=note or f"Price update for {len(change_items)} listing(s)",
             items=change_items,
-            actor=session.operator,
-            actor_kind=ActorKind.AGENT,
-            currency="EUR",
-            guardrail_notes=notes,
+            payloads=[("product", rows)],
+            notes=notes,
+            margin_before_pct=margins[0][0] if len(margins) == 1 else None,
+            margin_after_pct=margins[0][1] if len(margins) == 1 else None,
         )
+
+    @staticmethod
+    def _price_targets(record: ProductRecord) -> list[ProductRecord]:
+        """The rows a price write lands on. A family whose children all inherit is priced
+        on the parent; a family with per-variant prices is repriced per variant (plus the
+        parent for the children that still inherit); a plain product or variant is itself."""
+        if not record.children:
+            return [record]
+        priced = [c for c in record.children if c.own_price is not None]
+        if not priced:
+            return [record]
+        targets = list(priced)
+        if len(priced) < len(record.children):
+            targets.append(record)
+        return targets
 
     async def stage_inventory_action(
         self,
@@ -283,52 +659,111 @@ class ShopwareMerchantBackend(MerchantBackend):
         note: str | None = None,
     ) -> StagedChange:
         change_items: list[ChangeItem] = []
+        rows: list[dict[str, Any]] = []
+        notes: list[str] = []
         for item in items:
             record = await self._require_record(item.listing_id)
             if item.action == "restock":
-                added = int(item.quantity or 0)
+                if record.children:
+                    raise ChangeNotApplicable(
+                        f"{record.product_number or record.listing_id} is a family; restock one of its "
+                        f"variants: {', '.join(c.product_number for c in record.children)}"
+                    )
+                quantity = int(item.quantity or 0)
+                if quantity <= 0:
+                    raise ChangeNotApplicable(
+                        f"restock of {record.title} needs a positive quantity"
+                    )
+                fresh = await self.catalog.fresh(record.listing_id)
+                current = int((fresh or {}).get("stock") if fresh else record.stock) or 0
                 change_items.append(
                     ChangeItem(
-                        target=item.listing_id,
+                        target=record.listing_id,
                         field="stock",
-                        before=record.stock,
-                        after=record.stock + added,
+                        before=current,
+                        after=current + quantity,
                     )
                 )
-            elif item.action == "pause":
-                change_items.append(
-                    ChangeItem(target=item.listing_id, field="status", before=record.status, after="paused")
+                rows.append({"id": record.listing_id, "stock": current + quantity})
+                notes.append(
+                    f"{record.product_number or record.title}: stock {current} → {current + quantity} "
+                    f"(+{quantity}; the delta is applied to the stock level at apply time)"
                 )
-            else:
-                change_items.append(
-                    ChangeItem(target=item.listing_id, field="status", before=record.status, after="active")
+                continue
+            active = item.action == "activate"
+            affected = [record, *record.children] if record.children else [record]
+            if record.children:
+                notes.append(
+                    f"{record.product_number or record.title} is a family: {item.action} covers the "
+                    f"parent and {len(record.children)} variant(s)"
                 )
-        return self.ledger.stage(
+            for target in affected:
+                change_items.append(
+                    ChangeItem(
+                        target=target.listing_id,
+                        field="status",
+                        before=target.status,
+                        after="active" if active else "paused",
+                    )
+                )
+                rows.append({"id": target.listing_id, "active": active})
+        return await self._stage(
+            session=session,
             kind=ChangeKind.INVENTORY_ACTION,
-            summary=note or "Inventory action",
+            summary=note or f"Inventory action for {len(items)} listing(s)",
             items=change_items,
-            actor=session.operator,
-            actor_kind=ActorKind.AGENT,
-            currency="EUR",
+            payloads=[("product", rows)],
+            notes=notes,
         )
 
     async def stage_promotion(
         self, session: MerchantSessionContext, promotion: PromotionDraft
     ) -> StagedChange:
-        items = []
+        if not self._sales_channel_id:
+            try:
+                await self._resolve_sales_channel()
+            except AdminAPIError as error:
+                raise ChangeNotApplicable(f"no sales channel for the promotion: {error}") from error
+        if not self._sales_channel_id:
+            raise ChangeNotApplicable(
+                "no sales channel to bind the promotion to — set SHOPWARE_SALES_CHANNEL_ID"
+            )
+        items: list[ChangeItem] = []
+        variant_ids: list[str] = []
         for listing_id in promotion.listing_ids:
             record = await self._require_record(listing_id)
-            after = round(record.price * (1 - promotion.discount_pct / 100), 2)
+            price = record.to_listing().price
+            after = round(price * (1 - promotion.discount_pct / 100), 2)
             items.append(
-                ChangeItem(target=listing_id, field="price", before=record.price, after=after)
+                ChangeItem(target=record.listing_id, field="price", before=price, after=after)
             )
-        return self.ledger.stage(
+            if record.children:
+                variant_ids.extend(c.listing_id for c in record.children)
+            else:
+                variant_ids.append(record.listing_id)
+        plan = promotion_payload(
+            name=promotion.name,
+            discount_pct=promotion.discount_pct,
+            starts=promotion.starts,
+            ends=promotion.ends,
+            sales_channel_id=self._sales_channel_id,
+            variant_ids=list(dict.fromkeys(variant_ids)),
+        )
+        valid_from = plan.payload["validFrom"]
+        valid_until = plan.payload["validUntil"]
+        notes = [
+            f"promotion {plan.promotion_id}: {promotion.discount_pct:g} % off, cart scope, "
+            f"valid {valid_from} → {valid_until}, sales channel {self._sales_channel_id}",
+            f"rule {plan.rule_id} limits it to carts holding one of {len(plan.variant_ids)} product(s); "
+            "the discount applies to the whole cart (per-line scoping is a Phase 3 refinement)",
+        ]
+        return await self._stage(
+            session=session,
             kind=ChangeKind.PROMOTION,
-            summary=promotion.name,
+            summary=f"{promotion.name} ({promotion.discount_pct:g}% off, {promotion.starts} to {promotion.ends})",
             items=items,
-            actor=session.operator,
-            actor_kind=ActorKind.AGENT,
-            currency="EUR",
+            payloads=[("promotion", plan.payload)],
+            notes=notes,
         )
 
     async def stage_campaign(
@@ -339,25 +774,41 @@ class ShopwareMerchantBackend(MerchantBackend):
             "or listing update instead"
         )
 
+    # ------------------------------------------------------------------ queue
+
     async def get_pending_changes(self, session: MerchantSessionContext) -> list[StagedChange]:
         return self.ledger.pending()
 
-    async def apply_change(self, session: MerchantSessionContext, change_id: str) -> StagedChange:
+    def _require_staged(self, change_id: str, action: str) -> StagedChange:
         change = self.ledger.get(change_id)
         if change is None:
-            raise ChangeNotApplicable(f"no change with id {change_id!r} to apply")
+            raise ChangeNotApplicable(f"no change with id {change_id!r} to {action}")
+        if change.status is not ChangeStatus.STAGED:
+            raise ChangeNotApplicable(
+                f"change {change_id} is {change.status.value}, not staged — nothing to {action}"
+            )
+        return change
+
+    async def apply_change(self, session: MerchantSessionContext, change_id: str) -> StagedChange:
+        change = self._require_staged(change_id, "apply")
+        if change.kind is ChangeKind.CAMPAIGN:
+            raise ChangeNotApplicable("campaigns are not applied to Shopware in this deployment")
         if violations := check_guardrails(change.kind, change.items, self._config):
             raise GuardrailViolation(violations)
-        try:
-            notes = await self._writer.apply(change)
-        except WriteFailed as error:
+        payloads = self.ledger.payloads(change_id)
+        if not payloads:
             raise ChangeNotApplicable(
-                f"the store did not accept change {change_id}: {error}. It is still staged."
+                f"change {change_id} has no stored write plan — stage it again. It is still staged."
+            )
+        try:
+            notes = await self._writer.apply(change, payloads)
+        except WriteFailed as error:
+            logger.warning("apply %s failed: %s", change_id, error.report())
+            raise ChangeNotApplicable(
+                f"the store did not accept change {change_id}: {error.report()}. It is still staged."
             ) from error
-        applied = self.ledger.apply(change_id, session.operator)
-        if notes:
-            applied.guardrail_notes = [*applied.guardrail_notes, *notes]
-        return applied
+        self.ledger.apply(change_id, session.operator)
+        return self.ledger.annotate(change_id, notes)
 
     async def discard_change(
         self,
@@ -365,19 +816,105 @@ class ShopwareMerchantBackend(MerchantBackend):
         change_id: str,
         actor_kind: ActorKind = ActorKind.OPERATOR,
     ) -> StagedChange:
+        self._require_staged(change_id, "discard")
         return self.ledger.discard(change_id, session.operator, actor_kind)
+
+    # ------------------------------------------------------------------ context / portal
+
+    @property
+    def previews_server_validated(self) -> bool:
+        return self.admin.name != "rest"
 
     async def get_merchant_context(self, session: MerchantSessionContext) -> dict[str, Any] | None:
         return {
             "store": self.store_name,
-            "currency": "EUR",
+            "currency": CURRENCY,
+            "transport": self.admin.name,
+            "sales_channel": self._sales_channel_id,
+            "previews_server_validated": self.previews_server_validated,
+            "slow_mover_window_days": self.thresholds.slow_mover_window_days,
             "limitations": [
+                {"source": "admin-api", "note": "No traffic or conversion source in Shopware."},
+                {"source": "admin-api", "note": "Marketing campaigns are not read or written."},
                 {
-                    "source": "admin-api",
-                    "note": "Traffic and marketing campaigns are not read from Shopware.",
-                }
+                    "source": "promotion",
+                    "note": "A promotion discounts the whole cart when a listed product is in it.",
+                },
             ],
         }
+
+    def shop_info(self) -> dict[str, Any]:
+        return {
+            "name": self._sales_channel_name or self.store_name,
+            "operator": self._settings.operator,
+            "currency": CURRENCY,
+            "transport": self.admin.name,
+            "sales_channel": self._sales_channel_id,
+        }
+
+    def recent_orders(self, limit: int = 6) -> list[Order]:
+        orders = [to_shopping_order(row) for row in self._recent_orders[:limit]]
+        return [o for o in orders if o is not None]
+
+    async def dashboard(
+        self, session: MerchantSessionContext, period: str | None
+    ) -> dict[str, Any]:
+        window = parse_period(period or "last_7d", now=self.now())
+        step = "day" if window.days <= 31 else "week"
+        sales, orders = await self._totals(window)
+        previous_sales, previous_orders = await self._totals(window.previous)
+        aggregations = await self.admin.aggregate(
+            "order", histogram_aggregation(step), period_filters(window)
+        )
+        alerts = await self.get_inventory_alerts(session)
+        issues = await self.get_order_issues(session)
+        aov = round(sales / orders, 2) if orders else None
+        previous_aov = round(previous_sales / previous_orders, 2) if previous_orders else None
+        sales_change = change_pct(sales, previous_sales)
+        return {
+            "period": {"label": window.display(), "against": window.against(), "key": window.label},
+            "kpis": {
+                "sales": {
+                    "value": sales,
+                    "unit": CURRENCY,
+                    "change_pct": sales_change,
+                    "points": _points(series_points(aggregations, window, step, "sales")),
+                },
+                "orders": {
+                    "value": orders,
+                    "unit": "count",
+                    "change_pct": change_pct(orders, previous_orders),
+                    "points": _points(series_points(aggregations, window, step, "orders")),
+                },
+                "conversion": {
+                    "value": None,
+                    "note": "Shopware has no traffic source, so conversion cannot be computed.",
+                },
+                "average_order": {
+                    "value": aov,
+                    "unit": CURRENCY,
+                    "change_pct": change_pct(aov or 0.0, previous_aov or 0.0),
+                    "points": _points(series_points(aggregations, window, step, "aov")),
+                },
+            },
+            "digest": _digest(sales_change, window, len(issues), len(alerts)),
+        }
+
+    async def portal_orders(self, limit: int) -> list[dict[str, Any]]:
+        rows = await self._search_orders([], limit=max(1, min(limit, ISSUE_SEARCH_LIMIT)))
+        self._recent_orders = rows or self._recent_orders
+        return [
+            portal_order(row, now=self.now(), delayed_after_days=self.thresholds.delayed_after_days)
+            for row in rows
+        ]
+
+    def changes(self, status: str | None) -> list[StagedChange]:
+        wanted = (status or "staged").strip().lower()
+        if wanted == "all":
+            return self.ledger.all()
+        return [c for c in self.ledger.all() if c.status.value == wanted]
+
+    # ------------------------------------------------------------------ helpers
 
     async def _ensure_catalog(self) -> None:
         if not self.catalog.cached():
@@ -389,11 +926,44 @@ class ShopwareMerchantBackend(MerchantBackend):
             raise ChangeNotApplicable(f"listing {listing_id} is not in the Shopware catalog")
         return record
 
-    def _iter_stock_rows(self) -> list[ProductRecord]:
-        rows: list[ProductRecord] = []
-        for record in self.catalog.cached():
-            if record.children:
-                rows.extend(record.children)
-            else:
-                rows.append(record)
-        return rows
+
+def _name(row: dict[str, Any]) -> str | None:
+    value = row.get("name") or (row.get("translated") or {}).get("name")
+    return str(value) if value else None
+
+
+def _haystack(record: ProductRecord) -> str:
+    parts = [record.title, record.listing_id, record.product_number, record.category or ""]
+    parts.extend(f"{c.title} {c.product_number}" for c in record.children)
+    return " ".join(parts).casefold()
+
+
+def _current_text(fresh: dict[str, Any], record: ProductRecord, field: str) -> Any:
+    value = fresh.get(field)
+    if value in (None, ""):
+        value = (fresh.get("translated") or {}).get(field)
+    if value in (None, ""):
+        value = {
+            "name": record.title,
+            "description": record.description,
+            "metaTitle": record.meta_title,
+            "metaDescription": record.meta_description,
+        }.get(field)
+    return value
+
+
+def _points(points: list) -> list[dict[str, Any]]:
+    return [{"date": p.date, "value": p.value} for p in points]
+
+
+def _digest(sales_change: float | None, window: Period, issues: int, alerts: int) -> str:
+    span = "on the week" if window.days == 7 else f"against {window.against()}"
+    if sales_change is None:
+        lead = f"No prior-period sales to compare {span}."
+    elif abs(sales_change) < 0.05:
+        lead = f"Sales are flat {span}."
+    else:
+        lead = f"Sales are {'up' if sales_change > 0 else 'down'} {abs(sales_change):.1f}% {span}."
+    orders_text = f"{issues} order{'s' if issues != 1 else ''}"
+    listings_text = f"{alerts} listing{'s' if alerts != 1 else ''}"
+    return f"{lead} {orders_text} and {listings_text} need you today."

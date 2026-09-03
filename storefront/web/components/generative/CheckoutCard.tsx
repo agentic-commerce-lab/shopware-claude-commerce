@@ -3,11 +3,12 @@
 
 "use client";
 
-import { formatMoney } from "web-shared";
+import { formatMoney, isSafeCheckoutUrl } from "@/lib/format";
 import type { CheckoutPayload } from "@/lib/types";
 
-/** The CTA links to Shopware's hosted checkout; the card itself charges nothing.
- * The link is the page's cart state — /api/cart stages the checkout host-side. */
+/** The CTA is a plain same-tab link to the storefront API's checkout handoff page, which
+ * auto-submits a POST form to Shopware; the card itself charges nothing. The link is the
+ * page's cart state — /api/cart stages the checkout host-side. */
 export default function CheckoutCard({
   payload,
   checkoutUrl,
@@ -42,9 +43,9 @@ export default function CheckoutCard({
           Shipping and tax are calculated on the shop&apos;s checkout page.
         </p>
       </div>
-      {checkoutUrl ? (
-        <a href={checkoutUrl} target="_blank" rel="noreferrer" className="btn-primary mt-3 block w-full text-center">
-          Check out on Shopware
+      {isSafeCheckoutUrl(checkoutUrl) ? (
+        <a href={checkoutUrl} data-checkout-link className="btn-primary mt-3 block w-full text-center">
+          Checkout in Shopware
         </a>
       ) : (
         <button disabled aria-disabled className="btn-primary mt-3 w-full cursor-not-allowed opacity-90">
