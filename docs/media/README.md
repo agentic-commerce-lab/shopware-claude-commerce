@@ -35,7 +35,7 @@ ffmpeg -y -i docs/media/explainer.mp4 -vf scale=-2:720 -c:v libx264 -preset slow
 
 GitHub only renders an inline video player for files uploaded as an *attachment* (drag the file into the README editor, an issue or a PR comment; GitHub returns a `https://github.com/user-attachments/assets/…` URL) and that URL is what goes into the README. A plain repository path such as `docs/media/explainer-web.mp4` is shown as a link, not as a player. Keep the file in the repo anyway so the attachment can be regenerated after a re-render.
 
-**Action required after this render:** the current upload `https://github.com/user-attachments/assets/00286df3-c81d-45ca-8a78-c0c2d01a4ce9` (stored in `github-video-url.txt` and referenced by the root `README.md` "Demo video" section) is still the **v2** cut. Upload the new `explainer-web.mp4` as an attachment, then replace the URL in both the root `README.md` and `docs/media/github-video-url.txt`.
+**Action required after this render:** the current upload `https://github.com/user-attachments/assets/60dd0425-91ba-43fc-bd2c-f5c750158e7c` (stored in `github-video-url.txt` and referenced by the root `README.md` "Demo video" section) is still the **v2** cut. Upload the new `explainer-web.mp4` as an attachment, then replace the URL in both the root `README.md` and `docs/media/github-video-url.txt`.
 
 ## What the video says (v3)
 
