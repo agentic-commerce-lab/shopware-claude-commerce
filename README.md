@@ -63,7 +63,7 @@ What the GitHub Pages build does:
 
 - **Runs in the browser:** demo shell, Shopware storefront (after WASM boot), catalog, cart, admin, UCP/MCP surfaces that the seed includes.
 - **Chat:** paste your own `ANTHROPIC_API_KEY` in the UI. Pages is a static host — there is no Node proxy and no repo key. The tab calls `api.anthropic.com` with Anthropic's browser-access header. If Anthropic rejects that call (CORS, key, or workspace), chat fails; the shop still works.
-- **Deploy:** [pages.yml](.github/workflows/pages.yml) builds the gitignored WASM shop on Actions (macOS runner; often 10–30+ min). Until it has succeeded, the URL may 404.
+- **Deploy:** [pages.yml](.github/workflows/pages.yml) builds the gitignored WASM shop on Actions (ubuntu runner + checked-in seed dump; often 10–30+ min). Until it has succeeded, the URL may 404.
 
 The Docker + FastAPI stack below is the full local product (handoff, signed UCP, merchant apply). The Pages demo is the zero-install shop + agents in one tab.
 

@@ -26,6 +26,7 @@ const startedAt = Date.now();
 const steps = [
   ['fetch playground', () => run('node', [join(DEMO_ROOT, 'build/fetch-playground.mjs')])],
   ['install shop', () => run('node', [join(DEMO_ROOT, 'build/install-shop.mjs')])],
+  ['seed CI fixtures', () => run('node', [join(DEMO_ROOT, 'build/seed-ci-fixtures.mjs')])],
   ['prepare shop', () => run('node', [join(DEMO_ROOT, 'build/prepare-shop.mjs')])],
   ['bundle shop', () => run('node', [join(DEMO_ROOT, 'build/bundle-shop.mjs')])],
   ['sync backends', () => run('bash', [join(DEMO_ROOT, 'scripts/sync-backends.sh')])],
