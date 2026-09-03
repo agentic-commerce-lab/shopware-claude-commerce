@@ -281,7 +281,8 @@ class HostApp:
         header_items = [(k.lower().encode("latin-1"), str(v).encode("latin-1")) for k, v in raw_headers.items()]
         if not any(k == b"host" for k, _ in header_items):
             header_items.append((b"host", b"localhost"))
-        payload = bytes(body.to_py()) if body is not None else b""
+        # JS null crosses as a JsNull proxy (not Python None); only real byte buffers have to_py().
+        payload = bytes(body.to_py()) if body is not None and hasattr(body, "to_py") else b""
         scope = {
             "type": "http",
             "asgi": {"version": "3.0", "spec_version": "2.3"},

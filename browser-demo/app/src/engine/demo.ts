@@ -11,6 +11,7 @@ import type { AgentRole, AnthropicAccess, HostBootConfig, ShopConfig } from '../
 import { AgentHost, installFetchShim, VIRTUAL_ORIGINS } from './agent-host';
 import {
   BOOTSTRAP_URL,
+  DEMO_CONTEXT_PATH,
   HANDOFF_CONTINUE_PATH,
   OVERLAY_MESSAGE_TYPE,
   OVERLAY_STATUS_TYPE,
@@ -294,7 +295,13 @@ export class DemoController {
         this.update({ agents: { ...this.state.agents, [role]: 'error' }, agentErrors: { ...this.state.agentErrors, [role]: text } });
       }
     }
-    this.mark('agents-ready');
+    const agentsReadyAt = this.mark('agents-ready');
+    const failed = (['shopping', 'merchant'] as AgentRole[]).filter((role) => this.state.agents[role] === 'error');
+    this.setStatus(
+      failed.length
+        ? `Agent${failed.length > 1 ? 's' : ''} failed to start: ${failed.join(', ')}`
+        : `Shopware and both agents run in this tab (ready after ${(agentsReadyAt / 1000).toFixed(1)} s)`
+    );
   }
 
   /**
@@ -326,11 +333,17 @@ export class DemoController {
     this.frame.src = location.origin + target;
   }
 
-  /** The storefront session's cart token, published by the DemoOverlay plugin. */
-  storefrontContextToken(): string | null {
+  /**
+   * The storefront session's cart token, served by the DemoOverlay plugin's JSON route (the
+   * session cookie travels along: same origin, and the SW routes the call into PHP WASM).
+   */
+  async storefrontContextToken(): Promise<string | null> {
+    if (!this.state.shopReady) return null;
     try {
-      const overlay = this.frame?.contentDocument?.getElementById('commerce-agents-demo');
-      return overlay?.getAttribute('data-context-token') || null;
+      const res = await fetch(DEMO_CONTEXT_PATH, { headers: { accept: 'application/json' }, cache: 'no-store' });
+      if (!res.ok) return null;
+      const body = (await res.json()) as { token?: string };
+      return body.token || null;
     } catch {
       return null;
     }
@@ -374,7 +387,15 @@ export class DemoController {
   // ------------------------------------------------------------------------- views
 
   setView(view: DemoView): void {
-    if (view === 'shopping') this.bindShoppingCart();
+    if (view === 'shopping' && this.state.view !== 'shopping') {
+      // The vendored StoreShell reads the cart id when it mounts: bind first, then mount.
+      void this.bindShoppingCart().finally(() => this.applyView(view));
+      return;
+    }
+    this.applyView(view);
+  }
+
+  private applyView(view: DemoView): void {
     this.update({ view });
     document.documentElement.classList.toggle('demo-theme-storefront', view === 'shopping');
     document.documentElement.classList.toggle('demo-theme-merchant', view === 'merchant');
@@ -384,9 +405,9 @@ export class DemoController {
    * Same cart in the assistant and in the shop: the storefront's context token becomes the
    * cart the shopping session attaches to (storefront/web reads this key on session start).
    */
-  private bindShoppingCart(): void {
-    const token = this.storefrontContextToken();
-    if (!token) return;
+  async bindShoppingCart(): Promise<string | null> {
+    const token = await this.storefrontContextToken();
+    if (!token) return null;
     try {
       const current = localStorage.getItem(STORAGE_KEYS.storefrontCartId);
       if (current !== token) {
@@ -397,6 +418,7 @@ export class DemoController {
     } catch {
       /* storage unavailable */
     }
+    return token;
   }
 
   /**

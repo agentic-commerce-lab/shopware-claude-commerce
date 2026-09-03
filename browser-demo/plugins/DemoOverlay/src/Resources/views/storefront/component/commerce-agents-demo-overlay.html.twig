@@ -42,10 +42,7 @@
   @media (max-width: 480px) { .ca-demo { right: 12px; bottom: 12px; } .ca-demo__panel { width: calc(100vw - 24px); } }
 </style>
 
-{# data-context-token: the storefront session's cart token, so the demo shell can bind the
-   shopping agent to *this* cart (same cart in the assistant and on /checkout/cart). Only
-   acceptable because the whole shop lives in the visitor's own browser tab. #}
-<div class="ca-demo" id="commerce-agents-demo" data-surface="{{ surface|default('storefront') }}" data-phase="booting"{% if surface != 'administration' and context is defined and context.token is defined %} data-context-token="{{ context.token }}"{% endif %}>
+<div class="ca-demo" id="commerce-agents-demo" data-surface="{{ surface|default('storefront') }}" data-phase="booting">
   <div class="ca-demo__panel" role="dialog" aria-label="Agentic Commerce demo" id="commerce-agents-demo-panel">
     <div class="ca-demo__head">
       <h2>Shopware × Claude Commerce Agents</h2>

@@ -71,5 +71,7 @@ cp "$OUT/SYNC_INFO.json" "$WEB_OUT/SYNC_INFO.json"
 # Deterministic tar (sorted, no owner) so the browser cache key only changes with content.
 ( cd "$OUT" && find . -type f | LC_ALL=C sort | tar -cf "$TAR" --no-recursion --uid 0 --gid 0 --numeric-owner -T - )
 cp "$TAR" "$DEST_DIR/repo-tree.tar"
+# The Pyodide-side bootstrap (httpx transport bridge + ASGI runner) is fetched by the worker.
+cp "$HERE/host/bootstrap.py" "$DEST_DIR/bootstrap.py"
 FILES="$(find "$OUT" -type f | wc -l | tr -d ' ')"
 echo "sync-backends: $FILES files → $DEST_DIR/repo-tree.tar ($(du -h "$TAR" | cut -f1)) from $SHA (${DIRTY} uncommitted backend changes)"

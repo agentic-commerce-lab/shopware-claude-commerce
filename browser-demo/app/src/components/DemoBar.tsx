@@ -22,7 +22,7 @@ export default function DemoBar({ state, onView, onOpenShop, onKey, onReset, pat
   const agentFor = (view: DemoView) => (view === 'shopping' ? state.agents.shopping : view === 'merchant' ? state.agents.merchant : 'ready');
   const busy = state.phpBusy > 0;
   const dotClass = state.shopError || state.hostError ? 'demo-dot--error' : state.shopReady ? 'demo-dot--ready' : '';
-  const modeLabel = state.anthropic.mode === 'byok' ? 'Your key' : state.proxyStatus === 'ready' ? 'Local proxy' : state.proxyStatus === 'unknown' ? 'Claude: …' : 'No key yet';
+  const modeLabel = state.anthropic.mode === 'byok' ? 'Your key' : state.proxyStatus === 'ready' ? 'Local proxy' : state.proxyStatus === 'unknown' ? '…' : 'No key yet';
 
   return (
     <header className="demo-bar" data-testid="demo-bar">

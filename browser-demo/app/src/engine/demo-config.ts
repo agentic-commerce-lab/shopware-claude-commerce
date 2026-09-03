@@ -36,4 +36,6 @@ export const OVERLAY_STATUS_TYPE = 'commerce-agents-demo-status';
 export const STOREFRONT_HOME = '/index.php';
 export const STOREFRONT_CART_PATH = '/checkout/cart';
 export const HANDOFF_CONTINUE_PATH = '/claude-commerce/continue';
+/** DemoOverlay plugin: the storefront session's context token as JSON (demo-only route). */
+export const DEMO_CONTEXT_PATH = '/commerce-agents-demo/context';
 export const ADMIN_PATH = '/admin';
