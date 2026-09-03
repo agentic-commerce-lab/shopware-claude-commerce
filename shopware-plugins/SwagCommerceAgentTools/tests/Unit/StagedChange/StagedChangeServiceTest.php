@@ -6,6 +6,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Shopware\Core\Content\Product\ProductCollection;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\DefinitionInstanceRegistry;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
@@ -21,6 +22,7 @@ use Swag\CommerceAgentTools\StagedChange\ActorResolver;
 use Swag\CommerceAgentTools\StagedChange\ChangeKind;
 use Swag\CommerceAgentTools\StagedChange\ChangePlan;
 use Swag\CommerceAgentTools\StagedChange\ChangeStatus;
+use Swag\CommerceAgentTools\StagedChange\Entity\AgentStagedChangeCollection;
 use Swag\CommerceAgentTools\StagedChange\Entity\AgentStagedChangeEntity;
 use Swag\CommerceAgentTools\StagedChange\StagedChangeException;
 use Swag\CommerceAgentTools\StagedChange\StagedChangeService;
@@ -38,10 +40,10 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 #[CoversClass(StageRequest::class)]
 class StagedChangeServiceTest extends TestCase
 {
-    /** @var EntityRepository&MockObject */
+    /** @var EntityRepository<AgentStagedChangeCollection>&MockObject */
     private EntityRepository $changeRepository;
 
-    /** @var EntityRepository&MockObject */
+    /** @var EntityRepository<ProductCollection>&MockObject */
     private EntityRepository $productRepository;
 
     private EventDispatcher $dispatcher;
@@ -99,7 +101,9 @@ class StagedChangeServiceTest extends TestCase
         $this->productRepository->expects($this->never())->method('upsert');
         $this->productRepository->expects($this->never())->method('update');
 
-        $plan = new ChangePlan(ChangeKind::InventoryAction, 'product', [['id' => ChangeFixtures::PRODUCT_ID, 'stock' => 28]], $change->getPreview() ?? []);
+        $plan = new ChangePlan(ChangeKind::InventoryAction, 'product', [['id' => ChangeFixtures::PRODUCT_ID, 'stock' => 28]], [
+            ['target' => ChangeFixtures::PRODUCT_ID, 'targetLabel' => 'Hocker', 'field' => 'stock', 'before' => 3, 'after' => 28],
+        ]);
         $request = new StageRequest('Restock stool by 25', null, $change->getItems(), null, null, 'EUR', 20.0, 31.5, 15.0);
 
         $staged = $this->service()->stage($plan, $request, $context);

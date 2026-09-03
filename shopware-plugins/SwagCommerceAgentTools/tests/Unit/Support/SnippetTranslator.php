@@ -22,6 +22,9 @@ final class SnippetTranslator implements TranslatorInterface
         $this->flatten($decoded, '');
     }
 
+    /**
+     * @param array<string, mixed> $parameters
+     */
     public function trans(string $id, array $parameters = [], ?string $domain = null, ?string $locale = null): string
     {
         $template = $this->flat[$id] ?? $id;

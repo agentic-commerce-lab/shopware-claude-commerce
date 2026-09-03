@@ -9,7 +9,13 @@ from __future__ import annotations
 
 import pytest
 
-from evals.harness import cache_hit_rate, collect_outcome, estimate_cost_usd
+from evals.harness import (
+    SESSION_CLOCK_ENV,
+    cache_hit_rate,
+    collect_outcome,
+    estimate_cost_usd,
+    session_now,
+)
 from evals.judge import parse_verdict, transcript_for_judge
 from evals.scorers import (
     REGISTRY,
@@ -139,6 +145,9 @@ def test_every_registered_scorer_validates_and_runs():
         "state_unchanged": "changes",
         "text_contains": ["olive"],
         "text_not_contains": ["banana"],
+        "ui_text_contains": {"any": ["Grundpreis"], "component": "disclosure"},
+        "payload_contains": ["Grundpreis"],
+        "answer_contains": ["olive"],
         "regex": "olive",
         "byte_exact_disclosure": OIL,
         "disclosure_row": {"label": "Preis"},
@@ -299,6 +308,51 @@ def test_regex_must_match_and_flags():
     assert score(outcome, "regex", {"pattern": r"\bplaced\b", "must_match": False}).passed
     assert score(outcome, "regex", {"pattern": "^added", "flags": "i"}).passed
     assert not score(outcome, "regex", {"pattern": "^added", "flags": ""}).passed
+
+
+def test_payload_surfaces_grade_what_the_host_renders():
+    """The disclosure rows live in the ui payload, not the prose; the staged change's
+    summary lives in the approval queue. Each surface is graded on its own."""
+    outcome = shopping_outcome()
+    assert not score(outcome, "text_contains", "Grundpreis").passed
+    assert score(outcome, "ui_text_contains", "Grundpreis").passed
+    assert score(outcome, "ui_text_contains", {"any": ["25,80"], "component": "disclosure"}).passed
+    assert not score(
+        outcome, "ui_text_contains", {"any": ["25,80"], "component": "products"}
+    ).passed
+    assert score(outcome, "payload_contains", ["inkl. mwst."]).passed
+    assert score(outcome, "answer_contains", ["Grundpreis"]).passed
+    assert score(outcome, "answer_contains", ["olive"]).detail == "present in prose"
+    assert not score(outcome, "answer_contains", ["banana"]).passed
+    # payload keys are not text: "label" is a key, never a rendered string
+    assert not score(outcome, "payload_contains", ["label"]).passed
+    assert score(outcome, "regex", {"pattern": r"25,80 € / 1 l", "surface": "payload"}).passed
+    assert not score(outcome, "regex", {"pattern": r"25,80", "surface": "text"}).passed
+    assert score(outcome, "regex", {"pattern": r"25,80|olive", "surface": "answer"}).passed
+    empty = shopping_outcome(ui=[])
+    assert not score(empty, "ui_text_contains", "anything").passed
+    assert "no ui payload" in score(empty, "payload_contains", "anything").detail
+
+
+def test_payload_contains_reads_the_staged_change_queue():
+    outcome = merchant_outcome(
+        text="One change is waiting.",
+        changes_after={
+            **merchant_outcome().changes_after,
+            "chg-0002": {
+                "kind": "price_update",
+                "status": "staged",
+                "summary": "Olive oil 12,90 → 14,19 EUR",
+                "guardrail_notes": ["within the 20 % cap"],
+                "items": [{"target": OIL, "field": "price", "before": 12.9, "after": 14.19}],
+            },
+        },
+    )
+    assert score(outcome, "payload_contains", ["14,19"]).passed
+    assert score(outcome, "payload_contains", ["20 % cap"]).passed
+    assert score(outcome, "answer_contains", {"all": ["waiting", "olive oil"]}).passed
+    # a change that existed before the turn is not part of this turn's rendered surface
+    assert not score(outcome, "payload_contains", ["13.9"]).passed
 
 
 def test_internal_ids_and_urls():
@@ -597,6 +651,17 @@ def test_collect_outcome_joins_full_result_text_from_messages():
     assert outcome.components() == ["products"]
     assert outcome.usage["cache_read_input_tokens"] == 90 and outcome.elapsed_ms == 1234
     assert cache_hit_rate(outcome.usage) == 0.9
+
+
+def test_session_clock_mirrors_the_host_unless_switched_off(monkeypatch):
+    monkeypatch.delenv(SESSION_CLOCK_ENV, raising=False)
+    now = session_now()
+    assert now is not None and now.tzinfo is None  # the hosts pass naive datetime.now()
+    monkeypatch.setenv(SESSION_CLOCK_ENV, "none")
+    assert session_now() is None
+    monkeypatch.setenv(SESSION_CLOCK_ENV, "utc")
+    with pytest.raises(ValueError, match=SESSION_CLOCK_ENV):
+        session_now()
 
 
 def test_cache_hit_rate_and_cost_estimate():

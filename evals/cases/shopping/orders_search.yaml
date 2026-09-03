@@ -84,6 +84,7 @@
         PASS if the reply says nothing in the store is under 5 € (it may mention the
         cheapest option, the olive oil at 12,90 €, as over budget). FAIL if it presents
         a product as fitting the 5 € budget.
+    - no_internal_ids_in_text
 
 - id: shop-search-005-compare-renders-comparison-without-ids
   title: A comparison renders the comparison card and names no internal ids

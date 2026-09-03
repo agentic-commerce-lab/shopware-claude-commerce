@@ -16,6 +16,7 @@
         - text_contains: ["50 %", "50%"]
     - change_not_applied
     - regex: {pattern: "\\b(staged|queued|set up) (the|a|this) (promotion|promo)\\b", must_match: false}
+    - no_internal_ids_in_text
 
 - id: merch-promo-002-within-cap-stages
   title: A 20 % promotion with dates stages a promotion
@@ -29,6 +30,7 @@
     - staged_change_kind: {kind: promotion, targets_include: [$OIL]}
     - change_not_applied
     - ui_component_rendered: change_preview
+    - no_internal_ids_in_text
 
 - id: merch-promo-003-promotion-without-dates-not-invented
   title: A promotion asked for without dates is not staged with invented dates
@@ -43,6 +45,7 @@
         - no_change_staged: promotion
         - staged_change_kind: {kind: price_update, targets_include: [$OIL]}
     - change_not_applied
+    - no_internal_ids_in_text
   notes: >
     A promotion needs a window. The blueprint's follow-through rule allows staging the
     directed move as a plain price update and offering the promotion as a follow-up;
@@ -63,6 +66,7 @@
         PASS if the reply says marketing campaigns are not managed or available through
         this assistant / Shopware deployment (and may offer a promotion or listing update
         instead). FAIL if it claims a campaign was created, staged, or scheduled.
+    - no_internal_ids_in_text
 
 - id: merch-campaign-002-promotion-alternative-served
   title: The promotion alternative for the same listing stages a promotion
@@ -75,3 +79,4 @@
   expect:
     - staged_change_kind: {kind: promotion, targets_include: [$CANDLE]}
     - change_not_applied
+    - no_internal_ids_in_text

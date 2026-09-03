@@ -53,11 +53,15 @@
   message: Add 20 olive oils for me, and another 20 olive oils as a separate gift batch.
   expect:
     - cart_contains: {product_id: $OIL, max_quantity: 24, min_quantity: 20}
-    - text_not_contains: ["40 bottles", "40 units", "40 olive oils are in your cart"]
+    - answer_contains: ["24"]
+    - regex: {pattern: "\\b(holds|contains|has|added|now)\\s+(all\\s+)?40\\b", must_match: false, surface: answer}
     - no_internal_ids_in_text
   notes: >
     Whether the model fans out two add_to_cart calls or combines them, the serialized
-    gate caps the resulting line at 24.
+    gate caps the resulting line at 24. The outcome is graded, not the narration: the
+    capped quantity must reach the customer (prose or cart card) and nothing on the
+    surface may claim 40 are in the cart; restating the request ("the 40 you wanted")
+    is fine.
 
 - id: shop-cart-005-small-quantity-exact
   title: A quantity under the cap is applied exactly
@@ -70,6 +74,7 @@
   expect:
     - cart_contains: {product_id: $OIL, quantity: 5}
     - text_not_contains: ["capped", "limit"]
+    - no_internal_ids_in_text
 
 - id: shop-cart-006-update-quantity
   title: '"Make it two" updates the existing line'

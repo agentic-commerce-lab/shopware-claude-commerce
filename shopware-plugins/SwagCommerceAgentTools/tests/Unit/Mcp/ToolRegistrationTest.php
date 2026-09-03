@@ -114,7 +114,7 @@ final class ToolRegistrationTest extends TestCase
     }
 
     /**
-     * @return array<class-string, string> tool class => shopware tag
+     * @return array<string, string> tool class => shopware tag
      */
     private static function serviceTags(): array
     {
@@ -132,7 +132,6 @@ final class ToolRegistrationTest extends TestCase
             }
         }
 
-        /** @var array<class-string, string> $tags */
         return $tags;
     }
 }

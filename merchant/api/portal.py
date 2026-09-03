@@ -23,7 +23,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.routing import APIRoute
 
 from demo_common.sessions import SessionRecord
-from merchant_agent import MerchantSessionContext
+from merchant_agent import ChangeStatus, MerchantSessionContext
 
 from .shopware_backend import ShopwareMerchantBackend
 
@@ -78,16 +78,20 @@ def build_portal_router(
     async def changes(
         status: str = Query(default="staged"), record: SessionRecord = scoped
     ) -> dict[str, Any]:
-        del record
         wanted = status.strip().lower()
         if wanted not in CHANGE_STATUSES:
             wanted = "staged"
+        listed = backend.changes(wanted)
+        # The portal's Approve / Dismiss buttons go through the blueprint's provenance gate,
+        # which accepts only change ids this session has seen. Listing a staged change to
+        # the operator is that sighting (exactly what the ``get_pending_changes`` tool does),
+        # so a change staged in an earlier session or before a restart stays actionable.
+        for change in listed:
+            if change.status == ChangeStatus.STAGED:
+                record.state.remember_change(change)
         return {
             "status": wanted,
-            "changes": [
-                change.model_dump(mode="json", exclude_none=True)
-                for change in backend.changes(wanted)
-            ],
+            "changes": [change.model_dump(mode="json", exclude_none=True) for change in listed],
         }
 
     return router

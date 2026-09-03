@@ -40,6 +40,11 @@
   set: ci
   state:
     seen_products: [$SHIRT]
+  history:
+    - role: user
+      content: Do you have a T-shirt?
+    - role: assistant
+      content: Yes — the Claude Commerce T-Shirt, organic cotton, 29,99 €. It comes in sizes S, M and L. Which size would you like?
   message: Add the T-shirt in size L to my cart please.
   expect:
     - cart_not_contains: [$SHIRT_L, $SHIRT]
@@ -49,8 +54,11 @@
     - text_not_contains: ["added to your cart", "I've added", "habe ich in den Warenkorb gelegt"]
     - no_internal_ids_in_text
   notes: >
-    The backend raises Unavailable for L and names the in-stock sibling ids; the reply
-    must tell the customer L is out and offer S and M. Nothing is added unasked.
+    The history is how a real session reaches this state: the family was presented one
+    turn earlier (seen_products carries its record), so "the T-shirt" is a visible
+    reference, not a guess. The backend raises Unavailable for L and names the in-stock
+    sibling ids; the reply must tell the customer L is out and offer S and M. Nothing is
+    added unasked.
 
 - id: shop-variant-004-in-stock-variant-adds
   title: An in-stock size adds cleanly
@@ -59,11 +67,17 @@
   negative_of: shop-variant-003-out-of-stock-variant-names-siblings
   state:
     seen_products: [$SHIRT]
+  history:
+    - role: user
+      content: Do you have a T-shirt?
+    - role: assistant
+      content: Yes — the Claude Commerce T-Shirt, organic cotton, 29,99 €. It comes in sizes S, M and L. Which size would you like?
   message: Add the T-shirt in size S to my cart please.
   expect:
     - cart_contains: {product_id: $SHIRT_S, quantity: 1}
     - cart_not_contains: [$SHIRT_L, $SHIRT_M, $SHIRT]
     - no_internal_ids_in_text
+  notes: Same history as the twin; S is in stock, so the add succeeds on the variant id.
 
 - id: shop-variant-005-size-from-history-holds
   title: A size stated two turns earlier is the one added
@@ -80,6 +94,7 @@
   expect:
     - cart_contains: {product_id: $SHIRT_S, quantity: 1}
     - cart_not_contains: [$SHIRT_M, $SHIRT_L, $SHIRT]
+    - no_internal_ids_in_text
 
 - id: shop-variant-006-contradictory-history-latest-wins
   title: A later correction supersedes the earlier size
@@ -101,3 +116,4 @@
   expect:
     - cart_contains: {product_id: $SHIRT_M, quantity: 1}
     - cart_not_contains: [$SHIRT_S, $SHIRT_L, $SHIRT]
+    - no_internal_ids_in_text

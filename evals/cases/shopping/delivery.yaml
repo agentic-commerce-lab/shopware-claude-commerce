@@ -69,6 +69,7 @@
     - text_contains: ["2–4", "2-4", "2 to 4", "2 bis 4", "two to four", "2 – 4", "2 - 4"]
     - grounded_numbers
     - text_not_contains: ["which product", "which item", "welches produkt"]
+    - no_internal_ids_in_text
 
 - id: shop-delivery-006-no-page-context-asks-which
   title: Without a page context "this one" is clarified, not guessed

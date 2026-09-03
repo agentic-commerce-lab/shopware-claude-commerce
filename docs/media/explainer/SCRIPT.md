@@ -82,7 +82,7 @@
 **Time:** 112.7 – 130.1s
 **Delivery:** The four case names are a list; "refused" and "byte-exact" are the stresses.
 
-    Tested like software: a hundred and one eval cases, every positive with a negative twin — family without a size, discard then apply refused, Grundpreis byte-exact, injection in a product description. CI gates pass rate, cache hits and cost per turn.
+    Tested like software: a hundred and seven eval cases, every positive with a negative twin — family without a size, discard then apply refused, Grundpreis byte-exact, injection in a product description. CI gates pass rate, cache hits and cost per turn.
 
 ## Line 12 — Commerce Operating System (Frame 12)
 

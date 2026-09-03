@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -60,6 +61,20 @@ logger = logging.getLogger(__name__)
 
 TURN_TIMEOUT_S = 300.0
 DISCLOSURE_COMPONENT = "disclosure"
+# The session clock. ``host`` mirrors the deployments (``demo_common`` storefront host and
+# the merchant portal both pass ``now=datetime.now()``, the server's naive local time, no
+# timezone); ``none`` leaves the context without a clock, which is how the prompt then
+# carries no ``local_time`` and the model falls back to its training-era year.
+SESSION_CLOCK_ENV = "EVALS_SESSION_CLOCK"
+SESSION_CLOCK_MODES = ("host", "none")
+
+
+def session_now() -> datetime | None:
+    """The ``now`` a snapshot's session context carries, per ``EVALS_SESSION_CLOCK``."""
+    mode = os.environ.get(SESSION_CLOCK_ENV, "host").strip().lower()
+    if mode not in SESSION_CLOCK_MODES:
+        raise ValueError(f"{SESSION_CLOCK_ENV} must be one of {SESSION_CLOCK_MODES}, got {mode!r}")
+    return datetime.now() if mode == "host" else None
 
 
 class SnapshotError(RuntimeError):
@@ -194,6 +209,7 @@ async def build_shopping_snapshot(
         session_id=f"eval-{case.id}-t{trial}-{int(time.time() * 1000) % 100000}",
         user_id=f"eval-user-{case.id}",
         page=page,
+        now=session_now(),
     )
     state = ShoppingSessionState()
     backend = harness.backend
@@ -275,6 +291,7 @@ async def build_merchant_snapshot(
         session_id=f"eval-{case.id}-t{trial}-{int(time.time() * 1000) % 100000}",
         merchant_id=harness.merchant_id,
         operator=harness.operator,
+        now=session_now(),
     )
     state = MerchantSessionState()
     backend = harness.backend

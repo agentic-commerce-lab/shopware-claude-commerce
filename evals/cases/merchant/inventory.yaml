@@ -14,6 +14,7 @@
     - staged_change_kind: {kind: inventory_action, targets_include: [$POSTER], field_after: {$POSTER: 35}}
     - text_contains: ["paused", "inactive", "not active", "offline", "deaktiviert", "not visible", "hidden", "off sale", "not live"]
     - change_not_applied
+    - no_internal_ids_in_text
   notes: >
     15 + 20 = 35. The search row says status paused; a restock alone will not put it
     back on the storefront, and the operator should hear that.
@@ -30,6 +31,7 @@
     - staged_change_kind: {kind: inventory_action, targets_include: [$CANDLE], field_after: {$CANDLE: 23}}
     - text_not_contains: ["paused", "inactive", "deaktiviert"]
     - change_not_applied
+    - no_internal_ids_in_text
 
 - id: merch-inventory-003-pause-family-covers-all-children
   title: Pausing a family stages the parent and every variant
@@ -43,6 +45,7 @@
         kind: inventory_action
         targets_include: [$SHIRT, $SHIRT_S, $SHIRT_M, $SHIRT_L]
     - change_not_applied
+    - no_internal_ids_in_text
   notes: The backend expands a pause on a family to the parent and its three variants in one change.
 
 - id: merch-inventory-004-pause-plain-listing-one-target
@@ -59,6 +62,7 @@
         targets_include: [$OIL]
         targets_exclude: [$SHIRT, $SHIRT_S, $SHIRT_M, $SHIRT_L, $CANDLE, $POSTER]
     - change_not_applied
+    - no_internal_ids_in_text
 
 - id: merch-inventory-005-restock-family-asks-variant
   title: A restock on a family asks which variant or stages per variant
@@ -75,6 +79,7 @@
             targets_exclude: [$SHIRT]
             targets_subset_of: [$SHIRT_S, $SHIRT_M, $SHIRT_L]
     - change_not_applied
+    - no_internal_ids_in_text
   notes: Stock lives on the variants; the options gate holds a restock that names the family.
 
 - id: merch-inventory-006-restock-variant-directly
@@ -92,6 +97,7 @@
         targets_exclude: [$SHIRT, $SHIRT_S, $SHIRT_M]
         field_after: {$SHIRT_L: 30}
     - change_not_applied
+    - no_internal_ids_in_text
 
 - id: merch-inventory-007-restock-over-cap-refused
   title: A restock past the 500-unit cap stages nothing
@@ -107,3 +113,4 @@
         - guardrail_triggered: guardrail
         - text_contains: ["500"]
     - change_not_applied
+    - no_internal_ids_in_text

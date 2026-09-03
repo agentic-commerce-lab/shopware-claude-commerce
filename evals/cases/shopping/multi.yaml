@@ -75,3 +75,4 @@
     - tool_not_called: [add_to_cart]
     - text_contains: ["4,90", "4.90"]
     - grounded_numbers
+    - no_internal_ids_in_text

@@ -335,8 +335,10 @@ def load_cases(
                     raise CaseError(f"{path}: id {case.id!r} already used by {seen[case.id]}")
                 seen[case.id] = path
                 cases.append(case)
-    if case_set != "all":
-        cases = [case for case in cases if case.set == case_set]
+    # ``ci`` is the pull-request subset; ``full`` (the nightly set) is every case, the ci
+    # ones included — a case's ``set: full`` marks it as nightly-only.
+    if case_set == "ci":
+        cases = [case for case in cases if case.set == "ci"]
     if ids:
         cases = [case for case in cases if case.id in ids]
     if tags:

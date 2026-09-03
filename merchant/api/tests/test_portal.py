@@ -138,3 +138,22 @@ def test_changes_route_filters_by_status(client: TestClient):
         ]
         == "staged"
     )
+
+
+def test_listing_a_staged_change_makes_its_portal_buttons_actionable(client: TestClient):
+    # A change staged in another session (or before a restart) is unknown to this session's
+    # provenance until the portal lists it; without that sighting Approve is held by the gate.
+    backend = client.merchant_portal.backend  # type: ignore[attr-defined]
+    elsewhere = MerchantSessionContext(session_id="other", merchant_id="m", operator="Dana")
+    staged = asyncio.run(
+        backend.stage_price_update(elsewhere, [PriceUpdateItem(listing_id=OIL, new_price=13.5)])
+    )
+    headers = _session(client)
+    unseen = client.post(f"{PREFIX}/changes/{staged.change_id}/discard", headers=headers).json()
+    assert unseen["ok"] is False and "not staged or listed in this session" in unseen["reason"]
+
+    listed = client.get(f"{PREFIX}/changes", headers=headers).json()
+    assert [c["change_id"] for c in listed["changes"]] == [staged.change_id]
+    dismissed = client.post(f"{PREFIX}/changes/{staged.change_id}/discard", headers=headers).json()
+    assert dismissed["ok"] is True and dismissed["change"]["status"] == "discarded"
+    assert dismissed["change"]["discarded_by_kind"] == "operator"

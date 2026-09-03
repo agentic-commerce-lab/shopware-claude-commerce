@@ -301,7 +301,53 @@ class McpTransport:
             )
         if result.is_error and "success" not in payload:
             payload = {"success": False, "error": result.text() or "tool error"}
-        return payload
+        return await self._collect_offloaded(payload, tool=tool, entity=entity)
+
+    async def _collect_offloaded(
+        self, payload: dict[str, Any], *, tool: str, entity: str
+    ) -> dict[str, Any]:
+        """The full payload when the server parked it behind a resource.
+
+        Shopware 6.7.13 answers a tool result above its inline size cap (observed at an
+        order search with associations, ~160 KB) with ``data: null`` and
+        ``_meta.resourceUri = "shopware://tool-result/<id>"`` plus a note to tighten the
+        criteria. Treating that as "no rows" would be silently wrong, so the resource is
+        read back and its JSON becomes the payload (``_meta`` is kept)."""
+        meta = payload.get("_meta")
+        uri = str(meta.get("resourceUri") or "") if isinstance(meta, dict) else ""
+        if not uri or payload.get("data") is not None:
+            return payload
+        try:
+            contents = await self.client.read_resource(uri)
+        except McpError as error:
+            logger.warning(
+                "MCP %s on %s: offloaded result %s unreadable: %s", tool, entity, uri, error
+            )
+            raise AdminAPIError(
+                f"{tool} ({entity}): offloaded result {uri} unreadable: {error}",
+                status=error.code,
+                tool=tool,
+                entity=entity,
+            ) from error
+        text = next((str(c.get("text")) for c in contents if c.get("text") is not None), "")
+        try:
+            full = json.loads(text) if text else None
+        except ValueError:
+            full = None
+        if not isinstance(full, dict):
+            logger.warning("MCP %s on %s: offloaded result %s is not JSON", tool, entity, uri)
+            raise AdminAPIError(
+                f"{tool} ({entity}): offloaded result {uri} is not a JSON payload",
+                tool=tool,
+                entity=entity,
+            )
+        logger.info(
+            "MCP %s on %s: collected %s bytes from %s", tool, entity, meta.get("responseSize"), uri
+        )
+        merged_meta = (
+            {**meta, **(full.get("_meta") or {})} if isinstance(meta, dict) else full.get("_meta")
+        )
+        return {**full, "_meta": merged_meta} if merged_meta else full
 
     def _require_success(self, payload: dict[str, Any], *, tool: str, entity: str) -> Any:
         if not payload.get("success"):

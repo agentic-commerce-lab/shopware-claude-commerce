@@ -8,6 +8,8 @@ Anthropic's [Commerce Agents blueprint](https://github.com/anthropics/commerce-a
 [![Node 22](https://img.shields.io/badge/Node-22-339933)](package.json)
 [![Blueprint pinned @ fd4d5922](https://img.shields.io/badge/blueprint-pinned%20%40%20fd4d5922-8a2be2)](https://github.com/anthropics/commerce-agents/tree/fd4d59224ab96b43c6dc6888207c67b3bd5a24cf)
 [![UCP 2026-04-08](https://img.shields.io/badge/UCP-2026--04--08-lightgrey)](https://ucp.dev)
+[![CI](https://github.com/sthamann/shopware_claude_commerce/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sthamann/shopware_claude_commerce/actions/workflows/ci.yml)
+[![Integration (Docker Shopware)](https://github.com/sthamann/shopware_claude_commerce/actions/workflows/integration.yml/badge.svg)](https://github.com/sthamann/shopware_claude_commerce/actions/workflows/integration.yml)
 
 ## Why this exists
 
@@ -31,6 +33,11 @@ Three properties of Shopware make this a natural fit rather than a port:
 | Shared client code | Streamable-HTTP MCP client, RFC 9421 + 9530 request signer, handoff code issuer / verifier, Anthropic client factory | `shopware_common/` |
 | Blueprint, unmodified | `commerce-common`, `shopping-agent-*`, `merchant-agent-*` installed from Anthropic's repo at a pinned commit; `demo_common`, `web-shared`, and skills vendored verbatim | `requirements.txt`, `vendor/` |
 | Mapping notes | Live UCP and Admin MCP tool names and schemas, REST paths, cart-id semantics, handoff mechanics, Store API surfaces, write payloads | `docs/shopware-mapping.md` |
+| Claude Code plugin | `shopware-commerce-builder`: five commands (scaffold, add flow, author evals, review, UCP doctor) and six skills that state what Shopware adds to Anthropic's `commerce-builder` plugin; marketplace manifest at the repo root | `plugins/shopware-commerce-builder/`, `.claude-plugin/` |
+| Eval suite | 107 YAML cases (64 shopping, 43 merchant), deterministic scorers plus one pinned LLM judge, replay and live backends, CI-set selection and gate (`evals/gates.yaml`) | `evals/` |
+| CI workflows | `ci.yml` (ruff, pytest on 3.11/3.12, Next.js builds, handoff plugin PHPUnit; netless) and `integration.yml` (nightly Docker Shopware bootstrap + smoke, optional eval CI set) | `.github/workflows/` |
+| Shopware plugin (Phase 4, first increment) | `SwagCommerceAgentTools`: nine MCP tools in Shopware itself. Store API: `shopping-policy-search`, `shopping-disclosure`, `shopping-fulfillment-options`. Admin API: `agent-change-stage`, `-list`, `-apply`, `-discard`, `agent-business-snapshot`, `agent-metrics-series`. Staged-change entity, Flow Builder triggers, ACL role templates | `shopware-plugins/SwagCommerceAgentTools/` |
+| Browser demo (in progress) | Zero-install demo of the same stack on Shopware in PHP WASM; feasibility measured, build not started in this tree | `docs/browser-demo-feasibility.md` |
 
 ## Demo video
 
@@ -221,7 +228,12 @@ Deployment notes that are yours to own (auth on the host routes, rate limits, me
 │   ├── data/                 seed.json (SHOPWARE_LOCAL_STORE=1), thresholds.json, pricing_policy.json
 │   └── scripts/              smoke_live.py (read-only / --write round trips), mcp_tools.py
 ├── vendor/                   unmodified demo_common, web-shared, skills (see NOTICE)
-├── docs/                     shopware-mapping.md, security.md, version-matrix.md, screenshots/, media/
+├── plugins/shopware-commerce-builder/   Claude Code plugin: commands/, skills/, scripts/validate.py
+├── .claude-plugin/marketplace.json      plugin marketplace manifest (shopware-claude-commerce)
+├── evals/                    runner, harness, backends (replay | live), scorers, judge, ci, gates.yaml, cases/, tests/
+├── shopware-plugins/SwagCommerceAgentTools/   Phase 4 Shopware plugin: Store API + Admin MCP tools, staged-change entity, PHPUnit
+├── .github/workflows/        ci.yml (netless), integration.yml (nightly Docker Shopware + smoke, optional evals)
+├── docs/                     shopware-mapping.md, security.md, version-matrix.md, browser-demo-feasibility.md, screenshots/, media/
 └── progress.md               phase checklist
 ```
 
@@ -255,6 +267,58 @@ Web build:
 npm run build
 ```
 
+## Claude Code plugin
+
+`plugins/shopware-commerce-builder/` is a Claude Code plugin for building or reviewing a Shopware agent on the hosts in this repo. It complements Anthropic's `commerce-builder` plugin (which holds the blueprint's own rules) and states what Shopware adds; the plugin runs no code of its own. The marketplace manifest is `.claude-plugin/marketplace.json`.
+
+```bash
+claude plugin marketplace add sthamann/shopware_claude_commerce     # or the path of a local clone
+claude plugin install shopware-commerce-builder@shopware-claude-commerce
+```
+
+Commands: `/scaffold-shopware-agent` (interview, Integration + ACL role + UCP exposure + signing key through `docker/`, hosts and `.env`), `/add-shopware-flow <flow>` (one shopping or merchant flow with its Shopware surfaces, netless replays, first eval cases), `/author-shopware-evals` (extends `evals/`), `/review-shopware-agent` (maps an existing Shopware agent integration row by row and converts the rows you pick), `/shopware-ucp-doctor` (discovery, signing keys, allowlists, MCP handshakes, handoff round trip, Identity Linking).
+
+Skills: `shopware-ucp-mapping`, `shopware-admin-mcp`, `shopware-promotions`, `shopware-variants`, `shopware-compliance-de`, `shopware-identity-and-handoff`.
+
+Validate with `python plugins/shopware-commerce-builder/scripts/validate.py` and `claude plugin validate --strict .`. Details in [`plugins/shopware-commerce-builder/README.md`](plugins/shopware-commerce-builder/README.md).
+
+## Evals
+
+`evals/` holds behavioral evals for both agents in the blueprint's `commerce-evals` style: a case is a snapshot state plus one user message; the runner drives one real agent turn with the real model and grades the final state and the rendered response, not the path. 107 cases (64 shopping, 43 merchant), every positive case with a negative counterpart; safety cases are always in the CI set. Gates that need no model (provenance, caps, guardrails, approval) stay in the unit tests.
+
+```bash
+python -m pytest evals/tests -q                                                   # scorers and case schema, no model
+python -m evals.runner --suite all --set ci --mode replay --trials 2 --report out.json
+```
+
+Replay mode runs the real model against the recorded Shopware backends (`ShopwareReplay`, `FakeAdmin`), so only `ANTHROPIC_API_KEY` is needed; live mode runs the same cases against the Docker shop. The report is a run artifact and is not committed.
+
+Gate policy (`evals/gates.yaml`): pass rate over all trials per tag, `core ≥ 0.90`, `safety = 1.00`, `context / interface / multi-capability ≥ 0.80`, with 2 trials by default. Mean cache-hit rate from the second trial on ≥ 0.80, mean estimated cost per turn ≤ 0.10 USD (shopping) and ≤ 0.30 USD (merchant), judge errors ≤ 25 % of judge scores, and any setup error fails the gate. Case format, scorer catalogue and authoring rules are in [`evals/README.md`](evals/README.md).
+
+## CI
+
+Two GitHub Actions workflows in `.github/workflows/`:
+
+- `ci.yml` runs on push and pull requests to `main` and needs no secrets: `ruff check`, `pytest -q` on Python 3.11 and 3.12, `npm run build` for both Next.js apps on Node 22, and `php -l` plus the standalone PHPUnit suite of the `CommerceAgentsHandoff` plugin on PHP 8.4.
+- `integration.yml` runs nightly and on manual dispatch: it boots the Docker Shopware on the runner, runs `docker/bootstrap.sh`, then `storefront/scripts/smoke.py` and `merchant/scripts/smoke_live.py --read-only`, and uploads container logs on failure. The optional `evals` job (nightly, or `run_evals=true` on dispatch) runs the eval CI set in replay mode and needs the `ANTHROPIC_API_KEY` secret (`ANTHROPIC_WORKSPACE_ID` only for identity-linked keys); without the secret it skips with a warning.
+
+## Shopware plugin: SwagCommerceAgentTools (Phase 4, in progress)
+
+`shopware-plugins/SwagCommerceAgentTools/` moves what the Python hosts had to implement themselves (policies, disclosures, fulfillment options, the staged-change ledger, order analytics) into Shopware as MCP tools, so any MCP-speaking agent gets them without a host of its own. First increment:
+
+| Surface | Tools |
+|---|---|
+| Store API MCP (`/store-api/_mcp`, group `agent-shopping`) | `shopping-policy-search`, `shopping-disclosure`, `shopping-fulfillment-options` |
+| Admin API MCP (`/api/_mcp`, group `agent-merchant`) | `agent-change-stage`, `agent-change-list`, `agent-change-apply`, `agent-change-discard`, `agent-business-snapshot`, `agent-metrics-series` |
+
+Plus the `swag_agent_staged_change` entity (staged → applied / discarded, `dryRun` on every write), Flow Builder triggers `swag.agent.change.staged` / `.applied`, and ACL role templates that split stager and approver (the agent's role cannot apply its own proposals).
+
+Test status: 149 PHPUnit tests (805 assertions) and PHPStan level max against `shopware/core` 6.7.13.1, without kernel or database. Not yet installed into the shared Docker container; install by symlinking the folder into `custom/plugins/`, then `bin/console plugin:refresh && bin/console plugin:install --activate SwagCommerceAgentTools && bin/console cache:clear` (on 6.7.11–6.7.13 with `MCP_SERVER=1`). Deferred: `promotion` / `campaign` change kinds, the `sw-agent-changes` admin module, `shopping-customer-preferences`, inventory-alert and order-issue tools, a persistent policy index, the auto-approve flow action, integration tests against a running shop. The host-side switch per backend method and the full tool reference are in [`shopware-plugins/SwagCommerceAgentTools/README.md`](shopware-plugins/SwagCommerceAgentTools/README.md).
+
+## Browser demo (in progress)
+
+Work in progress, nothing shipped yet. The feasibility spike in [`docs/browser-demo-feasibility.md`](docs/browser-demo-feasibility.md) verified that Shopware 6.7.13.1 runs in PHP WASM on top of FriendsOfShopware's `shopware-playground` with UCP (`/.well-known/ucp`, REST and `/ucp/mcp` with 14 tools) and the Admin MCP including `dryRun` upserts, given four small playground-level patches. The plan: the agents run in-browser via Pyodide (the blueprint packages unchanged), the Anthropic key stays behind a small Worker proxy with a bring-your-own-key toggle, and an overlay in the WASM storefront links to the shopping and merchant demo. Three phases: A, a playground fork with our Shopware, plugins and seed; B, the Anthropic proxy and the shopper demo in the browser; C, the merchant agent in the browser.
+
 ## Configuration
 
 `.env.example` documents every variable; `docker/.generated.env` (written by the bootstrap) fills the shop-specific ones. The ones you will touch:
@@ -279,26 +343,40 @@ npm run build
 
 ## Status and roadmap
 
-Blueprint phases 0 to 2 of the internal masterplan are complete and stabilized; the checklist is in [`progress.md`](progress.md).
+Blueprint phases 0 to 2 of the internal masterplan are implemented; a stabilization pass is re-verifying them against the running Docker shop. The checklist is in [`progress.md`](progress.md); this snapshot of the tree is work in progress.
 
-Working end to end against the Docker shop:
+Done:
 
-- Guest shopping over signed UCP/MCP (REST fallback): search, details with real variants, cart, checkout handoff via one-time code into Shopware's confirm page, CMS policy search, PAngV disclosures, shipping options with fees and ETA, order lookup behind the cart token.
-- Merchant: aggregation-based snapshot and metrics, inventory alerts and order issues from the seeded history, pricing context, staged listing / price / inventory / promotion changes with server-side dry-run previews, SQLite ledger, approval and discard routes, portal dashboard.
+- Guest shopping: search, details with real variants, cart, checkout handoff via one-time code into Shopware's confirm page, CMS policy search, PAngV disclosures, shipping options with fees and ETA, order lookup behind the cart token.
+- Merchant: aggregation-based snapshot and metrics, inventory alerts and order issues from the seeded history, pricing context, staged listing / price / inventory changes with server-side dry-run previews, SQLite ledger, approval and discard routes, portal dashboard.
 - Offline test suite (netless replays of every Shopware surface), live smoke scripts for both hosts, `docker/verify.sh`, PHPUnit tests for the handoff plugin, both web apps building.
+- Claude Code plugin `shopware-commerce-builder` (five commands, six skills, marketplace manifest).
+- Evals v1: 107 cases, scorers, judge, replay and live backends, CI gate.
+- CI: `ci.yml` (netless) and `integration.yml` (nightly Docker Shopware + smoke, optional evals).
+- `SwagCommerceAgentTools`, first increment: nine MCP tools, staged-change entity, Flow Builder triggers, ACL templates; 149 PHPUnit tests, PHPStan max.
 
-Not in this version (honest list):
+In progress (implemented, being verified by the stabilization pass; not counted as done until `progress.md` marks them verified):
+
+- Stabilization items across `storefront/`, `merchant/`, `docker/`: bootstrap idempotency, handoff plugin hardening, Store API error handling.
+- MCP as the primary transport on both sides (`UCP_TRANSPORT=mcp`, `SHOPWARE_ADMIN_TRANSPORT=mcp`) with REST fallback.
+- UCP Identity Linking (OAuth authorization code + PKCE); on the plain-http Docker shop `GET /api/auth/shopware/start` answers 503 because Shopware requires an https agent-profile `client_id`, so sessions stay guests.
+- RFC 9421 + RFC 9530 request signing against the shop's `signature-policy=strict`.
+- Real promotions on approval (`promotion` + `promotion_discount` + rule + sales channel in one transaction).
+- Merchant portal on `:3006`.
+- Browser demo (feasibility verified, build not started).
+
+Not in this version:
 
 | Item | Current behaviour |
 |---|---|
-| Identity Linking on the local shop | Implemented (OAuth authorization code + PKCE, signed), but Shopware requires an https agent-profile `client_id`; on the plain-http Docker shop `GET /api/auth/shopware/start` answers 503 with that reason and sessions stay guests |
 | Traffic, conversion | Reported as unavailable with a `note`; Shopware core does not measure traffic |
 | Campaigns | `stage_campaign` and `get_campaign_performance` raise `ChangeNotApplicable` |
 | Promotion scope | One promotion per staged change, cart-scope percentage discount limited by a product rule; per-line-item discounts are a later refinement |
-| Claude Code plugin, evals, Managed Agents manifests | Masterplan phase 3, not started |
-| CI | No GitHub Actions workflow yet |
+| Managed Agents manifests | Masterplan phase 3, not started |
+| `SwagCommerceAgentTools` in the Docker shop | Not installed into the shared container yet; the hosts still use their own policies, disclosures, fulfillment and ledger code |
+| Admin module, promotion tooling, storefront assistant plugin | Masterplan phase 4 items 4.3, 4.6, 4.7, not started |
 
-Later phases (Shopware plugin with staged-change entity and admin approval module, Store API MCP tools for policies and disclosures, SDK) are described in the internal masterplan (§5).
+Later phases (SDK, merchant operator in the admin) are described in the internal masterplan (§5).
 
 ## Versions
 
@@ -310,6 +388,8 @@ Later phases (Shopware plugin with staged-change entity and admin approval modul
 | `SwagAgenticCommerce`, `SwagMcpMerchantTools` | pinned commits in `docker/bootstrap.sh`, listed in [`docs/version-matrix.md`](docs/version-matrix.md) |
 | `ucp-php-sdk/symfony-bundle` | `>=0.0.5 <0.1.0` |
 | Python / Node | 3.11+ / 22 |
+
+Shopware 6.7.14 (progressive MCP discovery, `MCP_SERVER` flag removed) is unreleased as of 2026-09-03; the latest release is 6.7.13.1, which has the same MCP surface as the pinned 6.7.13.0. This lane is current. The lane matrix (6.5 / 6.6 / 6.7.11–6.7.13.1 / 6.7.14+), what changes on 6.7.14, and how to run a second lane side by side are in [`docs/version-matrix.md`](docs/version-matrix.md).
 
 ## Contributing
 

@@ -6,6 +6,7 @@ handshake and error texts come from the live 6.7.13 ``/api/_mcp`` and ``/ucp/mcp
 
 from __future__ import annotations
 
+import asyncio
 import json
 from typing import Any
 
@@ -184,6 +185,40 @@ async def test_expired_session_is_reinitialised_once():
     assert result.json()["success"] is True
     assert client.session_id == "sess-3"
     assert [r["method"] for r in server.requests].count("initialize") == 3
+
+
+async def test_concurrent_calls_on_one_session_each_match_their_own_answer():
+    # The portal's dashboard, overview and ledger reads hit one session together. Shopware's
+    # server answers one of two simultaneous calls on a session with an empty body, so the
+    # client runs them one at a time, and each answer is matched to its own id.
+    server = FakeMcpServer()
+    in_flight = 0
+    peak = 0
+
+    async def slow_handler(request: httpx.Request) -> httpx.Response:
+        nonlocal in_flight, peak
+        body = json.loads(request.content)
+        in_flight += 1
+        peak = max(peak, in_flight)
+        try:
+            if body.get("method") == "tools/call" and body["params"]["arguments"].get("slow"):
+                await asyncio.sleep(0.05)
+            return server.handler(request)
+        finally:
+            in_flight -= 1
+
+    http = httpx.AsyncClient(transport=httpx.MockTransport(slow_handler))
+    client = McpClient("http://shop.test/api/_mcp", http=http, retry_backoff=0)
+    await client.ensure_session()
+    slow, fast = await asyncio.gather(
+        client.call_tool("shopware-entity-aggregate", {"slow": True, "entity": "order"}),
+        client.call_tool("shopware-entity-search", {"entity": "product"}),
+    )
+    assert slow.json()["data"] == {"slow": True, "entity": "order"}
+    assert fast.json()["data"] == {"entity": "product"}
+    ids = [r["id"] for r in server.requests if r["method"] == "tools/call"]
+    assert len(set(ids)) == 2
+    assert peak == 1
 
 
 async def test_tool_error_raises_with_payload():

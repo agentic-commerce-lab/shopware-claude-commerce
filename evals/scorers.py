@@ -107,6 +107,70 @@ class Outcome:
         parts.extend(self.user_texts)
         return "\n".join(parts)
 
+    # -- the surfaces the user sees ----------------------------------------------------
+
+    def ui_text(self, component: str | None = None) -> str:
+        """Every string and number the host renders from ``ui`` payloads (optionally one
+        component): product cards, disclosure rows, change previews, digests, metrics."""
+        return "\n".join(
+            _leaf_text(event.payload)
+            for event in self.ui
+            if component is None or event.component == component
+        )
+
+    def change_text(self) -> str:
+        """What the approval queue shows for the changes this turn staged: ``summary``,
+        ``guardrail_notes`` and the per-item before/after rows."""
+        parts = []
+        for record in self.new_changes().values():
+            parts.append(
+                _leaf_text(
+                    {
+                        key: record.get(key)
+                        for key in ("summary", "guardrail_notes", "items", "kind", "status")
+                    }
+                )
+            )
+        return "\n".join(parts)
+
+    def payload_text(self) -> str:
+        return "\n".join(part for part in (self.ui_text(), self.change_text()) if part)
+
+    def answer_text(self) -> str:
+        """Prose plus rendered payloads: the whole surface the user sees."""
+        return "\n".join(part for part in (self.text, self.payload_text()) if part)
+
+    def surface(self, name: Literal["text", "payload", "answer"]) -> str:
+        if name == "text":
+            return self.text
+        if name == "payload":
+            return self.payload_text()
+        return self.answer_text()
+
+
+def _leaf_text(value: Any) -> str:
+    """The strings and numbers of a nested payload, one per line; keys are not text."""
+    leaves: list[str] = []
+
+    def walk(node: Any) -> None:
+        if isinstance(node, bool) or node is None:
+            return
+        if isinstance(node, str):
+            leaves.append(node)
+        elif isinstance(node, (int, float, Decimal)):
+            leaves.append(str(node))
+        elif isinstance(node, dict):
+            for child in node.values():
+                walk(child)
+        elif isinstance(node, (list, tuple)):
+            for child in node:
+                walk(child)
+        else:
+            leaves.append(str(node))
+
+    walk(value)
+    return "\n".join(leaves)
+
 
 @dataclass(frozen=True)
 class ScoreResult:
@@ -260,10 +324,20 @@ class TextArgs(_Args):
         return self
 
 
+Surface = Literal["text", "payload", "answer"]
+
+
+class UiTextArgs(TextArgs):
+    """``text_contains`` over the rendered ``ui`` payloads, optionally one component."""
+
+    component: str | None = None
+
+
 class RegexArgs(_Args):
     pattern: str
     must_match: bool = True
     flags: str = "is"  # i: ignore case, s: dot matches newline, m: multiline
+    surface: Surface = "text"  # prose only, rendered payloads only, or both
 
     @model_validator(mode="before")
     @classmethod
@@ -627,10 +701,38 @@ def text_not_contains(outcome: Outcome, args: TextArgs) -> ScoreResult:
     )
 
 
+def ui_text_contains(outcome: Outcome, args: UiTextArgs) -> ScoreResult:
+    haystack = outcome.ui_text(args.component)
+    if not haystack:
+        where = f"{args.component} " if args.component else ""
+        return ScoreResult("ui_text_contains", False, f"no {where}ui payload rendered")
+    ok, detail = _texts(args, haystack)
+    return ScoreResult("ui_text_contains", ok, detail or "present in ui payload")
+
+
+def payload_contains(outcome: Outcome, args: TextArgs) -> ScoreResult:
+    haystack = outcome.payload_text()
+    if not haystack:
+        return ScoreResult("payload_contains", False, "no ui payload or staged change rendered")
+    ok, detail = _texts(args, haystack)
+    return ScoreResult("payload_contains", ok, detail or "present in rendered payload")
+
+
+def answer_contains(outcome: Outcome, args: TextArgs) -> ScoreResult:
+    """The phrase is on the surface the user sees: prose or a rendered payload."""
+    in_text, _ = _texts(args, outcome.text)
+    if in_text:
+        return ScoreResult("answer_contains", True, "present in prose")
+    ok, detail = _texts(args, outcome.answer_text())
+    return ScoreResult("answer_contains", ok, detail or "present in rendered payload")
+
+
 def regex(outcome: Outcome, args: RegexArgs) -> ScoreResult:
-    match = re.search(args.pattern, outcome.text, args.re_flags)
+    match = re.search(args.pattern, outcome.surface(args.surface), args.re_flags)
     ok = bool(match) if args.must_match else match is None
     detail = f"matched {match.group(0)[:60]!r}" if match else "no match"
+    if args.surface != "text":
+        detail += f" on {args.surface}"
     return ScoreResult("regex", ok, detail)
 
 
@@ -901,6 +1003,9 @@ REGISTRY: dict[str, tuple[Scorer, type[BaseModel]]] = {
     "state_unchanged": (state_unchanged, StateUnchangedArgs),
     "text_contains": (text_contains, TextArgs),
     "text_not_contains": (text_not_contains, TextArgs),
+    "ui_text_contains": (ui_text_contains, UiTextArgs),
+    "payload_contains": (payload_contains, TextArgs),
+    "answer_contains": (answer_contains, TextArgs),
     "regex": (regex, RegexArgs),
     "byte_exact_disclosure": (byte_exact_disclosure, DisclosureArgs),
     "disclosure_row": (disclosure_row, DisclosureRowArgs),

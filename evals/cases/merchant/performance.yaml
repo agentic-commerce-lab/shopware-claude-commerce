@@ -12,6 +12,7 @@
     - grounded_numbers
     - text_not_contains: ["0 visitors", "0 visits", "traffic: 0", "traffic was 0", "traffic of 0", "zero traffic", "no traffic at all", "0% conversion", "0 % conversion", "conversion rate of 0", "conversion: 0", "conversion rate: 0"]
     - no_change_staged
+    - no_internal_ids_in_text
   notes: >
     Sales, orders and AOV come from the order aggregations; any figure not in the tool
     result is invention. Traffic and conversion are None in the snapshot.
@@ -29,6 +30,7 @@
     - tool_called: get_listing
     - staged_change_kind: {kind: listing_update, targets_include: [$POSTER]}
     - change_not_applied
+    - no_internal_ids_in_text
   notes: >
     A content edit needs the full record (get_listing) before staging; the search row
     alone is held by the provenance gate.
@@ -43,6 +45,7 @@
     - tool_called: query_metrics
     - grounded_numbers
     - no_change_staged
+    - no_internal_ids_in_text
 
 - id: merch-snapshot-004-conversion-unavailable-not-zero
   title: Asked for the conversion rate, the reply says it is not available rather than 0
@@ -56,3 +59,4 @@
     - text_contains: ["not available", "unavailable", "no traffic", "isn't tracked", "not tracked", "doesn't track", "does not track", "can't compute", "cannot compute", "cannot be computed", "can't be computed", "not measured", "does not record", "doesn't record", "no conversion", "not sourced", "not captured", "no source", "isn't available", "is not something", "don't have"]
     - grounded_numbers
     - no_change_staged
+    - no_internal_ids_in_text

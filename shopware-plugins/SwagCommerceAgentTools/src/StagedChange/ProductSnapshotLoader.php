@@ -5,7 +5,6 @@ namespace Swag\CommerceAgentTools\StagedChange;
 use Shopware\Core\Content\Product\ProductEntity;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
-use Shopware\Core\Framework\DataAbstractionLayer\Pricing\Price;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 
 /**
@@ -60,9 +59,6 @@ class ProductSnapshotLoader
 
         $prices = [];
         foreach ($product->getPrice() ?? [] as $price) {
-            if (!$price instanceof Price) {
-                continue;
-            }
             $prices[$price->getCurrencyId()] = [
                 'gross' => $price->getGross(),
                 'net' => $price->getNet(),

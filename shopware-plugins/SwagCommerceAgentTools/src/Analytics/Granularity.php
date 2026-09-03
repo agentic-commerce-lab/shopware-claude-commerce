@@ -10,6 +10,9 @@ enum Granularity: string
     case Week = 'week';
     case Month = 'month';
 
+    /**
+     * @return 'day'|'week'|'month'
+     */
     public function toDateHistogramInterval(): string
     {
         return match ($this) {

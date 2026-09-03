@@ -169,8 +169,8 @@ class McpClient:
         self._request_hook = request_hook
         self._retry_backoff = retry_backoff
         self._next_id = 0
-        self._last_id = 0
-        self._lock = asyncio.Lock()
+        self._lock = asyncio.Lock()  # guards the handshake in ensure_session
+        self._io_lock = asyncio.Lock()  # one in-flight request per session (see request)
         self.session_id: str | None = None
         self.protocol_version: str | None = None
         self.server_info: dict[str, Any] = {}
@@ -193,8 +193,8 @@ class McpClient:
             "capabilities": {},
             "clientInfo": self._client_info,
         }
-        response = await self._post("initialize", params)
-        message = parse_rpc_body(response, request_id=self._last_id)
+        response, request_id = await self._post("initialize", params)
+        message = parse_rpc_body(response, request_id=request_id)
         result = self._unwrap(message, "initialize")
         session_id = response.headers.get(SESSION_HEADER)
         if not session_id:
@@ -308,6 +308,16 @@ class McpClient:
             raise McpToolError(f"{name}: {tool_result.text() or 'tool error'}", tool_result)
         return tool_result
 
+    # ------------------------------------------------------------------ resources
+
+    async def read_resource(self, uri: str) -> list[dict[str, Any]]:
+        """``resources/read``: the ``contents`` blocks (``{"uri", "mimeType", "text"|"blob"}``).
+        Shopware parks a tool result that is too large for inline delivery behind a
+        ``shopware://tool-result/<id>`` resource and answers the call with
+        ``_meta.resourceUri``; this is how the caller collects it."""
+        result = await self.request("resources/read", {"uri": uri})
+        return [c for c in result.get("contents") or [] if isinstance(c, dict)]
+
     # ------------------------------------------------------------------ JSON-RPC
 
     async def request(
@@ -317,15 +327,23 @@ class McpClient:
         *,
         extra_headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
-        """A JSON-RPC request with one transparent re-initialise on a lost session."""
+        """A JSON-RPC request with one transparent re-initialise on a lost session.
+
+        Requests on one session run one at a time: Shopware's streamable-HTTP server
+        (``mcp/sdk``) races when a session answers two ``tools/call`` at once and one of
+        them comes back with an empty body (observed live on 6.7.13 with three concurrent
+        calls). Serialising here keeps the portal's parallel reads and the agent's tool
+        calls on one session correct without a second session per caller.
+        """
         await self.ensure_session()
-        try:
-            response = await self._post(method, params, extra_headers=extra_headers)
-        except McpSessionLost:
-            logger.info("MCP session on %s expired; re-initialising once", self.url)
-            await self.initialize()
-            response = await self._post(method, params, extra_headers=extra_headers)
-        message = parse_rpc_body(response, request_id=self._last_id)
+        async with self._io_lock:
+            try:
+                response, request_id = await self._post(method, params, extra_headers=extra_headers)
+            except McpSessionLost:
+                logger.info("MCP session on %s expired; re-initialising once", self.url)
+                await self.initialize()
+                response, request_id = await self._post(method, params, extra_headers=extra_headers)
+        message = parse_rpc_body(response, request_id=request_id)
         return self._unwrap(message, method)
 
     async def _notify(self, method: str, params: dict[str, Any] | None = None) -> None:
@@ -342,16 +360,20 @@ class McpClient:
         params: dict[str, Any] | None,
         *,
         extra_headers: dict[str, str] | None = None,
-    ) -> httpx.Response:
+    ) -> tuple[httpx.Response, int]:
+        """The HTTP response and the JSON-RPC id it answers. The id travels with the call
+        (not on ``self``): requests run concurrently on one session — the portal's
+        dashboard, overview and ledger reads land together — and each must match its own
+        answer, not the id of whichever request was issued last."""
         self._next_id += 1
-        self._last_id = self._next_id
-        body: dict[str, Any] = {"jsonrpc": "2.0", "id": self._last_id, "method": method}
+        request_id = self._next_id
+        body: dict[str, Any] = {"jsonrpc": "2.0", "id": request_id, "method": method}
         if params is not None:
             body["params"] = params
         response = await self._send(body, extra_headers=extra_headers)
         if response.status_code >= 400:
             raise self._transport_error(response, method)
-        return response
+        return response, request_id
 
     async def _send(
         self, body: dict[str, Any], *, extra_headers: dict[str, str] | None

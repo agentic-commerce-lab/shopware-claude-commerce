@@ -244,6 +244,17 @@ def test_load_cases_rejects_duplicate_ids(tmp_path):
         load_cases("shopping", "all", root=tmp_path)
 
 
+def test_full_set_includes_ci_cases_and_ci_set_is_the_subset(tmp_path):
+    _write(tmp_path, "a.yaml", {**BASE, "id": "shop-a-001-pr", "set": "ci"})
+    _write(tmp_path, "b.yaml", {**BASE, "id": "shop-b-001-nightly", "set": "full"})
+    assert [c.id for c in load_cases("shopping", "ci", root=tmp_path)] == ["shop-a-001-pr"]
+    assert [c.id for c in load_cases("shopping", "full", root=tmp_path)] == [
+        "shop-a-001-pr",
+        "shop-b-001-nightly",
+    ]
+    assert len(load_cases("shopping", "all", root=tmp_path)) == 2
+
+
 def test_placeholder_resolution_is_strict():
     assert resolve("add $OIL now", {"OIL": "x"}) == "add x now"
     assert resolve({"a": ["$OIL", 1]}, {"OIL": "x"}) == {"a": ["x", 1]}

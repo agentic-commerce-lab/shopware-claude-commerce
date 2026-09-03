@@ -78,6 +78,7 @@
     - byte_exact_disclosure: $OIL
     - disclosure_row: {label: Grundpreis, value: "25,80 € / 1 l"}
     - grounded_numbers
+    - no_internal_ids_in_text
 
 - id: shop-disclosure-006-price-question-no-disclosure-needed
   title: A plain price question is answered from the product record, no card needed

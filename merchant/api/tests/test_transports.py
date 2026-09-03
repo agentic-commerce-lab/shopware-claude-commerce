@@ -42,6 +42,33 @@ class FakeMcpServer:
         self.requests: list[dict[str, Any]] = []
         self.headers_seen: list[dict[str, str]] = []
         self.token_requests = 0
+        # Tool payloads above this many bytes are parked behind a ``shopware://tool-result``
+        # resource and the call answers ``data: null`` + ``_meta.resourceUri`` (6.7.13 does
+        # this at roughly 100 KB); ``None`` delivers everything inline.
+        self.offload_above: int | None = None
+        self.resources: dict[str, str] = {}
+        self.parked = 0
+        self.drop_parked = False  # park, but let the resource expire at once
+
+    def _offload(self, payload: dict[str, Any]) -> dict[str, Any]:
+        text = json.dumps(payload)
+        if self.offload_above is None or len(text) <= self.offload_above:
+            return payload
+        self.parked += 1
+        uri = f"shopware://tool-result/{self.parked:032x}"
+        if not self.drop_parked:
+            self.resources[uri] = text
+        return {
+            "success": True,
+            "data": None,
+            "_meta": {
+                **(payload.get("_meta") or {}),
+                "resourceUri": uri,
+                "responseSize": len(text),
+                "note": "Response too large for inline delivery. Prefer re-running the tool "
+                'with tighter "includes" or a lower "limit".',
+            },
+        }
 
     def handler(self, request: httpx.Request) -> httpx.Response:
         if request.url.path == "/api/oauth/token":
@@ -96,9 +123,30 @@ class FakeMcpServer:
                         "error": {"code": error.code, "message": str(error)},
                     },
                 )
+            if not is_error:
+                payload = self._offload(payload)
             return self._reply(
                 body["id"],
                 {"content": [{"type": "text", "text": json.dumps(payload)}], "isError": is_error},
+            )
+        if method == "resources/read":
+            uri = body["params"]["uri"]
+            if uri not in self.resources:
+                return httpx.Response(
+                    200,
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": body["id"],
+                        "error": {"code": -32002, "message": f"Resource not found: {uri}"},
+                    },
+                )
+            return self._reply(
+                body["id"],
+                {
+                    "contents": [
+                        {"uri": uri, "mimeType": "application/json", "text": self.resources[uri]}
+                    ]
+                },
             )
         return httpx.Response(
             400,
@@ -262,6 +310,31 @@ async def test_mcp_transport_shapes_arguments_as_the_live_tools_expect(fake: Fak
     ]  # fmt: skip
     await transport.aclose()
     assert server.sessions == set()
+
+
+async def test_mcp_transport_collects_a_result_the_server_parked_behind_a_resource(
+    fake: FakeAdmin,
+):
+    # Live 6.7.13: an order search with associations (~160 KB) comes back as
+    # ``data: null`` + ``_meta.resourceUri``; taking that as "no orders" emptied the
+    # portal's recent-orders feed. The transport reads the resource instead.
+    transport, server = _mcp(fake)
+    server.offload_above = 200
+    inline = await transport.search("order", {"associations": {"lineItems": {}}}, limit=1)
+    server.offload_above = None
+    full = await transport.search("order", {"associations": {"lineItems": {}}}, limit=1)
+    assert inline.rows == full.rows and inline.total == full.total and inline.rows
+    methods = [r["method"] for r in server.requests]
+    assert methods.count("resources/read") == 1
+    assert server.requests[methods.index("resources/read")]["params"]["uri"].startswith(
+        "shopware://tool-result/"
+    )
+
+    server.offload_above = 200
+    server.drop_parked = True  # the parked result expired before it could be read
+    with pytest.raises(AdminAPIError, match="offloaded result .* unreadable"):
+        await transport.search("order", {"associations": {"lineItems": {}}}, limit=1)
+    await transport.aclose()
 
 
 async def test_mcp_transport_surfaces_tool_and_rpc_errors(fake: FakeAdmin):

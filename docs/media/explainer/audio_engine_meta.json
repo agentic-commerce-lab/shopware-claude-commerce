@@ -5,14 +5,14 @@
     "path": "assets/bgm/track.wav",
     "volume": 0.12,
     "mode": "detached-seed-loop",
-    "duration_s": 122.583
+    "duration_s": 149.338
   },
   "bgm_pending": true,
   "bgm_provider": "musicgen",
   "bgm_pid": 76721,
   "bgm_log": "/Users/stefanhamann/Projekte/commerce-agents/docs/media/explainer/assets/bgm/bgm-1788429110159.log",
   "bgm_mode": "detached-seed-loop",
-  "bgm_target_duration_s": 122.583,
+  "bgm_target_duration_s": 149.338,
   "bgm_seed_duration_s": 28,
   "bgm_loop_count": 5,
   "voices": [
@@ -59,87 +59,81 @@
         },
         {
           "id": "w6",
-          "text": "open",
+          "text": "open-source",
           "start": 4.73,
-          "end": 4.99
-        },
-        {
-          "id": "w7",
-          "text": "source",
-          "start": 4.99,
           "end": 5.34
         },
         {
-          "id": "w8",
+          "id": "w7",
           "text": "blueprint",
           "start": 5.44,
           "end": 5.94
         },
         {
-          "id": "w9",
+          "id": "w8",
           "text": "for",
           "start": 6.05,
           "end": 6.17
         },
         {
-          "id": "w10",
+          "id": "w9",
           "text": "commerce",
           "start": 6.24,
           "end": 6.81
         },
         {
-          "id": "w11",
+          "id": "w10",
           "text": "agents.",
           "start": 6.81,
           "end": 7.44
         },
         {
-          "id": "w12",
+          "id": "w11",
           "text": "One",
           "start": 7.53,
           "end": 7.74
         },
         {
-          "id": "w13",
+          "id": "w12",
           "text": "day",
           "start": 7.76,
           "end": 8.02
         },
         {
-          "id": "w14",
-          "text": "later,",
+          "id": "w13",
+          "text": "later",
           "start": 8.02,
           "end": 8.66
         },
         {
-          "id": "w15",
+          "id": "w14",
           "text": "this",
           "start": 8.72,
           "end": 8.85
         },
         {
-          "id": "w16",
+          "id": "w15",
           "text": "is",
           "start": 8.85,
           "end": 8.91
         },
         {
-          "id": "w17",
+          "id": "w16",
           "text": "Shopware's",
           "start": 8.99,
           "end": 9.79
         },
         {
-          "id": "w18",
+          "id": "w17",
           "text": "implementation.",
           "start": 9.79,
           "end": 11
         },
         {
-          "id": "w19",
+          "id": "w18",
           "text": "Running.",
           "start": 11.05,
-          "end": 11.84
+          "end": 11.584
         }
       ]
     },
@@ -174,7 +168,7 @@
         },
         {
           "id": "w4",
-          "text": "clawed",
+          "text": "Claude",
           "start": 0.99,
           "end": 1.49
         },
@@ -192,7 +186,7 @@
         },
         {
           "id": "w7",
-          "text": "shopware",
+          "text": "Shopware",
           "start": 2.3,
           "end": 2.9
         },
@@ -222,7 +216,7 @@
         },
         {
           "id": "w12",
-          "text": "layer,",
+          "text": "layer",
           "start": 4.58,
           "end": 5
         },
@@ -267,995 +261,791 @@
     {
       "id": "03",
       "path": "assets/voice/03.wav",
-      "duration_s": 13.163,
+      "duration_s": 9.323,
       "words": [
         {
           "id": "w0",
           "text": "Two",
-          "start": 0.04,
-          "end": 0.29
+          "start": 0.03,
+          "end": 0.2
         },
         {
           "id": "w1",
-          "text": "agents",
-          "start": 0.29,
-          "end": 0.88
+          "text": "agents.",
+          "start": 0.23,
+          "end": 0.8
         },
         {
           "id": "w2",
-          "text": "ship",
-          "start": 0.88,
-          "end": 1.27
+          "text": "Shopping:",
+          "start": 0.8,
+          "end": 1.53
         },
         {
           "id": "w3",
-          "text": "in",
-          "start": 1.27,
-          "end": 1.39
+          "text": "search,",
+          "start": 1.53,
+          "end": 2.1
         },
         {
           "id": "w4",
-          "text": "the",
-          "start": 1.5,
-          "end": 1.66
+          "text": "compare,",
+          "start": 2.21,
+          "end": 2.83
         },
         {
           "id": "w5",
-          "text": "box.",
-          "start": 1.66,
-          "end": 2.12
+          "text": "a",
+          "start": 2.83,
+          "end": 2.9
         },
         {
           "id": "w6",
-          "text": "A",
-          "start": 2.12,
-          "end": 2.13
+          "text": "real",
+          "start": 2.9,
+          "end": 3.21
         },
         {
           "id": "w7",
-          "text": "shopping",
-          "start": 2.13,
-          "end": 2.58
+          "text": "cart,",
+          "start": 3.21,
+          "end": 3.54
         },
         {
           "id": "w8",
-          "text": "agent,",
-          "start": 2.58,
-          "end": 2.97
+          "text": "hand",
+          "start": 3.57,
+          "end": 3.86
         },
         {
           "id": "w9",
-          "text": "search,",
-          "start": 3.04,
-          "end": 3.6
+          "text": "off",
+          "start": 3.86,
+          "end": 4.1
         },
         {
           "id": "w10",
-          "text": "compare,",
-          "start": 3.6,
-          "end": 4.18
+          "text": "to",
+          "start": 4.1,
+          "end": 4.25
         },
         {
           "id": "w11",
-          "text": "build",
-          "start": 4.18,
-          "end": 4.64
+          "text": "Shopware",
+          "start": 4.25,
+          "end": 4.97
         },
         {
           "id": "w12",
-          "text": "a",
-          "start": 4.64,
-          "end": 4.73
+          "text": "checkout.",
+          "start": 4.97,
+          "end": 5.62
         },
         {
           "id": "w13",
-          "text": "real",
-          "start": 4.73,
-          "end": 5.01
+          "text": "Merchant:",
+          "start": 5.65,
+          "end": 6.42
         },
         {
           "id": "w14",
-          "text": "cart,",
-          "start": 5.1,
-          "end": 5.48
+          "text": "analyze,",
+          "start": 6.72,
+          "end": 7.16
         },
         {
           "id": "w15",
-          "text": "hand",
-          "start": 5.52,
-          "end": 5.8
+          "text": "stage,",
+          "start": 7.16,
+          "end": 7.72
         },
         {
           "id": "w16",
-          "text": "off",
-          "start": 5.8,
-          "end": 6.04
+          "text": "a",
+          "start": 7.72,
+          "end": 7.83
         },
         {
           "id": "w17",
-          "text": "to",
-          "start": 6.04,
-          "end": 6.2
+          "text": "human",
+          "start": 7.83,
+          "end": 8.16
         },
         {
           "id": "w18",
-          "text": "shop",
-          "start": 6.2,
-          "end": 6.52
+          "text": "approves,",
+          "start": 8.16,
+          "end": 8.86
         },
         {
           "id": "w19",
-          "text": "where",
-          "start": 6.52,
-          "end": 6.85
-        },
-        {
-          "id": "w20",
-          "text": "checkout.",
-          "start": 6.98,
-          "end": 7.56
-        },
-        {
-          "id": "w21",
-          "text": "And",
-          "start": 7.6,
-          "end": 7.74
-        },
-        {
-          "id": "w22",
-          "text": "a",
-          "start": 7.74,
-          "end": 7.8
-        },
-        {
-          "id": "w23",
-          "text": "merchant",
-          "start": 7.8,
-          "end": 8.28
-        },
-        {
-          "id": "w24",
-          "text": "agent,",
-          "start": 8.28,
-          "end": 8.72
-        },
-        {
-          "id": "w25",
-          "text": "analyze,",
-          "start": 8.72,
-          "end": 9.58
-        },
-        {
-          "id": "w26",
-          "text": "stage",
-          "start": 9.65,
-          "end": 10.06
-        },
-        {
-          "id": "w27",
-          "text": "a",
-          "start": 10.06,
-          "end": 10.15
-        },
-        {
-          "id": "w28",
-          "text": "change,",
-          "start": 10.15,
-          "end": 10.76
-        },
-        {
-          "id": "w29",
-          "text": "a",
-          "start": 10.8,
-          "end": 10.82
-        },
-        {
-          "id": "w30",
-          "text": "human",
-          "start": 10.84,
-          "end": 11.2
-        },
-        {
-          "id": "w31",
-          "text": "approves,",
-          "start": 11.2,
-          "end": 11.93
-        },
-        {
-          "id": "w32",
-          "text": "then",
-          "start": 11.93,
-          "end": 12.13
-        },
-        {
-          "id": "w33",
-          "text": "it's",
-          "start": 12.26,
-          "end": 12.42
-        },
-        {
-          "id": "w34",
-          "text": "applied.",
-          "start": 12.85,
-          "end": 13.28
+          "text": "apply.",
+          "start": 8.86,
+          "end": 9.323
         }
       ]
     },
     {
       "id": "04",
       "path": "assets/voice/04.wav",
-      "duration_s": 17.451,
+      "duration_s": 16.277,
       "words": [
         {
           "id": "w0",
-          "text": "Here's",
-          "start": 0.06,
-          "end": 0.54
+          "text": "Anthropic's",
+          "start": 0.02,
+          "end": 0.7
         },
         {
           "id": "w1",
-          "text": "the",
-          "start": 0.54,
-          "end": 0.81
+          "text": "blueprint",
+          "start": 0.7,
+          "end": 1.33
         },
         {
           "id": "w2",
-          "text": "wiring,",
-          "start": 0.81,
-          "end": 1.49
+          "text": "packages",
+          "start": 1.33,
+          "end": 1.99
         },
         {
           "id": "w3",
-          "text": "Anthropics",
-          "start": 1.49,
-          "end": 2.16
+          "text": "pinned,",
+          "start": 1.99,
+          "end": 2.4
         },
         {
           "id": "w4",
-          "text": "blueprint",
-          "start": 2.16,
-          "end": 2.78
+          "text": "unmodified.",
+          "start": 2.42,
+          "end": 3.58
         },
         {
           "id": "w5",
-          "text": "packages,",
-          "start": 2.78,
-          "end": 3.36
+          "text": "Two",
+          "start": 3.6,
+          "end": 3.82
         },
         {
           "id": "w6",
-          "text": "pinned,",
-          "start": 3.42,
-          "end": 3.97
+          "text": "thin",
+          "start": 3.82,
+          "end": 4.13
         },
         {
           "id": "w7",
-          "text": "unmodified,",
-          "start": 3.97,
-          "end": 4.9
+          "text": "Shopware",
+          "start": 4.24,
+          "end": 4.73
         },
         {
           "id": "w8",
-          "text": "two",
-          "start": 4.93,
-          "end": 5.18
+          "text": "backends.",
+          "start": 4.8,
+          "end": 5.64
         },
         {
           "id": "w9",
-          "text": "thin",
-          "start": 5.18,
-          "end": 5.52
+          "text": "MCP",
+          "start": 5.64,
+          "end": 5.86
         },
         {
           "id": "w10",
-          "text": "shopware",
-          "start": 5.6,
-          "end": 6.23
+          "text": "on",
+          "start": 6,
+          "end": 6.17
         },
         {
           "id": "w11",
-          "text": "backends.",
-          "start": 6.23,
-          "end": 6.96
+          "text": "both",
+          "start": 6.17,
+          "end": 6.6
         },
         {
           "id": "w12",
-          "text": "Shoppers",
-          "start": 7.02,
-          "end": 7.63
+          "text": "sides:",
+          "start": 6.6,
+          "end": 7.5
         },
         {
           "id": "w13",
-          "text": "go",
-          "start": 7.63,
-          "end": 7.8
+          "text": "shoppers",
+          "start": 7.52,
+          "end": 8.38
         },
         {
           "id": "w14",
-          "text": "through",
-          "start": 7.8,
-          "end": 8.39
+          "text": "over",
+          "start": 8.38,
+          "end": 8.82
         },
         {
           "id": "w15",
-          "text": "UCP,",
-          "start": 8.39,
-          "end": 8.79
+          "text": "UCP-MCP,",
+          "start": 8.82,
+          "end": 9.72
         },
         {
           "id": "w16",
-          "text": "Discovery,",
-          "start": 8.79,
-          "end": 9.76
+          "text": "merchants",
+          "start": 9.72,
+          "end": 10.26
         },
         {
           "id": "w17",
-          "text": "then",
-          "start": 9.76,
-          "end": 10.36
+          "text": "over",
+          "start": 10.26,
+          "end": 10.42
         },
         {
           "id": "w18",
-          "text": "MCP.",
-          "start": 10.38,
-          "end": 11.2
+          "text": "the",
+          "start": 10.42,
+          "end": 10.63
         },
         {
           "id": "w19",
-          "text": "Merchants",
-          "start": 11.34,
-          "end": 11.99
+          "text": "Admin",
+          "start": 10.63,
+          "end": 10.69
         },
         {
           "id": "w20",
-          "text": "go",
-          "start": 11.99,
-          "end": 12.15
+          "text": "MCP",
+          "start": 11.11,
+          "end": 11.9
         },
         {
           "id": "w21",
-          "text": "through",
-          "start": 12.15,
-          "end": 12.7
+          "text": "dry-run",
+          "start": 11.92,
+          "end": 12.36
         },
         {
           "id": "w22",
-          "text": "the",
-          "start": 12.7,
-          "end": 12.94
+          "text": "previews",
+          "start": 12.36,
+          "end": 12.98
         },
         {
           "id": "w23",
-          "text": "admin",
-          "start": 12.94,
-          "end": 13.33
+          "text": "computed",
+          "start": 12.98,
+          "end": 13.52
         },
         {
           "id": "w24",
-          "text": "API",
-          "start": 13.33,
-          "end": 13.6
+          "text": "on",
+          "start": 13.52,
+          "end": 13.84
         },
         {
           "id": "w25",
-          "text": "and",
-          "start": 13.6,
-          "end": 14.22
+          "text": "the",
+          "start": 13.84,
+          "end": 13.98
         },
         {
           "id": "w26",
-          "text": "MCP",
-          "start": 14.22,
-          "end": 14.84
+          "text": "server.",
+          "start": 13.98,
+          "end": 14.69
         },
         {
           "id": "w27",
-          "text": "with",
-          "start": 14.9,
-          "end": 15.11
+          "text": "REST",
+          "start": 14.72,
+          "end": 15
         },
         {
           "id": "w28",
-          "text": "dry",
-          "start": 15.11,
-          "end": 15.31
+          "text": "is",
+          "start": 15.07,
+          "end": 15.21
         },
         {
           "id": "w29",
-          "text": "run",
-          "start": 15.31,
-          "end": 15.51
+          "text": "the",
+          "start": 15.21,
+          "end": 15.46
         },
         {
           "id": "w30",
-          "text": "previews",
-          "start": 15.51,
-          "end": 15.82
-        },
-        {
-          "id": "w31",
-          "text": "computed",
-          "start": 16.19,
-          "end": 16.53
-        },
-        {
-          "id": "w32",
-          "text": "on",
-          "start": 16.59,
-          "end": 16.72
-        },
-        {
-          "id": "w33",
-          "text": "the",
-          "start": 16.72,
-          "end": 16.92
-        },
-        {
-          "id": "w34",
-          "text": "server.",
-          "start": 16.92,
-          "end": 17.56
+          "text": "fallback.",
+          "start": 15.46,
+          "end": 16.277
         }
       ]
     },
     {
       "id": "05",
       "path": "assets/voice/05.wav",
-      "duration_s": 10.069,
+      "duration_s": 6.528,
       "words": [
         {
           "id": "w0",
           "text": "One",
-          "start": 0.04,
-          "end": 0.22
+          "start": 0.03,
+          "end": 0.25
         },
         {
           "id": "w1",
           "text": "curl",
-          "start": 0.22,
-          "end": 0.52
+          "start": 0.25,
+          "end": 0.58
         },
         {
           "id": "w2",
           "text": "to",
-          "start": 0.52,
-          "end": 0.65
+          "start": 0.58,
+          "end": 0.69
         },
         {
           "id": "w3",
           "text": "the",
-          "start": 0.71,
-          "end": 0.89
+          "start": 0.76,
+          "end": 0.99
         },
         {
           "id": "w4",
           "text": "well-known",
-          "start": 0.89,
-          "end": 1.53
+          "start": 0.99,
+          "end": 1.74
         },
         {
           "id": "w5",
-          "text": "endpoint,",
-          "start": 1.63,
-          "end": 2.37
+          "text": "endpoint",
+          "start": 1.85,
+          "end": 2.14
         },
         {
           "id": "w6",
           "text": "and",
-          "start": 2.37,
-          "end": 2.5
+          "start": 2.54,
+          "end": 2.74
         },
         {
           "id": "w7",
           "text": "Shopware",
-          "start": 2.5,
-          "end": 2.88
+          "start": 2.74,
+          "end": 3.16
         },
         {
           "id": "w8",
           "text": "announces",
-          "start": 2.88,
-          "end": 3.48
+          "start": 3.16,
+          "end": 3.76
         },
         {
           "id": "w9",
           "text": "what",
-          "start": 3.48,
-          "end": 3.76
+          "start": 3.76,
+          "end": 4.15
         },
         {
           "id": "w10",
           "text": "it",
-          "start": 3.76,
-          "end": 3.9
+          "start": 4.25,
+          "end": 4.37
         },
         {
           "id": "w11",
-          "text": "speaks.",
-          "start": 3.9,
-          "end": 4.62
+          "text": "speaks,",
+          "start": 4.37,
+          "end": 4.61
         },
         {
           "id": "w12",
-          "text": "Catalog,",
-          "start": 4.66,
-          "end": 5.27
+          "text": "and",
+          "start": 5,
+          "end": 5.08
         },
         {
           "id": "w13",
-          "text": "cart,",
-          "start": 5.33,
-          "end": 5.77
+          "text": "the",
+          "start": 5.08,
+          "end": 5.16
         },
         {
           "id": "w14",
-          "text": "checkout,",
-          "start": 5.77,
-          "end": 6.49
+          "text": "keys",
+          "start": 5.16,
+          "end": 5.44
         },
         {
           "id": "w15",
-          "text": "order,",
-          "start": 6.52,
-          "end": 7.1
+          "text": "it",
+          "start": 5.44,
+          "end": 5.58
         },
         {
           "id": "w16",
-          "text": "identity",
-          "start": 7.1,
-          "end": 7.85
+          "text": "signs",
+          "start": 5.63,
+          "end": 6.04
         },
         {
           "id": "w17",
-          "text": "linking,",
-          "start": 7.86,
-          "end": 8.59
-        },
-        {
-          "id": "w18",
-          "text": "and",
-          "start": 8.59,
-          "end": 8.65
-        },
-        {
-          "id": "w19",
-          "text": "the",
-          "start": 8.73,
-          "end": 8.86
-        },
-        {
-          "id": "w20",
-          "text": "keys",
-          "start": 8.86,
-          "end": 8.89
-        },
-        {
-          "id": "w21",
-          "text": "it",
-          "start": 8.89,
-          "end": 9.24
-        },
-        {
-          "id": "w22",
-          "text": "signs",
-          "start": 9.24,
-          "end": 9.54
-        },
-        {
-          "id": "w23",
           "text": "with.",
-          "start": 9.54,
-          "end": 9.8
+          "start": 6.04,
+          "end": 6.44
         }
       ]
     },
     {
       "id": "06",
       "path": "assets/voice/06.wav",
-      "duration_s": 15.744,
+      "duration_s": 10.752,
       "words": [
         {
           "id": "w0",
           "text": "Three",
           "start": 0.09,
-          "end": 0.34
+          "end": 0.42
         },
         {
           "id": "w1",
           "text": "things",
-          "start": 0.34,
-          "end": 0.72
+          "start": 0.42,
+          "end": 0.9
         },
         {
           "id": "w2",
-          "text": "Shopware",
-          "start": 0.83,
-          "end": 1.28
+          "text": "a",
+          "start": 0.94,
+          "end": 1.01
         },
         {
           "id": "w3",
-          "text": "brings",
-          "start": 1.28,
-          "end": 1.68
+          "text": "bolt-on",
+          "start": 1.01,
+          "end": 1.52
         },
         {
           "id": "w4",
-          "text": "that",
-          "start": 1.68,
-          "end": 1.95
+          "text": "can't",
+          "start": 1.52,
+          "end": 1.94
         },
         {
           "id": "w5",
-          "text": "are",
-          "start": 1.95,
-          "end": 2.07
+          "text": "do:",
+          "start": 2.14,
+          "end": 2.16
         },
         {
           "id": "w6",
-          "text": "bolt-on",
-          "start": 2.15,
-          "end": 2.53
+          "text": "native",
+          "start": 2.25,
+          "end": 2.94
         },
         {
           "id": "w7",
-          "text": "can't.",
-          "start": 2.81,
-          "end": 3
+          "text": "UCP,",
+          "start": 2.94,
+          "end": 3.56
         },
         {
           "id": "w8",
-          "text": "Native",
-          "start": 3.09,
-          "end": 3.59
+          "text": "dry-run",
+          "start": 3.65,
+          "end": 3.88
         },
         {
           "id": "w9",
-          "text": "UCP,",
-          "start": 3.59,
-          "end": 4.06
+          "text": "previews",
+          "start": 4.33,
+          "end": 4.64
         },
         {
           "id": "w10",
-          "text": "discovery,",
-          "start": 4.06,
-          "end": 5.18
+          "text": "from",
+          "start": 4.64,
+          "end": 4.93
         },
         {
           "id": "w11",
-          "text": "signatures,",
-          "start": 5.18,
-          "end": 6
+          "text": "the",
+          "start": 4.94,
+          "end": 5.12
         },
         {
           "id": "w12",
-          "text": "identity",
-          "start": 6.04,
-          "end": 6.78
+          "text": "core,",
+          "start": 5.22,
+          "end": 5.48
         },
         {
           "id": "w13",
-          "text": "linking,",
-          "start": 6.78,
-          "end": 7.48
+          "text": "and",
+          "start": 5.57,
+          "end": 5.69
         },
         {
           "id": "w14",
-          "text": "dry",
-          "start": 7.57,
-          "end": 7.69
+          "text": "commerce",
+          "start": 5.69,
+          "end": 6.26
         },
         {
           "id": "w15",
-          "text": "run",
-          "start": 7.69,
-          "end": 7.9
+          "text": "semantics",
+          "start": 6.26,
+          "end": 7.12
         },
         {
           "id": "w16",
-          "text": "previews",
-          "start": 7.9,
-          "end": 8.48
+          "text": "promotions,",
+          "start": 7.21,
+          "end": 8.02
         },
         {
           "id": "w17",
-          "text": "straight",
-          "start": 8.48,
-          "end": 9.06
+          "text": "rules,",
+          "start": 8.05,
+          "end": 8.52
         },
         {
           "id": "w18",
-          "text": "from",
-          "start": 9.06,
-          "end": 9.3
+          "text": "variants,",
+          "start": 8.6,
+          "end": 9.34
         },
         {
           "id": "w19",
-          "text": "the",
-          "start": 9.35,
-          "end": 9.55
+          "text": "price",
+          "start": 9.34,
+          "end": 9.72
         },
         {
           "id": "w20",
-          "text": "core,",
-          "start": 9.61,
-          "end": 9.88
-        },
-        {
-          "id": "w21",
-          "text": "and",
-          "start": 9.97,
-          "end": 10.04
-        },
-        {
-          "id": "w22",
-          "text": "commerce",
-          "start": 10.04,
-          "end": 10.48
-        },
-        {
-          "id": "w23",
-          "text": "semantics",
-          "start": 10.48,
-          "end": 11
-        },
-        {
-          "id": "w24",
-          "text": "where",
-          "start": 11,
-          "end": 11.28
-        },
-        {
-          "id": "w25",
-          "text": "they",
-          "start": 11.28,
-          "end": 11.47
-        },
-        {
-          "id": "w26",
-          "text": "belong,",
-          "start": 11.5,
-          "end": 11.95
-        },
-        {
-          "id": "w27",
-          "text": "promotions,",
-          "start": 12.05,
-          "end": 12.92
-        },
-        {
-          "id": "w28",
-          "text": "rules,",
-          "start": 12.92,
-          "end": 13.48
-        },
-        {
-          "id": "w29",
-          "text": "variants,",
-          "start": 13.48,
-          "end": 14.28
-        },
-        {
-          "id": "w30",
-          "text": "price",
-          "start": 14.28,
-          "end": 14.46
-        },
-        {
-          "id": "w31",
           "text": "disclosures.",
-          "start": 15,
-          "end": 15.77
+          "start": 9.72,
+          "end": 10.752
         }
       ]
     },
     {
       "id": "07",
       "path": "assets/voice/07.wav",
-      "duration_s": 13.696,
+      "duration_s": 16.341,
       "words": [
         {
           "id": "w0",
           "text": "The",
-          "start": 0.05,
-          "end": 0.23
+          "start": 0.03,
+          "end": 0.27
         },
         {
           "id": "w1",
-          "text": "rules",
-          "start": 0.23,
-          "end": 0.62
+          "text": "model",
+          "start": 0.27,
+          "end": 0.73
         },
         {
           "id": "w2",
-          "text": "are",
-          "start": 0.62,
-          "end": 0.78
+          "text": "proposes;",
+          "start": 0.73,
+          "end": 1.46
         },
         {
           "id": "w3",
-          "text": "enforced,",
-          "start": 0.9,
-          "end": 1.51
+          "text": "a",
+          "start": 1.46,
+          "end": 1.55
         },
         {
           "id": "w4",
-          "text": "not",
-          "start": 1.65,
-          "end": 1.85
+          "text": "person",
+          "start": 1.55,
+          "end": 2.01
         },
         {
           "id": "w5",
-          "text": "prompted.",
-          "start": 1.85,
-          "end": 2.52
+          "text": "or",
+          "start": 2.15,
+          "end": 2.38
         },
         {
           "id": "w6",
-          "text": "The",
-          "start": 2.57,
-          "end": 2.76
+          "text": "a",
+          "start": 2.38,
+          "end": 2.39
         },
         {
           "id": "w7",
-          "text": "model",
-          "start": 2.76,
-          "end": 3.16
+          "text": "policy",
+          "start": 2.51,
+          "end": 3.22
         },
         {
           "id": "w8",
-          "text": "proposes.",
-          "start": 3.16,
-          "end": 4.04
+          "text": "applies.",
+          "start": 3.29,
+          "end": 4.24
         },
         {
           "id": "w9",
-          "text": "A",
-          "start": 4.11,
-          "end": 4.17
+          "text": "Provenance",
+          "start": 4.27,
+          "end": 4.97
         },
         {
           "id": "w10",
-          "text": "person",
-          "start": 4.17,
-          "end": 4.82
+          "text": "gates",
+          "start": 4.97,
+          "end": 5.34
         },
         {
           "id": "w11",
-          "text": "or",
-          "start": 4.82,
-          "end": 5.04
+          "text": "accept",
+          "start": 5.34,
+          "end": 5.7
         },
         {
           "id": "w12",
-          "text": "a",
-          "start": 5.04,
-          "end": 5.15
+          "text": "only",
+          "start": 5.79,
+          "end": 6.05
         },
         {
           "id": "w13",
-          "text": "policy",
-          "start": 5.15,
-          "end": 5.8
+          "text": "IDs",
+          "start": 6.07,
+          "end": 6.24
         },
         {
           "id": "w14",
-          "text": "applies.",
-          "start": 5.8,
-          "end": 6.92
+          "text": "the",
+          "start": 6.24,
+          "end": 6.5
         },
         {
           "id": "w15",
-          "text": "Provenance",
-          "start": 6.97,
-          "end": 7.55
+          "text": "session",
+          "start": 6.5,
+          "end": 7.1
         },
         {
           "id": "w16",
-          "text": "gates",
-          "start": 7.55,
-          "end": 7.87
+          "text": "has",
+          "start": 7.1,
+          "end": 7.21
         },
         {
           "id": "w17",
-          "text": "accept",
-          "start": 7.87,
-          "end": 8.09
+          "text": "seen.",
+          "start": 7.39,
+          "end": 7.72
         },
         {
           "id": "w18",
-          "text": "only",
-          "start": 8.31,
-          "end": 8.75
+          "text": "Signed",
+          "start": 7.75,
+          "end": 8.23
         },
         {
           "id": "w19",
-          "text": "ID",
-          "start": 8.75,
-          "end": 9
+          "text": "requests,",
+          "start": 8.23,
+          "end": 9.08
         },
         {
           "id": "w20",
-          "text": "the",
-          "start": 9,
-          "end": 9.05
+          "text": "a",
+          "start": 9.12,
+          "end": 9.15
         },
         {
           "id": "w21",
-          "text": "session",
-          "start": 9.46,
-          "end": 9.84
+          "text": "one-time",
+          "start": 9.15,
+          "end": 9.69
         },
         {
           "id": "w22",
-          "text": "has",
-          "start": 9.9,
-          "end": 10.12
+          "text": "handoff",
+          "start": 9.69,
+          "end": 10.11
         },
         {
           "id": "w23",
-          "text": "seen",
-          "start": 10.12,
-          "end": 10.48
+          "text": "code,",
+          "start": 10.21,
+          "end": 10.92
         },
         {
           "id": "w24",
-          "text": "and",
-          "start": 10.53,
-          "end": 10.65
+          "text": "a",
+          "start": 10.95,
+          "end": 10.99
         },
         {
           "id": "w25",
-          "text": "check",
-          "start": 10.65,
-          "end": 10.94
+          "text": "least-privilege",
+          "start": 10.99,
+          "end": 12.03
         },
         {
           "id": "w26",
-          "text": "out",
-          "start": 10.94,
-          "end": 11.11
+          "text": "Integration.",
+          "start": 12.32,
+          "end": 13.08
         },
         {
           "id": "w27",
-          "text": "completes",
-          "start": 11.11,
-          "end": 11.65
-        },
-        {
-          "id": "w28",
-          "text": "in",
-          "start": 11.66,
-          "end": 11.72
-        },
-        {
-          "id": "w29",
-          "text": "shopware,",
-          "start": 11.87,
-          "end": 12.6
-        },
-        {
-          "id": "w30",
-          "text": "never",
-          "start": 12.6,
-          "end": 13.02
-        },
-        {
-          "id": "w31",
-          "text": "in",
-          "start": 13.02,
-          "end": 13.09
-        },
-        {
-          "id": "w32",
-          "text": "the",
-          "start": 13.09,
+          "text": "And",
+          "start": 13.11,
           "end": 13.28
         },
         {
-          "id": "w33",
-          "text": "agent.",
+          "id": "w28",
+          "text": "checkout",
           "start": 13.28,
-          "end": 13.82
+          "end": 13.83
+        },
+        {
+          "id": "w29",
+          "text": "completes",
+          "start": 13.83,
+          "end": 14.19
+        },
+        {
+          "id": "w30",
+          "text": "in",
+          "start": 14.48,
+          "end": 14.54
+        },
+        {
+          "id": "w31",
+          "text": "Shopware",
+          "start": 14.63,
+          "end": 15.09
+        },
+        {
+          "id": "w32",
+          "text": "never",
+          "start": 15.23,
+          "end": 15.48
+        },
+        {
+          "id": "w33",
+          "text": "in",
+          "start": 15.59,
+          "end": 15.66
+        },
+        {
+          "id": "w34",
+          "text": "the",
+          "start": 15.66,
+          "end": 15.84
+        },
+        {
+          "id": "w35",
+          "text": "agent.",
+          "start": 15.88,
+          "end": 16.341
         }
       ]
     },
@@ -1278,13 +1068,13 @@
         },
         {
           "id": "w2",
-          "text": "run,",
+          "text": "run.",
           "start": 0.54,
           "end": 0.92
         },
         {
           "id": "w3",
-          "text": "search",
+          "text": "Search",
           "start": 1.03,
           "end": 1.32
         },
@@ -1302,13 +1092,13 @@
         },
         {
           "id": "w6",
-          "text": "catalogue,",
+          "text": "catalog.",
           "start": 1.93,
           "end": 2.72
         },
         {
           "id": "w7",
-          "text": "add",
+          "text": "Add",
           "start": 2.75,
           "end": 2.95
         },
@@ -1332,25 +1122,25 @@
         },
         {
           "id": "w11",
-          "text": "ShopWear",
+          "text": "Shopware",
           "start": 3.52,
           "end": 4.29
         },
         {
           "id": "w12",
-          "text": "cart,",
+          "text": "cart.",
           "start": 4.29,
           "end": 4.83
         },
         {
           "id": "w13",
-          "text": "then",
+          "text": "Then",
           "start": 4.83,
           "end": 5.07
         },
         {
           "id": "w14",
-          "text": "check",
+          "text": "Check",
           "start": 5.14,
           "end": 5.31
         },
@@ -1368,13 +1158,13 @@
         },
         {
           "id": "w17",
-          "text": "ShopWear,",
+          "text": "Shopware.",
           "start": 5.6,
           "end": 6.64
         },
         {
           "id": "w18",
-          "text": "same",
+          "text": "Same",
           "start": 6.65,
           "end": 6.9
         },
@@ -1431,318 +1221,800 @@
     {
       "id": "09",
       "path": "assets/voice/09.wav",
-      "duration_s": 10.88,
+      "duration_s": 13.013,
       "words": [
         {
           "id": "w0",
-          "text": "On",
+          "text": "A",
           "start": 0.03,
-          "end": 0.14
+          "end": 0.08
         },
         {
           "id": "w1",
-          "text": "the",
-          "start": 0.14,
-          "end": 0.35
+          "text": "price",
+          "start": 0.08,
+          "end": 0.49
         },
         {
           "id": "w2",
-          "text": "merchant",
-          "start": 0.35,
-          "end": 0.92
+          "text": "change",
+          "start": 0.49,
+          "end": 0.98
         },
         {
           "id": "w3",
-          "text": "side,",
-          "start": 0.92,
-          "end": 1.36
+          "text": "is",
+          "start": 0.99,
+          "end": 1.15
         },
         {
           "id": "w4",
-          "text": "a",
-          "start": 1.36,
-          "end": 1.43
+          "text": "staged",
+          "start": 1.15,
+          "end": 1.44
         },
         {
           "id": "w5",
-          "text": "price",
-          "start": 1.43,
-          "end": 1.81
+          "text": "as",
+          "start": 1.72,
+          "end": 1.82
         },
         {
           "id": "w6",
-          "text": "change",
-          "start": 1.81,
-          "end": 2.28
+          "text": "a",
+          "start": 1.82,
+          "end": 1.89
         },
         {
           "id": "w7",
-          "text": "is",
-          "start": 2.28,
-          "end": 2.55
+          "text": "server-side",
+          "start": 1.89,
+          "end": 2.72
         },
         {
           "id": "w8",
-          "text": "staged.",
-          "start": 2.55,
-          "end": 3.36
+          "text": "dry",
+          "start": 2.72,
+          "end": 3.24
         },
         {
           "id": "w9",
-          "text": "Before",
-          "start": 3.39,
-          "end": 3.81
+          "text": "run",
+          "start": 3.24,
+          "end": 3.53
         },
         {
           "id": "w10",
-          "text": "and",
-          "start": 3.83,
-          "end": 4.06
+          "text": "over",
+          "start": 3.8,
+          "end": 3.96
         },
         {
           "id": "w11",
-          "text": "after,",
-          "start": 4.06,
-          "end": 4.45
+          "text": "the",
+          "start": 3.96,
+          "end": 4.17
         },
         {
           "id": "w12",
-          "text": "previewed",
-          "start": 4.72,
-          "end": 5.28
+          "text": "Admin",
+          "start": 4.17,
+          "end": 4.52
         },
         {
           "id": "w13",
-          "text": "by",
-          "start": 5.31,
-          "end": 5.45
+          "text": "MCP",
+          "start": 4.6,
+          "end": 5.35
         },
         {
           "id": "w14",
-          "text": "the",
-          "start": 5.45,
-          "end": 5.68
+          "text": "before",
+          "start": 5.73,
+          "end": 6.12
         },
         {
           "id": "w15",
-          "text": "server,",
-          "start": 5.68,
-          "end": 6.2
+          "text": "and",
+          "start": 6.12,
+          "end": 6.26
         },
         {
           "id": "w16",
-          "text": "nothing",
-          "start": 6.23,
-          "end": 6.73
+          "text": "after",
+          "start": 6.26,
+          "end": 6.54
         },
         {
           "id": "w17",
-          "text": "touches",
-          "start": 6.73,
-          "end": 7.26
+          "text": "become",
+          "start": 6.57,
+          "end": 7.07
         },
         {
           "id": "w18",
           "text": "the",
-          "start": 7.26,
-          "end": 7.28
+          "start": 7.07,
+          "end": 7.33
         },
         {
           "id": "w19",
-          "text": "shop",
-          "start": 7.56,
-          "end": 7.79
+          "text": "diff.",
+          "start": 7.33,
+          "end": 7.96
         },
         {
           "id": "w20",
-          "text": "until",
-          "start": 7.79,
-          "end": 8.17
+          "text": "Nothing",
+          "start": 7.99,
+          "end": 8.49
         },
         {
           "id": "w21",
-          "text": "someone",
-          "start": 8.17,
-          "end": 8.65
+          "text": "touches",
+          "start": 8.49,
+          "end": 8.98
         },
         {
           "id": "w22",
-          "text": "approves.",
-          "start": 8.71,
-          "end": 9.36
+          "text": "the",
+          "start": 9.05,
+          "end": 9.24
         },
         {
           "id": "w23",
-          "text": "Then",
-          "start": 9.39,
-          "end": 9.64
+          "text": "shop",
+          "start": 9.24,
+          "end": 9.4
         },
         {
           "id": "w24",
-          "text": "one",
-          "start": 9.64,
-          "end": 9.85
+          "text": "until",
+          "start": 9.68,
+          "end": 9.91
         },
         {
           "id": "w25",
-          "text": "call",
-          "start": 9.85,
-          "end": 10.13
-        },
-        {
-          "id": "w26",
-          "text": "applies",
-          "start": 10.13,
+          "text": "someone",
+          "start": 9.91,
           "end": 10.44
         },
         {
+          "id": "w26",
+          "text": "approves.",
+          "start": 10.44,
+          "end": 11.19
+        },
+        {
           "id": "w27",
+          "text": "Then",
+          "start": 11.19,
+          "end": 11.48
+        },
+        {
+          "id": "w28",
+          "text": "one",
+          "start": 11.48,
+          "end": 11.49
+        },
+        {
+          "id": "w29",
+          "text": "call",
+          "start": 11.76,
+          "end": 12.01
+        },
+        {
+          "id": "w30",
+          "text": "replays",
+          "start": 12.01,
+          "end": 12.48
+        },
+        {
+          "id": "w31",
           "text": "it.",
-          "start": 10.72,
-          "end": 10.98
+          "start": 12.56,
+          "end": 12.96
         }
       ]
     },
     {
       "id": "10",
       "path": "assets/voice/10.wav",
-      "duration_s": 12.801,
+      "duration_s": 11.669,
       "words": [
         {
           "id": "w0",
-          "text": "Shopware",
+          "text": "Build",
           "start": 0.04,
-          "end": 0.52
+          "end": 0.43
         },
         {
           "id": "w1",
-          "text": "is",
-          "start": 0.52,
-          "end": 0.56
+          "text": "your",
+          "start": 0.43,
+          "end": 0.77
         },
         {
           "id": "w2",
-          "text": "the",
-          "start": 0.65,
-          "end": 0.85
+          "text": "own",
+          "start": 0.77,
+          "end": 0.93
         },
         {
           "id": "w3",
-          "text": "commerce",
-          "start": 0.85,
-          "end": 1.38
+          "text": "with",
+          "start": 1.05,
+          "end": 1.33
         },
         {
           "id": "w4",
-          "text": "operating",
-          "start": 1.38,
-          "end": 2
+          "text": "Claude",
+          "start": 1.42,
+          "end": 1.8
         },
         {
           "id": "w5",
-          "text": "system",
-          "start": 2,
-          "end": 2.54
+          "text": "Code:",
+          "start": 1.8,
+          "end": 2.28
         },
         {
           "id": "w6",
-          "text": "for",
-          "start": 2.66,
-          "end": 2.84
+          "text": "add",
+          "start": 2.28,
+          "end": 2.44
         },
         {
           "id": "w7",
           "text": "the",
-          "start": 2.94,
-          "end": 3.12
+          "start": 2.44,
+          "end": 2.64
         },
         {
           "id": "w8",
-          "text": "agent",
-          "start": 3.12,
+          "text": "marketplace,",
+          "start": 2.64,
           "end": 3.52
         },
         {
           "id": "w9",
-          "text": "economy.",
-          "start": 3.59,
-          "end": 4.38
+          "text": "install",
+          "start": 3.52,
+          "end": 4
         },
         {
           "id": "w10",
-          "text": "The",
-          "start": 4.42,
-          "end": 4.59
+          "text": "the",
+          "start": 4,
+          "end": 4.05
         },
         {
           "id": "w11",
-          "text": "repository",
-          "start": 4.7,
-          "end": 5.27
+          "text": "plugin,",
+          "start": 4.49,
+          "end": 4.78
         },
         {
           "id": "w12",
-          "text": "link",
-          "start": 5.36,
-          "end": 5.63
+          "text": "run",
+          "start": 4.78,
+          "end": 5.2
         },
         {
           "id": "w13",
-          "text": "is",
-          "start": 5.63,
-          "end": 5.77
+          "text": "scaffold.",
+          "start": 5.2,
+          "end": 6.32
         },
         {
           "id": "w14",
-          "text": "in",
-          "start": 5.77,
-          "end": 5.91
+          "text": "Five",
+          "start": 6.36,
+          "end": 6.65
         },
         {
           "id": "w15",
-          "text": "the",
-          "start": 5.91,
-          "end": 6.13
+          "text": "commands,",
+          "start": 6.65,
+          "end": 7.48
         },
         {
           "id": "w16",
-          "text": "description.",
-          "start": 6.13,
-          "end": 6.98
+          "text": "six",
+          "start": 7.48,
+          "end": 7.64
         },
         {
           "id": "w17",
-          "text": "Five",
-          "start": 7.03,
-          "end": 7.38
+          "text": "Shopware",
+          "start": 7.76,
+          "end": 8.13
         },
         {
           "id": "w18",
-          "text": "commands",
-          "start": 7.38,
-          "end": 8.19
+          "text": "skills,",
+          "start": 8.57,
+          "end": 8.92
         },
         {
           "id": "w19",
-          "text": "and",
-          "start": 8.19,
-          "end": 8.49
+          "text": "from",
+          "start": 8.96,
+          "end": 9.24
         },
         {
           "id": "w20",
-          "text": "it",
-          "start": 8.49,
-          "end": 8.69
+          "text": "UCP",
+          "start": 9.24,
+          "end": 9.48
         },
         {
           "id": "w21",
+          "text": "mapping",
+          "start": 9.48,
+          "end": 10.05
+        },
+        {
+          "id": "w22",
+          "text": "to",
+          "start": 10.05,
+          "end": 10.21
+        },
+        {
+          "id": "w23",
+          "text": "German",
+          "start": 10.21,
+          "end": 10.7
+        },
+        {
+          "id": "w24",
+          "text": "compliance.",
+          "start": 10.7,
+          "end": 11.669
+        }
+      ]
+    },
+    {
+      "id": "11",
+      "path": "assets/voice/11.wav",
+      "duration_s": 17.643,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Tested",
+          "start": 0.05,
+          "end": 0.51
+        },
+        {
+          "id": "w1",
+          "text": "like",
+          "start": 0.51,
+          "end": 0.84
+        },
+        {
+          "id": "w2",
+          "text": "software:",
+          "start": 0.84,
+          "end": 1.77
+        },
+        {
+          "id": "w3",
+          "text": "a",
+          "start": 1.77,
+          "end": 1.829
+        },
+        {
+          "id": "w4",
+          "text": "hundred",
+          "start": 1.829,
+          "end": 2.245
+        },
+        {
+          "id": "w5",
+          "text": "and",
+          "start": 2.245,
+          "end": 2.423
+        },
+        {
+          "id": "w6",
+          "text": "seven",
+          "start": 2.423,
+          "end": 2.72
+        },
+        {
+          "id": "w7",
+          "text": "eval",
+          "start": 2.72,
+          "end": 3.11
+        },
+        {
+          "id": "w8",
+          "text": "cases,",
+          "start": 3.15,
+          "end": 3.79
+        },
+        {
+          "id": "w9",
+          "text": "every",
+          "start": 3.79,
+          "end": 4.08
+        },
+        {
+          "id": "w10",
+          "text": "positive",
+          "start": 4.08,
+          "end": 4.56
+        },
+        {
+          "id": "w11",
+          "text": "with",
+          "start": 4.56,
+          "end": 4.72
+        },
+        {
+          "id": "w12",
+          "text": "a",
+          "start": 4.72,
+          "end": 4.76
+        },
+        {
+          "id": "w13",
+          "text": "negative",
+          "start": 4.76,
+          "end": 5.53
+        },
+        {
+          "id": "w14",
+          "text": "twin",
+          "start": 5.53,
+          "end": 6.01
+        },
+        {
+          "id": "w15",
+          "text": "family",
+          "start": 6.02,
+          "end": 6.29
+        },
+        {
+          "id": "w16",
+          "text": "without",
+          "start": 6.29,
+          "end": 6.64
+        },
+        {
+          "id": "w17",
+          "text": "a",
+          "start": 6.69,
+          "end": 6.72
+        },
+        {
+          "id": "w18",
+          "text": "size,",
+          "start": 6.72,
+          "end": 7.21
+        },
+        {
+          "id": "w19",
+          "text": "discard",
+          "start": 7.25,
+          "end": 7.83
+        },
+        {
+          "id": "w20",
+          "text": "then",
+          "start": 7.83,
+          "end": 7.84
+        },
+        {
+          "id": "w21",
+          "text": "apply",
+          "start": 8.19,
+          "end": 8.6
+        },
+        {
+          "id": "w22",
+          "text": "refused,",
+          "start": 8.6,
+          "end": 9.37
+        },
+        {
+          "id": "w23",
+          "text": "Grundpreis",
+          "start": 9.37,
+          "end": 10.312
+        },
+        {
+          "id": "w24",
+          "text": "byte-exact,",
+          "start": 10.312,
+          "end": 11.16
+        },
+        {
+          "id": "w25",
+          "text": "injection",
+          "start": 11.16,
+          "end": 11.87
+        },
+        {
+          "id": "w26",
+          "text": "in",
+          "start": 11.96,
+          "end": 12.1
+        },
+        {
+          "id": "w27",
+          "text": "a",
+          "start": 12.1,
+          "end": 12.18
+        },
+        {
+          "id": "w28",
+          "text": "product",
+          "start": 12.18,
+          "end": 12.78
+        },
+        {
+          "id": "w29",
+          "text": "description.",
+          "start": 12.78,
+          "end": 13.87
+        },
+        {
+          "id": "w30",
+          "text": "CI",
+          "start": 14.02,
+          "end": 14.15
+        },
+        {
+          "id": "w31",
+          "text": "gates",
+          "start": 14.15,
+          "end": 14.55
+        },
+        {
+          "id": "w32",
+          "text": "pass",
+          "start": 14.6,
+          "end": 14.83
+        },
+        {
+          "id": "w33",
+          "text": "rate,",
+          "start": 14.94,
+          "end": 15.46
+        },
+        {
+          "id": "w34",
+          "text": "cache",
+          "start": 15.53,
+          "end": 15.9
+        },
+        {
+          "id": "w35",
+          "text": "hits",
+          "start": 15.9,
+          "end": 16.25
+        },
+        {
+          "id": "w36",
+          "text": "and",
+          "start": 16.25,
+          "end": 16.51
+        },
+        {
+          "id": "w37",
+          "text": "cost",
+          "start": 16.51,
+          "end": 16.78
+        },
+        {
+          "id": "w38",
+          "text": "per",
+          "start": 16.88,
+          "end": 17.09
+        },
+        {
+          "id": "w39",
+          "text": "turn.",
+          "start": 17.13,
+          "end": 17.6
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "path": "assets/voice/12.wav",
+      "duration_s": 19.013,
+      "words": [
+        {
+          "id": "w0",
+          "text": "Shopware",
+          "start": 0.05,
+          "end": 0.47
+        },
+        {
+          "id": "w1",
+          "text": "is",
+          "start": 0.48,
+          "end": 0.6
+        },
+        {
+          "id": "w2",
+          "text": "the",
+          "start": 0.6,
+          "end": 0.77
+        },
+        {
+          "id": "w3",
+          "text": "Commerce",
+          "start": 0.85,
+          "end": 1.26
+        },
+        {
+          "id": "w4",
+          "text": "Operating",
+          "start": 1.26,
+          "end": 1.82
+        },
+        {
+          "id": "w5",
+          "text": "System",
+          "start": 1.82,
+          "end": 2.32
+        },
+        {
+          "id": "w6",
+          "text": "for",
+          "start": 2.37,
+          "end": 2.52
+        },
+        {
+          "id": "w7",
+          "text": "the",
+          "start": 2.62,
+          "end": 2.79
+        },
+        {
+          "id": "w8",
+          "text": "Agent",
+          "start": 2.8,
+          "end": 3.19
+        },
+        {
+          "id": "w9",
+          "text": "Economy.",
+          "start": 3.2,
+          "end": 4.04
+        },
+        {
+          "id": "w10",
+          "text": "Next,",
+          "start": 4.09,
+          "end": 4.68
+        },
+        {
+          "id": "w11",
+          "text": "in",
+          "start": 4.68,
+          "end": 4.9
+        },
+        {
+          "id": "w12",
+          "text": "progress:",
+          "start": 4.91,
+          "end": 5.94
+        },
+        {
+          "id": "w13",
+          "text": "SwagCommerceAgentTools,",
+          "start": 5.98,
+          "end": 7.88
+        },
+        {
+          "id": "w14",
+          "text": "agent",
+          "start": 7.93,
+          "end": 8.32
+        },
+        {
+          "id": "w15",
+          "text": "tools",
+          "start": 8.32,
+          "end": 8.75
+        },
+        {
+          "id": "w16",
+          "text": "and",
+          "start": 8.76,
+          "end": 9.02
+        },
+        {
+          "id": "w17",
+          "text": "staged",
+          "start": 9.02,
+          "end": 9.46
+        },
+        {
+          "id": "w18",
+          "text": "changes",
+          "start": 9.46,
+          "end": 10.08
+        },
+        {
+          "id": "w19",
+          "text": "inside",
+          "start": 10.08,
+          "end": 10.64
+        },
+        {
+          "id": "w20",
+          "text": "Shopware.",
+          "start": 10.64,
+          "end": 11.49
+        },
+        {
+          "id": "w21",
+          "text": "Repository",
+          "start": 11.73,
+          "end": 12.45
+        },
+        {
+          "id": "w22",
+          "text": "link",
+          "start": 12.45,
+          "end": 12.75
+        },
+        {
+          "id": "w23",
+          "text": "in",
+          "start": 12.75,
+          "end": 12.9
+        },
+        {
+          "id": "w24",
+          "text": "the",
+          "start": 12.9,
+          "end": 13.09
+        },
+        {
+          "id": "w25",
+          "text": "description.",
+          "start": 13.15,
+          "end": 14
+        },
+        {
+          "id": "w26",
+          "text": "Five",
+          "start": 14.05,
+          "end": 14.38
+        },
+        {
+          "id": "w27",
+          "text": "commands",
+          "start": 14.38,
+          "end": 15.13
+        },
+        {
+          "id": "w28",
+          "text": "and",
+          "start": 15.13,
+          "end": 15.41
+        },
+        {
+          "id": "w29",
+          "text": "it",
+          "start": 15.41,
+          "end": 15.6
+        },
+        {
+          "id": "w30",
           "text": "runs.",
-          "start": 8.69,
-          "end": 9.42
+          "start": 15.6,
+          "end": 16.28
         }
       ]
     }
   ],
   "sfx": [],
-  "total_duration_s": 122.583
+  "total_duration_s": 149.338
 }

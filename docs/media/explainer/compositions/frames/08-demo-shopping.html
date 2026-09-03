@@ -25,7 +25,7 @@
     .f08-user { background: #189EFF; color: #fff; margin-left: 30px; }
     .f08-agent { background: #fff; border: 1px solid rgba(35,33,28,0.14); }
     .f08-agent b { font-weight: 700; }
-    .f08-tag { position: absolute; right: 0; top: -22px; font-family: "JetBrains Mono", monospace; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: #8A94A6; }
+    .f08-tag { position: absolute; right: 0; top: -22px; white-space: nowrap; font-family: "JetBrains Mono", monospace; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: #8A94A6; }
 
     .f08-ring { position: absolute; border: 3px solid #189EFF; border-radius: 12px; }
     .f08-ring-tshirt { left: 134px; top: 166px; width: 196px; height: 242px; }
@@ -54,8 +54,12 @@
           <div id="f08-shot1" class="f08-shot">
             <img src="assets/ui-grid-cart.png" alt="Shopping UI: product grid and assistant rail" />
             <div id="f08-ring-tshirt" class="f08-ring f08-ring-tshirt"></div>
-            <div id="f08-turn" class="f08-turn">
-              <div class="f08-tag">recreation</div>
+            <!-- LIVE-CAPTURE SLOT (a): assistant chat turn at http://localhost:3005.
+                 Draft = HTML recreation below. Final = replace the three bubbles with the captured turn
+                 (an <img> of the rail, same box: left 1082 / top 352 / width 258) and delete the tag.
+                 Cue stays @1.05 (b1) / @1.9 (b2) / @2.9 (b3); the frame duration and voice do not change. -->
+            <div id="f08-slot-chat" class="f08-turn" data-slot="live-capture:assistant-chat" data-slot-source="http://localhost:3005">
+              <div class="f08-tag">recreation · live capture pending</div>
               <div id="f08-b1" class="f08-bubble f08-user">Find me a gift under 50 €.</div>
               <div id="f08-b2" class="f08-bubble f08-agent">Two options under 50 €: <b>Claude Commerce T-Shirt</b> €29.99 and <b>Extra Virgin Olive Oil 500 ml</b> €12.90.</div>
               <div id="f08-b3" class="f08-bubble f08-agent">Added the T-Shirt to your cart.</div>

@@ -100,7 +100,9 @@ class FulfillmentOptionsTool extends McpToolResponse
 
         $products = [];
         foreach ($this->productListRoute->load($criteria, $context)->getProducts() as $product) {
-            $products[$product->getId()] = $product;
+            if ($product instanceof SalesChannelProductEntity) {
+                $products[$product->getId()] = $product;
+            }
         }
 
         return $products;

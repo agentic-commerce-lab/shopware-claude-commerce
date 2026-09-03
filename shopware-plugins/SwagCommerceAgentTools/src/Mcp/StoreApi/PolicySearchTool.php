@@ -7,6 +7,7 @@ use Shopware\Core\Content\Category\CategoryDefinition;
 use Shopware\Core\Content\Category\CategoryEntity;
 use Shopware\Core\Content\Category\SalesChannel\AbstractCategoryRoute;
 use Shopware\Core\Content\Category\SalesChannel\AbstractNavigationRoute;
+use Shopware\Core\Content\LandingPage\LandingPageCollection;
 use Shopware\Core\Content\LandingPage\SalesChannel\AbstractLandingPageRoute;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Filter\EqualsFilter;
@@ -41,6 +42,8 @@ class PolicySearchTool extends McpToolResponse
     private const SERVICE_NAVIGATION = 'service-navigation';
 
     /**
+     * @param SalesChannelRepository<LandingPageCollection> $landingPageRepository
+     *
      * @internal
      */
     public function __construct(
@@ -145,14 +148,16 @@ class PolicySearchTool extends McpToolResponse
     private function loadNavigation(string $navigation, SalesChannelContext $context): array
     {
         try {
-            $request = new Request(['depth' => self::NAVIGATION_DEPTH]);
+            // buildTree=false asks TreeBuildingNavigationRoute for the flat list; the
+            // aliases footer-navigation / service-navigation are resolved by the same
+            // decorator and throw when the sales channel has no such category.
+            $request = new Request(['depth' => self::NAVIGATION_DEPTH, 'buildTree' => false]);
             $response = $this->navigationRoute->load($navigation, $navigation, $request, $context, new Criteria());
         } catch (\Throwable) {
             return [];
         }
 
-        // TreeBuildingNavigationRoute decorates the route and nests children into
-        // their parents, so the collection is flattened before use.
+        // Flatten defensively in case a decorator still nests children.
         return $this->flatten(array_values($response->getCategories()->getElements()));
     }
 
