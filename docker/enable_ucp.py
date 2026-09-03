@@ -1,90 +1,40 @@
 #!/usr/bin/env python3
-"""Enable UCP on the Storefront sales channel inside the running Shopware container."""
+"""Expose UCP on the Storefront sales channel — idempotent, no raw SQL (ADR-11).
+
+    python docker/enable_ucp.py --shop-url http://localhost:8080 --signature-policy strict
+
+* Exposure (active, capabilities, transports, allowlists, policy) goes through the plugin's
+  Admin API ``PUT /api/_admin/ucp/sales-channels/{id}/config`` — the same endpoint the
+  Administration module uses, so ``ucp:config:show`` and the UI agree. The config is only
+  written when it differs from the desired state.
+* Shop signing keys: ``ucp:signing-keys:generate`` only when the channel has no active
+  key; surplus active keys (left by earlier experiments) are retired and deleted so
+  ``/.well-known/ucp`` publishes exactly one.
+* The platform-profile cache (the shop's copy of our ``agent-profile.json``) is purged via
+  ``DELETE /api/_admin/ucp/platform-profiles/{id}`` so a changed agent key is picked up.
+"""
 
 from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 import sys
+from typing import Any
+
+from _bootstrap_lib import DEFAULT_CONTAINER, AdminApi, AdminApiError, console
 
 UCP_VERSION = "2026-04-08"
+DEFAULT_SIGNING_KID = "default"
+SIGNATURE_POLICIES = ("strict", "log", "off")
+HOST_APP_ORIGINS = ("http://localhost:3005", "http://127.0.0.1:3005")
+LOOPBACK_HOSTS = ("localhost", "127.0.0.1")
 
 
-def run(container: str, sql: str) -> str:
-    result = subprocess.run(
-        [
-            "docker",
-            "exec",
-            "-u",
-            "root",
-            "-e",
-            "MYSQL_PWD=root",
-            container,
-            "bash",
-            "-lc",
-            f"mysql -uroot -s -N shopware -e {json.dumps(sql)}",
-        ],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr or result.stdout or "mysql failed")
-    return result.stdout.strip()
-
-
-def exec_console(container: str, args: str) -> str:
-    result = subprocess.run(
-        [
-            "docker",
-            "exec",
-            "-u",
-            "www-data",
-            container,
-            "bash",
-            "-lc",
-            f"cd /var/www/html && php bin/console {args}",
-        ],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    return (result.stdout or "") + (result.stderr or "")
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--shop-url", required=True)
-    parser.add_argument("--container", default="commerce-agents-shopware")
-    args = parser.parse_args()
-
-    exists = run(
-        args.container,
-        "SHOW TABLES LIKE 'swag_agentic_commerce_ucp_config';",
-    )
-    if not exists:
-        print("UCP config table missing — plugin did not install. Skipping UCP exposure.", file=sys.stderr)
-        return 0
-
-    row = run(
-        args.container,
-        "SELECT CONCAT(LOWER(HEX(sc.id)), ' ', sc.access_key) "
-        "FROM sales_channel sc "
-        "JOIN sales_channel_domain scd ON scd.sales_channel_id = sc.id "
-        "WHERE sc.type_id = UNHEX('8a243080f92e4c719546314b577cf82b') "
-        "ORDER BY scd.url DESC LIMIT 1;",
-    )
-    if not row:
-        print("No storefront sales channel found.", file=sys.stderr)
-        return 1
-    sales_channel_id, access_key = row.split(" ", 1)
-    print(f"Storefront sales channel {sales_channel_id}")
-
-    config = {
+def desired_config(shop_url: str, signature_policy: str) -> dict[str, Any]:
+    return {
         "active": True,
         "ucpVersion": UCP_VERSION,
-        "profileDomain": args.shop_url.rstrip("/"),
+        "profileDomain": shop_url,
         "enabledCapabilities": [
             "catalog",
             "cart",
@@ -94,58 +44,129 @@ def main() -> int:
             "identity_linking",
         ],
         "enabledTransports": ["rest", "mcp", "embedded"],
-        "continueUrlTemplate": args.shop_url.rstrip("/")
-        + "/checkout/confirm?checkoutId={checkoutId}",
-        "platformAllowlist": ["localhost", "127.0.0.1"],
-        "remoteProfileAllowlist": ["localhost", "127.0.0.1"],
-        "agentAllowlist": ["localhost", "127.0.0.1"],
-        "embeddedAllowedOrigins": [
-            "http://localhost:3005",
-            "http://127.0.0.1:3005",
-            "http://localhost:8004",
-            "http://127.0.0.1:8004",
-        ],
-        "embeddedFrameAncestors": [
-            "http://localhost:3005",
-            "http://127.0.0.1:3005",
-        ],
+        "continueUrlTemplate": f"{shop_url}/checkout/confirm?checkoutId={{checkoutId}}",
+        "platformAllowlist": list(LOOPBACK_HOSTS),
+        "remoteProfileAllowlist": list(LOOPBACK_HOSTS),
+        "agentAllowlist": list(LOOPBACK_HOSTS),
+        "embeddedAllowedOrigins": list(HOST_APP_ORIGINS),
+        "embeddedFrameAncestors": list(HOST_APP_ORIGINS),
         "discoveryBudget": 10,
         "catalogResultLimit": 50,
         "webhookUrlOverride": None,
-        "signaturePolicy": "log",
+        "signaturePolicy": signature_policy,
         "idempotencyRequired": True,
     }
-    payload = json.dumps(config).replace("'", "\\'")
-    sql = (
-        "INSERT INTO swag_agentic_commerce_ucp_config "
-        "(sales_channel_id, config_json, created_at, updated_at) VALUES "
-        f"(UNHEX('{sales_channel_id}'), '{payload}', NOW(3), NOW(3)) "
-        "ON DUPLICATE KEY UPDATE config_json=VALUES(config_json), updated_at=NOW(3);"
-    )
-    run(args.container, sql)
 
-    show = exec_console(args.container, f"ucp:config:show --sales-channel={sales_channel_id} --no-interaction")
-    print(show[-2000:])
-    set_out = exec_console(
-        args.container,
-        "ucp:config:set --no-interaction "
-        f"--sales-channel={sales_channel_id} "
-        "--signature-policy=log --idempotency=true "
-        f"--continue-url-template={args.shop_url.rstrip('/')}/checkout/confirm?checkoutId={{checkoutId}} "
-        "--embedded-allowed-origins=http://localhost:3005 "
-        "--embedded-frame-ancestors=http://localhost:3005 "
-        "--agent-allowlist=localhost --agent-allowlist=127.0.0.1 "
-        "--remote-profile-allowlist=localhost --remote-profile-allowlist=127.0.0.1 "
-        "--platform-allowlist=localhost --platform-allowlist=127.0.0.1",
+
+def ensure_config(api: AdminApi, sales_channel_id: str, desired: dict[str, Any]) -> None:
+    path = f"/api/_admin/ucp/sales-channels/{sales_channel_id}/config"
+    current = api.request("GET", path).get("data") or {}
+    merged = {**current, **desired}
+    if all(current.get(key) == value for key, value in desired.items()):
+        print(f"ucp config: unchanged (signaturePolicy={desired['signaturePolicy']})")
+        return
+    api.request("PUT", path, merged)
+    print(f"ucp config: written (signaturePolicy={desired['signaturePolicy']})")
+
+
+def ensure_single_signing_key(container: str, sales_channel_id: str) -> str:
+    listing = console(
+        container, f"ucp:signing-keys:list --sales-channel={sales_channel_id} --no-interaction"
     )
-    print(set_out[-1500:])
-    keys = exec_console(
-        args.container,
-        f"ucp:signing-keys:generate --sales-channel={sales_channel_id} --no-interaction || true",
+    keys = _parse_key_list(listing.stdout)
+    active = [key for key in keys if key.get("status") == "active"]
+    if not active:
+        generated = console(
+            container,
+            f"ucp:signing-keys:generate --kid={DEFAULT_SIGNING_KID} --sales-channel={sales_channel_id} --no-interaction",
+        )
+        if generated.returncode != 0:
+            raise RuntimeError(
+                f"ucp:signing-keys:generate failed: {generated.stderr or generated.stdout}"
+            )
+        print(f"shop signing key: generated kid={DEFAULT_SIGNING_KID}")
+        return DEFAULT_SIGNING_KID
+    keep = next((key for key in active if key.get("kid") == DEFAULT_SIGNING_KID), active[-1])
+    for key in keys:
+        if key is keep:
+            continue
+        kid = str(key.get("kid"))
+        if key.get("status") == "active":
+            console(
+                container,
+                f"ucp:signing-keys:retire --kid={kid} --sales-channel={sales_channel_id} --no-interaction",
+            )
+        console(
+            container,
+            f"ucp:signing-keys:delete --kid={kid} --sales-channel={sales_channel_id} --no-interaction",
+        )
+        print(f"shop signing key: removed surplus kid={kid}")
+    print(f"shop signing key: exactly one active (kid={keep.get('kid')})")
+    return str(keep.get("kid"))
+
+
+def _parse_key_list(output: str) -> list[dict[str, Any]]:
+    start = output.find("[")
+    if start < 0:
+        return []
+    try:
+        parsed = json.loads(output[start:])
+    except json.JSONDecodeError:
+        return []
+    return (
+        [entry for entry in parsed if isinstance(entry, dict)] if isinstance(parsed, list) else []
     )
-    print(keys[-800:])
-    exec_console(args.container, "cache:clear --no-warmup || true")
-    print(f"UCP enabled. Store API access key prefix: {access_key[:8]}…")
+
+
+def purge_profile_cache(api: AdminApi) -> int:
+    entries = api.request("GET", "/api/_admin/ucp/platform-profiles").get("data") or []
+    for entry in entries:
+        api.request("DELETE", f"/api/_admin/ucp/platform-profiles/{entry['id']}")
+    print(
+        f"platform profile cache: purged {len(entries)} entr{'y' if len(entries) == 1 else 'ies'}"
+    )
+    return len(entries)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("--shop-url", required=True)
+    parser.add_argument("--container", default=DEFAULT_CONTAINER)
+    parser.add_argument("--user", default="admin")
+    parser.add_argument("--password", default="shopware")
+    parser.add_argument("--signature-policy", choices=SIGNATURE_POLICIES, default="strict")
+    args = parser.parse_args()
+    shop_url = args.shop_url.rstrip("/")
+
+    api = AdminApi(shop_url)
+    try:
+        api.login(args.user, args.password)
+        channel = api.storefront_sales_channel()
+        sales_channel_id = str(channel["id"])
+        print(f"Storefront sales channel {sales_channel_id}")
+        ensure_config(api, sales_channel_id, desired_config(shop_url, args.signature_policy))
+        ensure_single_signing_key(args.container, sales_channel_id)
+        purge_profile_cache(api)
+    except AdminApiError as error:
+        if error.status == 404:
+            print(
+                "UCP admin API missing — SwagAgenticCommerce not active. Skipping UCP exposure.",
+                file=sys.stderr,
+            )
+            return 0
+        print(f"enable_ucp failed: {error}", file=sys.stderr)
+        return 1
+    except RuntimeError as error:
+        print(f"enable_ucp failed: {error}", file=sys.stderr)
+        return 1
+
+    console(args.container, "cache:clear --no-warmup")
+    validate = console(
+        args.container, f"ucp:config:validate --sales-channel={sales_channel_id} --no-interaction"
+    )
+    print((validate.stdout or validate.stderr).strip()[-1200:])
     return 0
 
 

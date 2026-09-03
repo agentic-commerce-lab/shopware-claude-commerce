@@ -259,23 +259,21 @@ class ShopwareStorefrontBackend(StorefrontBackend):
         parent = self.variant_of.get(product_id)
         if parent is not None and parent != product_id:
             return await self._variant_details(session, parent, product_id)
-        record, store = await self._fetch_product_record(session.session_id, product_id)
+        # The Store API is the authority on family vs. child: a child carries a foreign
+        # ``parentId``; a family id answers its best child with ``parentId == <family>``.
+        try:
+            store = await self.store_api.product(product_id)
+        except StoreApiError:
+            store = None
+        store_parent = str(store.get("parentId") or "") if store else ""
+        if store_parent and store_parent != product_id:
+            self.variant_of[product_id] = store_parent
+            return await self._variant_details(session, store_parent, product_id)
+        record = await self._fetch_family_record(session.session_id, product_id, store)
         if record is None:
-            try:
-                store = await self.store_api.product(product_id)
-            except StoreApiError:
-                store = None
-            if store is None:
-                return None
-            record = _store_api_to_ucp(store)
-        family_id = _record_id(record)
-        if family_id != product_id:
-            # The shop answered a lookup for a child with its family document.
-            self.variant_of[product_id] = family_id
+            return None
         details = self._remember_product(state, record)
         await self._enrich_variants(state, details, store)
-        if family_id != product_id:
-            return await self._variant_details(session, family_id, product_id)
         return self.products.get(details.product_id, details)
 
     async def _variant_details(
@@ -295,39 +293,31 @@ class ShopwareStorefrontBackend(StorefrontBackend):
                 )
         return None
 
-    async def _fetch_product_record(
-        self, session_id: str, product_id: str
-    ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-        """The UCP record for ``product_id`` plus the Store API document when it was needed.
+    async def _fetch_family_record(
+        self, session_id: str, family_id: str, store: dict[str, Any] | None
+    ) -> dict[str, Any] | None:
+        """The UCP document of a family (or single product) ``family_id``.
 
         Live 6.7.13 quirk: ``GET /ucp/v1/catalog/product/{family}`` answers with the
         family's *first child* while ``catalog-lookup`` (and the MCP tool) answer with the
-        family itself. When the answered id differs from the requested one the Store API
-        decides which side is the parent, so a family never gets filed as a variant of
-        its own child.
+        family itself. A child answer is retried through ``lookup_catalog``; the Store API
+        document (already fetched by the caller) is the last resort, re-keyed to the family.
         """
         record = await self._ucp_product(
-            session_id, "get_product", {"catalog": {"id": product_id, "context": _CONTEXT}}
+            session_id, "get_product", {"catalog": {"id": family_id, "context": _CONTEXT}}
         )
-        if record is None or _record_id(record) == product_id:
-            return record, None
-        try:
-            store = await self.store_api.product(product_id)
-        except StoreApiError:
-            store = None
-        # The Store API resolves a family id to its best child too, but that child carries
-        # ``parentId == <requested id>`` — which is how we know the request was the family.
-        store_parent = store.get("parentId") if store else None
-        if store is None or (store_parent and store_parent != product_id):
-            return record, store  # requested a child; the shop answered with its family
-        family = await self._ucp_product(
-            session_id, "lookup_catalog", {"catalog": {"ids": [product_id], "context": _CONTEXT}}
-        )
-        if family is not None and _record_id(family) == product_id:
-            return family, store
-        fallback = _store_api_to_ucp(store)
-        fallback["id"] = product_id  # the Store API answered the family's best child
-        return fallback, store
+        if record is not None and _record_id(record) != family_id:
+            record = await self._ucp_product(
+                session_id,
+                "lookup_catalog",
+                {"catalog": {"ids": [family_id], "context": _CONTEXT}},
+            )
+            if record is not None and _record_id(record) != family_id:
+                record = None
+        if record is None and store is not None:
+            record = _store_api_to_ucp(store)
+            record["id"] = family_id  # the Store API answered the family's best child
+        return record
 
     async def _ucp_product(
         self, session_id: str, method: str, params: dict[str, Any]

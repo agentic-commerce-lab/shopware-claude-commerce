@@ -297,8 +297,15 @@ async def main() -> int:
     parser.add_argument(
         "--write", action="store_true", help="perform the reversible write round trips"
     )
+    parser.add_argument(
+        "--read-only",
+        action="store_true",
+        help="explicit form of the default: reads only (mutually exclusive with --write)",
+    )
     parser.add_argument("--transport", choices=("mcp", "rest"), default=None)
     args = parser.parse_args()
+    if args.write and args.read_only:
+        parser.error("--write and --read-only are mutually exclusive")
     load_env()
     shop_url = env("SHOPWARE_ADMIN_URL") or env("SHOPWARE_URL") or "http://localhost:8080"
     transport_name = args.transport or env("SHOPWARE_ADMIN_TRANSPORT", "mcp") or "mcp"

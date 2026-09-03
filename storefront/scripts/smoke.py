@@ -78,16 +78,24 @@ async def check_transport(transport: str, *, fallback: bool) -> None:
 
     details = await backend.get_product_details(session, first.product_id)
     assert details is not None, "details missing"
+    if details.variant_of:
+        # The shop may answer a search with a child row; the family carries the matrix.
+        print(f"details: {details.title!r} is a variant of {details.variant_of}")
+        details = await backend.get_product_details(session, details.variant_of)
+        assert details is not None, "family details missing"
     print(
         f"details: title={details.title!r} variants={len(details.variants)} options={details.options} eta={details.specs.get('deliveryTime')}"
     )
     if "T-Shirt" in (details.title or ""):
         assert len(details.variants) >= 2, "seeded T-shirt should list size variants"
-        assert first.product_id not in {v.product_id for v in details.variants}, (
+        assert details.product_id not in {v.product_id for v in details.variants}, (
             "parent listed as its own variant"
         )
+        assert all(v.variant_of == details.product_id for v in details.variants), (
+            "every child must point at the family"
+        )
 
-    sku = first.product_id
+    sku = details.product_id
     if details.variants:
         in_stock = next((v for v in details.variants if v.in_stock), details.variants[0])
         sku = in_stock.product_id

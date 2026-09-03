@@ -47,6 +47,7 @@ kontext.txt
 docs/media/explainer/**/render/
 docs/media/explainer/**/renders/
 docs/media/explainer/**/*.mp4
+docs/media/explainer-draft.mp4
 
 # OS / editor
 .DS_Store

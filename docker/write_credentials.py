@@ -1,75 +1,77 @@
 #!/usr/bin/env python3
-"""Dump Shopware credentials for the storefront/merchant hosts into docker/.generated.env."""
+"""Write the host-side connection values into ``docker/.generated.env`` (Admin API, no SQL).
+
+Keys owned here: ``SHOPWARE_URL``, ``SHOPWARE_ADMIN_URL``, ``SHOPWARE_SALES_CHANNEL_ID``,
+``SHOPWARE_SALES_CHANNEL_ACCESS_KEY``, ``UCP_AGENT_PROFILE_URL``, ``UCP_TRANSPORT``,
+``SHOPWARE_ADMIN_TRANSPORT``, plus ``UCP_AGENT_SIGNING_KEY_PEM_FILE`` and
+``COMMERCE_AGENTS_HANDOFF_SECRET`` when passed. ``SHOPWARE_INTEGRATION_*`` is written by
+``merchant_identity.py``; existing keys are kept (upsert). The admin password never lands in
+this file — hosts authenticate with the integration only (ADR-14).
+"""
 
 from __future__ import annotations
 
 import argparse
-import json
-import subprocess
+import os
+import sys
 from pathlib import Path
 
+from _bootstrap_lib import AdminApi, AdminApiError, upsert_env_file
 
-def mysql(container: str, sql: str) -> str:
-    result = subprocess.run(
-        [
-            "docker",
-            "exec",
-            "-u",
-            "root",
-            "-e",
-            "MYSQL_PWD=root",
-            container,
-            "bash",
-            "-lc",
-            f"mysql -uroot -s -N shopware -e {json.dumps(sql)}",
-        ],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    lines = [
-        line.strip()
-        for line in (result.stdout or "").splitlines()
-        if line.strip() and not line.startswith("mysql:")
-    ]
-    return lines[-1] if lines else ""
+HOST_ONLY_KEYS_REMOVED = ("SHOPWARE_ADMIN_USERNAME", "SHOPWARE_ADMIN_PASSWORD")
+HANDOFF_SECRET_ENV = "COMMERCE_AGENTS_HANDOFF_SECRET"
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--shop-url", required=True)
-    parser.add_argument("--container", default="commerce-agents-shopware")
-    parser.add_argument("--out", required=True)
-    args = parser.parse_args()
-
-    row = mysql(
-        args.container,
-        "SELECT LOWER(HEX(sc.id)), sc.access_key "
-        "FROM sales_channel sc "
-        "JOIN sales_channel_domain scd ON scd.sales_channel_id = sc.id "
-        "WHERE sc.type_id = UNHEX('8a243080f92e4c719546314b577cf82b') "
-        "LIMIT 1;",
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    sales_channel_id = ""
-    access_key = ""
-    if row:
-        parts = row.split()
-        sales_channel_id = parts[0]
-        access_key = parts[1] if len(parts) > 1 else ""
+    parser.add_argument("--shop-url", required=True)
+    parser.add_argument("--user", default="admin")
+    parser.add_argument("--password", default="shopware")
+    parser.add_argument("--out", required=True, type=Path)
+    parser.add_argument("--profile-url", default="http://localhost/agent-profile.json")
+    parser.add_argument(
+        "--signing-key-pem-file", default="", help="repo-relative path of the agent key"
+    )
+    parser.add_argument(
+        "--handoff-secret-from-env",
+        action="store_true",
+        help=f"copy {HANDOFF_SECRET_ENV} from this process' environment (bootstrap exports it)",
+    )
+    args = parser.parse_args()
+    shop_url = args.shop_url.rstrip("/")
 
-    lines = [
-        f"SHOPWARE_URL={args.shop_url.rstrip('/')}",
-        f"SHOPWARE_ADMIN_URL={args.shop_url.rstrip('/')}",
-        f"SHOPWARE_SALES_CHANNEL_ID={sales_channel_id}",
-        f"SHOPWARE_SALES_CHANNEL_ACCESS_KEY={access_key}",
-        f"UCP_AGENT_PROFILE_URL=http://localhost/agent-profile.json",
-        "UCP_TRANSPORT=rest",
-        "SHOPWARE_ADMIN_USERNAME=admin",
-        "SHOPWARE_ADMIN_PASSWORD=shopware",
-        "SHOPWARE_ADMIN_TRANSPORT=rest",
-    ]
-    Path(args.out).write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"Wrote {args.out}")
+    api = AdminApi(shop_url)
+    try:
+        api.login(args.user, args.password)
+        channel = api.storefront_sales_channel()
+    except AdminApiError as error:
+        print(f"write_credentials failed: {error}", file=sys.stderr)
+        return 1
+
+    values = {
+        "SHOPWARE_URL": shop_url,
+        "SHOPWARE_ADMIN_URL": shop_url,
+        "SHOPWARE_SALES_CHANNEL_ID": str(channel["id"]),
+        "SHOPWARE_SALES_CHANNEL_ACCESS_KEY": str(channel["accessKey"]),
+        "UCP_AGENT_PROFILE_URL": args.profile_url,
+        "UCP_TRANSPORT": "mcp",
+        "SHOPWARE_ADMIN_TRANSPORT": "mcp",
+    }
+    if args.signing_key_pem_file:
+        values["UCP_AGENT_SIGNING_KEY_PEM_FILE"] = args.signing_key_pem_file
+    if args.handoff_secret_from_env:
+        secret = os.environ.get(HANDOFF_SECRET_ENV, "").strip()
+        if not secret:
+            print(
+                f"write_credentials: {HANDOFF_SECRET_ENV} not set in the environment",
+                file=sys.stderr,
+            )
+            return 1
+        values[HANDOFF_SECRET_ENV] = secret
+    upsert_env_file(args.out, values, remove=HOST_ONLY_KEYS_REMOVED)
+    print(f"Wrote {args.out} ({', '.join(values)})")
     return 0
 
 

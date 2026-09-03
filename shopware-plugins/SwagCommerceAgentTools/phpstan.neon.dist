@@ -1,0 +1,21 @@
+parameters:
+    level: 8
+    phpVersion: 80200
+    treatPhpDocTypesAsCertain: false
+    reportUnmatchedIgnoredErrors: true
+    checkFunctionNameCase: true
+    tmpDir: .phpstan.cache
+    paths:
+        - src
+        - tests
+    bootstrapFiles:
+        - tests/TestBootstrap.php
+    scanFiles:
+        # Shopware < 6.7.14 does not ship the attribute; the shim mirrors trunk.
+        - tests/compat/McpToolGroup.php
+    ignoreErrors:
+        # EntitySearchResult::__construct is deprecated in favour of a v6.8 signature
+        # that does not exist yet; the fixtures must keep calling the current one.
+        -
+            identifier: method.deprecated
+            path: tests/*

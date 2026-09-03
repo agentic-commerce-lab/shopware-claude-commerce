@@ -99,25 +99,34 @@ OIL: dict[str, Any] = {
     "variants": [],
 }
 
-# A lookup of a child id answers the family document (what the live shop does).
-CATALOG = {PRODUCT_ID: SHIRT, OIL_ID: OIL, VARIANT_S: SHIRT, VARIANT_M: SHIRT, VARIANT_L: SHIRT}
 
-# What the live REST route ``GET /ucp/v1/catalog/product/{family}`` really answers.
-SHIRT_REST_CHILD_S: dict[str, Any] = {
-    "id": VARIANT_S,
-    "title": "Claude Commerce T-Shirt — S",
-    "description": {"plain": "Claude Commerce T-Shirt — S"},
-    "price_range": {
-        "min": {"amount": 2999, "currency": "EUR"},
-        "max": {"amount": 2999, "currency": "EUR"},
-    },
-    "variants": [
-        {
-            "id": VARIANT_S,
-            "title": "Claude Commerce T-Shirt — S",
-            "price": {"amount": 2999, "currency": "EUR"},
-        }
-    ],
+def _ucp_child_doc(vid: str, size: str) -> dict[str, Any]:
+    """A thin UCP document for one child, as the live shop answers for some variant ids
+    (and for ``GET /ucp/v1/catalog/product/{family}``, see the REST route below)."""
+    title = f"Claude Commerce T-Shirt — {size}"
+    return {
+        "id": vid,
+        "title": title,
+        "description": {"plain": title},
+        "price_range": {
+            "min": {"amount": 2999, "currency": "EUR"},
+            "max": {"amount": 2999, "currency": "EUR"},
+        },
+        "variants": [{"id": vid, "title": title, "price": {"amount": 2999, "currency": "EUR"}}],
+    }
+
+
+SHIRT_REST_CHILD_S = _ucp_child_doc(VARIANT_S, "S")
+SHIRT_CHILD_M = _ucp_child_doc(VARIANT_M, "M")
+
+# Live behaviour differs per child: some ids answer the family document (S and L here),
+# others the child itself (M here). The backend must resolve both to the family.
+CATALOG = {
+    PRODUCT_ID: SHIRT,
+    OIL_ID: OIL,
+    VARIANT_S: SHIRT,
+    VARIANT_M: SHIRT_CHILD_M,
+    VARIANT_L: SHIRT,
 }
 
 

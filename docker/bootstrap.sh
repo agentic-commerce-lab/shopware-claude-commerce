@@ -1,32 +1,61 @@
 #!/usr/bin/env bash
-# Bootstrap Shopware in docker: wait until healthy, install SwagAgenticCommerce,
-# expose UCP on the Storefront sales channel, seed catalog extras, write credentials.
+# Bootstrap the local Shopware stack for the Claude Commerce agents (ADR-10/11/14).
+#
+# Idempotent and re-runnable: every step looks before it writes, so running it twice
+# yields the same state (one agent signing key, one shop signing key, one integration,
+# one ACL role, no duplicate products/CMS pages/orders). See docker/README.md.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 COMPOSE=(docker compose -f "$ROOT/docker/compose.yaml")
 CONTAINER="${SHOPWARE_CONTAINER:-commerce-agents-shopware}"
 SHOP_URL="${SHOPWARE_PUBLIC_URL:-http://localhost:8080}"
+# Admin password grant is used by bootstrap only (setup). Hosts never get these values;
+# they authenticate with the integration written to docker/.generated.env (ADR-14).
 ADMIN_USER="${SHOPWARE_ADMIN_USERNAME:-admin}"
 ADMIN_PASS="${SHOPWARE_ADMIN_PASSWORD:-shopware}"
+
+# Pinned upstream refs (docs/version-matrix.md). Override with a tag/branch/SHA if needed.
 PLUGIN_REPO="${SWAG_AGENTIC_COMMERCE_REPO:-https://github.com/shopware/agentic-commerce.git}"
-SDK_REPO="${UCP_PHP_SDK_REPO:-https://github.com/agentic-commerce-alliance/ucp-php-sdk.git}"
+PLUGIN_REF="${SWAG_AGENTIC_COMMERCE_REF:-20bd3df360c6c6622eed8e20fa5db66b8a6e1a86}"
 MERCHANT_TOOLS_REPO="${SWAG_MCP_MERCHANT_TOOLS_REPO:-https://github.com/shopware/SwagMcpMerchantTools.git}"
+MERCHANT_TOOLS_REF="${SWAG_MCP_MERCHANT_TOOLS_REF:-01e2082e99a4e9a2e56cdfd69faa38cd7c988efe}"
+SDK_REPO="${UCP_PHP_SDK_REPO:-https://github.com/agentic-commerce-alliance/ucp-php-sdk.git}"
+SDK_CONSTRAINT='>=0.0.5 <0.1.0'
 
-exec_shop() {
-  docker exec -u www-data "$CONTAINER" bash -lc "cd /var/www/html && $*"
-}
+SHOP_ROOT="/var/www/html"
+PLUGIN_DIR="${SHOP_ROOT}/custom/plugins/SwagAgenticCommerce"
+MERCHANT_DIR="${SHOP_ROOT}/custom/plugins/SwagMcpMerchantTools"
+HANDOFF_SRC="$ROOT/docker/plugins/CommerceAgentsHandoff"
+HANDOFF_DIR="${SHOP_ROOT}/custom/plugins/CommerceAgentsHandoff"
 
-exec_root() {
-  docker exec -u root "$CONTAINER" bash -lc "$*"
-}
+GENERATED_ENV="$ROOT/docker/.generated.env"
+SECRETS_DIR="$ROOT/secrets"
+AGENT_KEY_REL="secrets/ucp-agent-signing-key.pem"
+AGENT_KEY="$ROOT/$AGENT_KEY_REL"
+PROFILE_URL="http://localhost/agent-profile.json"   # fetched by Apache inside the container
+SIGNATURE_POLICY="${UCP_SIGNATURE_POLICY:-strict}"
+HANDOFF_SECRET_VAR="COMMERCE_AGENTS_HANDOFF_SECRET"
+HANDOFF_SECRET_BYTES=32
+
+# Python: the helpers need cryptography + httpx from the repo venv.
+PYTHON="${PYTHON:-$ROOT/.venv/bin/python}"
+if [[ ! -x "$PYTHON" ]]; then
+  echo "Python venv missing at $PYTHON — run: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt" >&2
+  exit 1
+fi
+
+exec_shop() { docker exec -u www-data "$CONTAINER" bash -lc "cd ${SHOP_ROOT} && $*"; }
+exec_root() { docker exec -u root "$CONTAINER" bash -lc "$*"; }
+console()   { exec_shop "php bin/console $* --no-interaction"; }
+step()      { echo; echo "==> $*"; }
 
 wait_for_shop() {
   echo "Waiting for Shopware Admin API at ${SHOP_URL} ..."
   local i code
   for i in $(seq 1 90); do
-    # `/` is 400 until sales_channel_domain matches the published port. Admin API
-    # 401 (no token) means PHP + Shopware are up.
+    # `/` is 400 until the sales-channel domain matches the published port; the Admin API
+    # answering 401 (no token) means PHP + Shopware are up.
     code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 5 "${SHOP_URL}/api/_info/version" || true)"
     if [[ "${code}" == "401" || "${code}" == "200" ]]; then
       echo "Shopware is answering HTTP (${code})."
@@ -43,7 +72,7 @@ wait_for_mysql() {
   echo "Waiting for MySQL inside ${CONTAINER} ..."
   local i
   for i in $(seq 1 60); do
-    if docker exec -u root "$CONTAINER" bash -lc "mysqladmin -uroot -proot ping --silent" >/dev/null 2>&1; then
+    if exec_root "mysqladmin -uroot -proot ping --silent" >/dev/null 2>&1; then
       echo "MySQL is up."
       return 0
     fi
@@ -53,115 +82,203 @@ wait_for_mysql() {
   return 1
 }
 
-mysql_shop() {
-  docker exec -u root "$CONTAINER" bash -lc "mysql -uroot -proot shopware -N -e \"$1\""
+# ensure_env_line KEY VALUE — set KEY=VALUE in the container's .env (Symfony Dotenv; there
+# is no console command that edits .env).
+ensure_env_line() {
+  local key="$1" value="$2"
+  exec_root "if grep -q '^${key}=' ${SHOP_ROOT}/.env; then sed -i 's|^${key}=.*|${key}=${value}|' ${SHOP_ROOT}/.env; else echo '${key}=${value}' >> ${SHOP_ROOT}/.env; fi"
 }
 
-echo "==> Starting compose stack"
-"${COMPOSE[@]}" up -d
+container_env_value() {
+  exec_root "grep -E '^$1=' ${SHOP_ROOT}/.env | tail -n1 | cut -d= -f2-" 2>/dev/null | tr -d '\r\n' || true
+}
 
-wait_for_shop
-wait_for_mysql
+# ensure_repo DIR URL REF — clone if missing, then make sure HEAD == REF (SHA, tag or branch).
+ensure_repo() {
+  local dir="$1" url="$2" ref="$3" head
+  # Clones are chowned to www-data afterwards; git (as root) then flags "dubious ownership".
+  local git="git -c safe.directory='*'"
+  if ! exec_root "test -d ${dir}/.git"; then
+    echo "cloning ${url} -> ${dir}"
+    exec_root "${git} clone --quiet '${url}' '${dir}'"
+  fi
+  head="$(exec_root "${git} -C '${dir}' rev-parse HEAD" | tr -d '\r\n')"
+  if [[ "${head}" == "${ref}" ]]; then
+    echo "$(basename "$dir") already at ${ref}"
+    return 0
+  fi
+  echo "$(basename "$dir") at ${head}, checking out ${ref}"
+  exec_root "${git} -C '${dir}' fetch --quiet --tags origin || true; \
+             (${git} -C '${dir}' rev-parse --is-shallow-repository | grep -q true && ${git} -C '${dir}' fetch --quiet --unshallow origin) || true; \
+             ${git} -C '${dir}' checkout --quiet --detach '${ref}' || (${git} -C '${dir}' fetch --quiet origin '${ref}' && ${git} -C '${dir}' checkout --quiet --detach FETCH_HEAD)"
+  exec_root "${git} -C '${dir}' rev-parse HEAD"
+}
 
-echo "==> Shopware version"
-exec_shop 'php bin/console --version || true'
-exec_shop 'php bin/console system:config:get core.app.shopName || true'
+plugin_state() {  # prints "installed active" flags for a plugin name: e.g. "1 1", "1 0", "0 0"
+  exec_shop "php bin/console plugin:list --json" | "$PYTHON" -c '
+import json, sys
+name = sys.argv[1]
+for plugin in json.load(sys.stdin):
+    if plugin.get("name") == name:
+        print(int(plugin.get("installedAt") is not None), int(bool(plugin.get("active"))), plugin.get("upgradeVersion") or "")
+        break
+else:
+    print("0 0")
+' "$1"
+}
 
-echo "==> Point sales-channel domains at ${SHOP_URL}"
-# Dockware defaults to http://localhost (port 80). We publish 8080:80.
-exec_root "mysql -uroot -proot shopware -e \"UPDATE sales_channel_domain SET url='${SHOP_URL}' WHERE url LIKE 'http://localhost%' OR url LIKE 'https://localhost%';\""
-exec_root "if grep -q '^APP_URL=' /var/www/html/.env; then sed -i 's|^APP_URL=.*|APP_URL=${SHOP_URL}|' /var/www/html/.env; else echo 'APP_URL=${SHOP_URL}' >> /var/www/html/.env; fi"
-exec_shop 'php bin/console cache:clear --no-warmup || true'
-
-echo "==> Enable MCP_SERVER feature flag when present (6.7.11–13)"
-exec_root "grep -q '^MCP_SERVER=' /var/www/html/.env || echo 'MCP_SERVER=1' >> /var/www/html/.env"
-# UCP SDK blocks http://localhost profile fetches unless this is on (local Docker only).
-exec_root "grep -q '^SWAG_AGENTIC_COMMERCE_UCP_PROFILE_FETCHING_DEVELOPMENT_MODE=' /var/www/html/.env || echo 'SWAG_AGENTIC_COMMERCE_UCP_PROFILE_FETCHING_DEVELOPMENT_MODE=1' >> /var/www/html/.env"
-exec_shop 'php bin/console feature:dump >/tmp/features.json 2>/dev/null || true'
-exec_shop 'php bin/console cache:clear --no-warmup || true'
-
-PLUGIN_DIR="/var/www/html/custom/plugins/SwagAgenticCommerce"
-echo "==> Install SwagAgenticCommerce"
-if ! exec_root "test -f ${PLUGIN_DIR}/composer.json"; then
-  exec_root "git clone --depth 1 '${PLUGIN_REPO}' ${PLUGIN_DIR}"
-else
-  echo "Plugin already present."
-fi
-exec_root "chown -R www-data:www-data /var/www/html/custom/plugins"
+ensure_plugin_active() {  # ensure_plugin_active NAME — install+activate, or update+activate when already installed
+  local name="$1" installed active upgrade
+  read -r installed active upgrade <<<"$(plugin_state "$name")"
+  if [[ "${installed}" == "0" ]]; then
+    console "plugin:install --activate ${name}"
+    echo "${name}: installed and activated"
+    return 0
+  fi
+  if [[ -n "${upgrade}" ]]; then
+    console "plugin:update ${name}"
+    echo "${name}: updated to ${upgrade} (migrations ran)"
+  fi
+  if [[ "${active}" == "0" ]]; then
+    console "plugin:activate ${name}"
+    echo "${name}: activated"
+  else
+    echo "${name}: installed and active"
+  fi
+}
 
 install_sdk() {
   if exec_shop 'composer show ucp-php-sdk/symfony-bundle >/dev/null 2>&1'; then
-    echo "ucp-php-sdk already installed."
+    echo "ucp-php-sdk already installed ($(exec_shop 'composer show ucp-php-sdk/symfony-bundle 2>/dev/null | grep -E "^versions" | tr -s " "' | tr -d '\r'))."
     return 0
   fi
   echo "Requiring ucp-php-sdk/symfony-bundle from Packagist..."
-  if exec_shop 'COMPOSER_MEMORY_LIMIT=-1 composer require ucp-php-sdk/symfony-bundle:">=0.0.5 <0.1.0" --no-interaction --no-scripts'; then
+  if exec_shop "COMPOSER_MEMORY_LIMIT=-1 composer require 'ucp-php-sdk/symfony-bundle:${SDK_CONSTRAINT}' --no-interaction --no-scripts"; then
     return 0
   fi
   echo "Packagist require failed; cloning SDK as path repositories."
-  exec_root "git clone --depth 1 '${SDK_REPO}' /var/www/html/custom/ucp-php-sdk"
+  exec_root "test -d ${SHOP_ROOT}/custom/ucp-php-sdk/.git || git clone --depth 1 '${SDK_REPO}' ${SHOP_ROOT}/custom/ucp-php-sdk"
   exec_shop 'composer config repositories.ucp-sdk-core "{\"type\":\"path\",\"url\":\"custom/ucp-php-sdk/packages/core\",\"options\":{\"symlink\":true,\"versions\":{\"ucp-php-sdk/core\":\"0.0.5\"}}}"'
   exec_shop 'composer config repositories.ucp-sdk-symfony "{\"type\":\"path\",\"url\":\"custom/ucp-php-sdk/packages/symfony-bundle\",\"options\":{\"symlink\":true,\"versions\":{\"ucp-php-sdk/symfony-bundle\":\"0.0.5\"}}}"'
   exec_shop 'COMPOSER_MEMORY_LIMIT=-1 composer require ucp-php-sdk/symfony-bundle:0.0.5 --no-interaction --no-scripts'
 }
 
+# ----------------------------------------------------------------------------------------
+
+step "Starting compose stack"
+"${COMPOSE[@]}" up -d
+wait_for_shop
+wait_for_mysql
+
+step "Shopware version"
+exec_shop 'php bin/console --version'
+
+step "Container .env: APP_URL, MCP_SERVER, profile dev mode, handoff secret"
+# APP_URL is an environment variable, not system config — no console command sets it.
+ensure_env_line APP_URL "${SHOP_URL}"
+# MCP_SERVER: feature flag on 6.7.11–6.7.13 (Admin MCP /api/_mcp + UCP MCP proxy). Removed in
+# 6.7.14+ where the server is always on (progressive tool discovery). compose.yaml sets it too.
+ensure_env_line MCP_SERVER 1
+# The UCP SDK refuses http://localhost agent-profile URLs unless this is on (local only).
+ensure_env_line SWAG_AGENTIC_COMMERCE_UCP_PROFILE_FETCHING_DEVELOPMENT_MODE 1
+HANDOFF_SECRET="$(container_env_value "$HANDOFF_SECRET_VAR")"
+if [[ -z "${HANDOFF_SECRET}" && -f "$GENERATED_ENV" ]]; then
+  HANDOFF_SECRET="$(grep -E "^${HANDOFF_SECRET_VAR}=" "$GENERATED_ENV" | tail -n1 | cut -d= -f2- || true)"
+fi
+if [[ ${#HANDOFF_SECRET} -lt $((HANDOFF_SECRET_BYTES * 2)) ]]; then
+  HANDOFF_SECRET="$(openssl rand -hex ${HANDOFF_SECRET_BYTES})"
+  echo "${HANDOFF_SECRET_VAR}: generated"
+else
+  echo "${HANDOFF_SECRET_VAR}: reusing existing value"
+fi
+ensure_env_line "$HANDOFF_SECRET_VAR" "${HANDOFF_SECRET}"
+export COMMERCE_AGENTS_HANDOFF_SECRET="${HANDOFF_SECRET}"
+
+step "Sales-channel domain -> ${SHOP_URL} (Admin API)"
+"$PYTHON" "$ROOT/docker/shop_domain.py" --shop-url "$SHOP_URL" --user "$ADMIN_USER" --password "$ADMIN_PASS"
+console 'cache:clear --no-warmup' >/dev/null
+
+step "SwagAgenticCommerce @ ${PLUGIN_REF}"
+ensure_repo "$PLUGIN_DIR" "$PLUGIN_REPO" "$PLUGIN_REF"
+exec_root "chown -R www-data:www-data ${SHOP_ROOT}/custom/plugins"
 if ! install_sdk; then
   echo "WARNING: could not install ucp-php-sdk. UCP plugin may fail; Store API fallback remains." >&2
 fi
+console 'plugin:refresh' >/dev/null
+ensure_plugin_active SwagAgenticCommerce
 
-exec_shop 'php bin/console plugin:refresh'
-if exec_shop 'php bin/console plugin:list --json' | grep -q 'SwagAgenticCommerce'; then
-  exec_shop 'php bin/console plugin:install --activate SwagAgenticCommerce --reinstall || php bin/console plugin:install --activate SwagAgenticCommerce || php bin/console plugin:activate SwagAgenticCommerce'
-  exec_shop 'php bin/console cache:clear'
+step "SwagMcpMerchantTools @ ${MERCHANT_TOOLS_REF}"
+ensure_repo "$MERCHANT_DIR" "$MERCHANT_TOOLS_REPO" "$MERCHANT_TOOLS_REF"
+exec_root "chown -R www-data:www-data ${MERCHANT_DIR}"
+console 'plugin:refresh' >/dev/null
+ensure_plugin_active SwagMcpMerchantTools
+
+step "CommerceAgentsHandoff (one-time handoff code -> storefront session)"
+exec_root "mkdir -p ${HANDOFF_DIR}"
+docker cp "${HANDOFF_SRC}/." "${CONTAINER}:${HANDOFF_DIR}"
+exec_root "chown -R www-data:www-data ${HANDOFF_DIR}"
+console 'plugin:refresh' >/dev/null
+ensure_plugin_active CommerceAgentsHandoff
+console 'cache:clear' >/dev/null
+
+step "Agent signing key -> agent-profile.json (exactly one signing_keys entry)"
+mkdir -p "$SECRETS_DIR"
+if [[ ! -f "$AGENT_KEY" ]]; then
+  # P-256 private key, PKCS#8 PEM — what shopware_common.http_signing.RequestSigner reads.
+  umask 077
+  openssl ecparam -name prime256v1 -genkey -noout | openssl pkcs8 -topk8 -nocrypt -out "$AGENT_KEY"
+  umask 022
+  echo "generated ${AGENT_KEY_REL}"
 else
-  echo "WARNING: SwagAgenticCommerce not listed after plugin:refresh." >&2
+  echo "reusing ${AGENT_KEY_REL}"
 fi
+chmod 600 "$AGENT_KEY"
+"$PYTHON" "$ROOT/docker/agent_key.py" write-profile --pem "$AGENT_KEY" --profile "$ROOT/agent-profile.json"
+# Shopware fetches the profile from inside the container (Apache :80). Not bind-mounted:
+# dockware chowns public/ on boot and a read-only mount exits the container.
+docker cp "$ROOT/agent-profile.json" "${CONTAINER}:${SHOP_ROOT}/public/agent-profile.json"
+exec_root "chown www-data:www-data ${SHOP_ROOT}/public/agent-profile.json"
 
-echo "==> Optional SwagMcpMerchantTools"
-MERCHANT_DIR="/var/www/html/custom/plugins/SwagMcpMerchantTools"
-if ! exec_root "test -f ${MERCHANT_DIR}/composer.json"; then
-  exec_root "git clone --depth 1 '${MERCHANT_TOOLS_REPO}' ${MERCHANT_DIR} || true"
-fi
-exec_root "chown -R www-data:www-data /var/www/html/custom/plugins"
-exec_shop 'php bin/console plugin:refresh || true'
-exec_shop 'php bin/console plugin:install --activate SwagMcpMerchantTools || true'
+step "UCP exposure on the Storefront channel (signature policy: ${SIGNATURE_POLICY}, one shop signing key, profile cache purged)"
+"$PYTHON" "$ROOT/docker/enable_ucp.py" --shop-url "$SHOP_URL" --container "$CONTAINER" \
+  --user "$ADMIN_USER" --password "$ADMIN_PASS" --signature-policy "$SIGNATURE_POLICY"
 
-echo "==> Install CommerceAgentsHandoff (adopts UCP cart token into the storefront session)"
-HANDOFF_SRC="$ROOT/docker/plugins/CommerceAgentsHandoff"
-HANDOFF_DIR="/var/www/html/custom/plugins/CommerceAgentsHandoff"
-if [[ -f "${HANDOFF_SRC}/composer.json" ]]; then
-  docker cp "${HANDOFF_SRC}/." "${CONTAINER}:${HANDOFF_DIR}"
-  exec_root "chown -R www-data:www-data ${HANDOFF_DIR}"
-  exec_shop 'php bin/console plugin:refresh || true'
-  exec_shop 'php bin/console plugin:install --activate CommerceAgentsHandoff || php bin/console plugin:activate CommerceAgentsHandoff || true'
-  exec_shop 'php bin/console cache:clear --no-warmup || true'
-fi
+step "Seed catalog: variants, Grundpreis, delivery times, shipping prices, policy CMS pages"
+"$PYTHON" "$ROOT/docker/seed_catalog.py" --shop-url "$SHOP_URL" --user "$ADMIN_USER" --password "$ADMIN_PASS"
 
-echo "==> Expose UCP on the Storefront sales channel"
-python3 "$ROOT/docker/enable_ucp.py" --shop-url "$SHOP_URL" --container "$CONTAINER"
+step "Seed order history (~40 orders / 60 days, marker customerComment=commerce-agents-seed)"
+"$PYTHON" "$ROOT/docker/seed_orders.py" --shop-url "$SHOP_URL" --user "$ADMIN_USER" --password "$ADMIN_PASS"
+echo "dal:refresh:index ..."
+console 'dal:refresh:index' >/dev/null 2>&1 || echo "WARNING: dal:refresh:index failed (search index may lag)" >&2
 
-echo "==> Seed extra catalog (variants, OOS, Grundpreis)"
-python3 "$ROOT/docker/seed_catalog.py" --shop-url "$SHOP_URL" --user "$ADMIN_USER" --password "$ADMIN_PASS"
-exec_shop 'php bin/console dal:refresh:index --no-interaction || true'
+step "docker/.generated.env for the hosts (no admin password)"
+"$PYTHON" "$ROOT/docker/write_credentials.py" --shop-url "$SHOP_URL" --user "$ADMIN_USER" --password "$ADMIN_PASS" \
+  --out "$GENERATED_ENV" --profile-url "$PROFILE_URL" --signing-key-pem-file "$AGENT_KEY_REL" --handoff-secret-from-env
 
-echo "==> Write docker/.generated.env"
-python3 "$ROOT/docker/write_credentials.py" --shop-url "$SHOP_URL" --container "$CONTAINER" --out "$ROOT/docker/.generated.env"
+step "Merchant identity: ACL role + integration claude-merchant-agent + MCP allowlist (ADR-14)"
+"$PYTHON" "$ROOT/docker/merchant_identity.py" --shop-url "$SHOP_URL" --user "$ADMIN_USER" --password "$ADMIN_PASS" \
+  --generated-env "$GENERATED_ENV"
 
-echo "==> Publish agent-profile.json into the shop (reachable as http://localhost/agent-profile.json from inside the container)"
-docker cp "$ROOT/agent-profile.json" "${CONTAINER}:/var/www/html/public/agent-profile.json"
-exec_root "chown www-data:www-data /var/www/html/public/agent-profile.json"
-exec_root "mysql -uroot -proot shopware -e \"DELETE FROM ucp_platform_profile_cache; DELETE FROM ucp_negotiation_sessions;\" || true"
-
-echo "==> Verify UCP discovery"
-if curl -fsS "${SHOP_URL}/.well-known/ucp" | head -c 400; then
-  echo
-  echo "UCP discovery OK."
+step "Signed vs unsigned UCP request (policy ${SIGNATURE_POLICY})"
+if [[ "$SIGNATURE_POLICY" == "strict" ]]; then
+  "$PYTHON" "$ROOT/docker/ucp_signed_check.py" --shop-url "$SHOP_URL" --pem "$AGENT_KEY" --profile-url "$PROFILE_URL"
 else
-  echo
-  echo "WARNING: /.well-known/ucp did not return a profile. Store API fallback still works." >&2
+  echo "skipped (policy is ${SIGNATURE_POLICY}; unsigned requests are accepted)"
 fi
 
+step "UCP discovery"
+curl -fsS "${SHOP_URL}/.well-known/ucp" | "$PYTHON" -c '
+import json, sys
+doc = json.load(sys.stdin)
+services = (doc.get("ucp") or {}).get("services", {}).get("dev.ucp.shopping", [])
+print("transports:", ", ".join(s.get("transport", "?") for s in services))
+print("shop signing keys:", ", ".join(k.get("kid", "?") for k in doc.get("signing_keys", [])))
+'
+
+echo
 echo "Bootstrap finished."
-echo "  Storefront  ${SHOP_URL}"
-echo "  Admin       ${SHOP_URL}/admin  (${ADMIN_USER} / ${ADMIN_PASS})"
-echo "  Credentials ${ROOT}/docker/.generated.env"
+echo "  Storefront   ${SHOP_URL}"
+echo "  Admin        ${SHOP_URL}/admin  (${ADMIN_USER} / ${ADMIN_PASS} — setup only; hosts use the integration)"
+echo "  Credentials  ${GENERATED_ENV}"
+echo "  Agent key    ${AGENT_KEY_REL}"
+echo "  Verify       docker/verify.sh"

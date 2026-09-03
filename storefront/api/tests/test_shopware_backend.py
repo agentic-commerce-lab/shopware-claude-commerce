@@ -83,6 +83,28 @@ async def test_a_variant_id_resolves_from_a_fresh_session_too(backend):
     assert details.in_stock is False
 
 
+async def test_a_child_that_the_shop_answers_as_itself_still_resolves_to_its_family(
+    backend, session
+):
+    # The live shop answers some variant ids with the child document (not the family);
+    # the Store API's parentId decides, so the child is never filed as a family of its
+    # siblings.
+    details = await backend.get_product_details(session, "33333333333333333333333333333333")
+    assert details is not None
+    assert details.product_id == "33333333333333333333333333333333"
+    assert details.variant_of == PRODUCT_ID
+    family = backend.products[PRODUCT_ID]
+    assert {v.product_id for v in family.variants} == {
+        VARIANT_S,
+        "33333333333333333333333333333333",
+        VARIANT_L,
+    }
+    assert (
+        "33333333333333333333333333333333" not in backend.products
+        or not backend.products["33333333333333333333333333333333"].variants
+    )
+
+
 async def test_an_unknown_product_id_is_none(backend, session):
     assert await backend.get_product_details(session, "ffffffffffffffffffffffffffffffff") is None
 

@@ -39,7 +39,10 @@
           "version": "2026-04-08",
           "spec": "https://ucp.dev/specification/discount/",
           "schema": "https://ucp.dev/2026-04-08/schemas/shopping/discount.json",
-          "extends": ["dev.ucp.shopping.cart", "dev.ucp.shopping.checkout"]
+          "extends": [
+            "dev.ucp.shopping.cart",
+            "dev.ucp.shopping.checkout"
+          ]
         }
       ],
       "dev.ucp.shopping.order": [
@@ -61,5 +64,15 @@
   },
   "name": "Shopware Claude Commerce shopping agent",
   "type": "agent",
-  "signing_keys": []
+  "signing_keys": [
+    {
+      "kid": "IJKG5cihbOBjdWYe3ndhZ-b1isKHwD58",
+      "kty": "EC",
+      "crv": "P-256",
+      "alg": "ES256",
+      "use": "sig",
+      "x": "hzSTsJhjnSlYL_P_9JM-CC9BvTvvq4P2HEIFv97O1wg",
+      "y": "oXz69pQYEYPzOlmOqgNACvf2AfZTbDQbjASvxxewA0o"
+    }
+  ]
 }

@@ -93,7 +93,7 @@ The UCP cart `id` **is** the Store API `sw-context-token` (ULID-like `01a0…` o
 
 ## Identity Linking
 
-`storefront/api/identity.py` implements UCP OAuth (authorization code + PKCE) against the shop's AS from discovery (`/ucp/oauth/authorize`, `/ucp/oauth/token`). Shopware requires the `client_id` to be an **https** agent-profile URL and signed requests; on the plain-http Docker shop `GET /api/auth/shopware/start` therefore answers `503` with the reason. `GET /api/auth/status` reports availability; when linked, `get_orders` uses the customer's Store API context.
+`storefront/api/identity.py` implements Shopware's **platform-to-shop** UCP OAuth (authorization code + PKCE S256): the customer logs in through `POST /store-api/account/login`, the host calls `GET /ucp/v1/oauth/authorize` with that `sw-context-token` (RFC 9421-signed) and receives the `code` in the JSON body — no browser hop — then `POST /ucp/v1/oauth/token` (`token_endpoint_auth_methods_supported: ["none"]`) yields access/refresh tokens for `dev.ucp.shopping.cart:manage` and `dev.ucp.shopping.order:read`. Shopware requires the `client_id` to be an **https** agent-profile URL; on the plain-http Docker shop `GET /api/auth/shopware/start` therefore answers `503` with the reason. `GET /api/auth/status` reports availability; when linked, the customer's context token becomes the session cart and `get_orders` reads that customer's orders.
 
 ## Orders
 
