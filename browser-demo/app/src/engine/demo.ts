@@ -28,6 +28,7 @@ import {
 import { Playground } from './playground';
 
 export type DemoView = 'shop' | 'shopping' | 'merchant';
+export const DEMO_VIEWS: readonly DemoView[] = ['shop', 'shopping', 'merchant'];
 export type StepState = 'pending' | 'active' | 'done' | 'error';
 export type BootStep = { id: string; label: string; state: StepState; ms?: number; detail?: string };
 export type AgentState = 'idle' | 'loading' | 'ready' | 'error';
