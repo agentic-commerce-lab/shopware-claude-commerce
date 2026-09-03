@@ -1,7 +1,12 @@
 # Copyright 2026 shopware AG
 # SPDX-License-Identifier: MIT
 
-"""Server-authored PAngV disclosures. Copy is fixed; the model never writes these lines."""
+"""Server-authored PAngV disclosures. Copy is fixed; the model never writes these lines.
+
+Two authors: the shop itself through ``SwagCommerceAgentTools``' ``shopping-disclosure``
+(:func:`disclosure_from_tool`, plugin path) or this host from a Store API product record
+and ``data/disclosure_copy.de.json`` (:func:`disclosure_from_store_product`, host path).
+"""
 
 from __future__ import annotations
 
@@ -13,6 +18,8 @@ from shopping_agent import Disclosure, DisclosureRow
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 COPY_PATH = DATA_DIR / "disclosure_copy.de.json"
+PLUGIN_SOURCE = "swag-commerce-agent-tools:shopping-disclosure"
+_TITLE_BY_LANGUAGE = {"de": "Pflichtangaben", "en": "Price and delivery information"}
 
 _DEFAULT_COPY = {
     "title": "Pflichtangaben",
@@ -68,6 +75,35 @@ def disclosure_from_store_product(product_id: str, product: dict[str, Any]) -> D
     rows.append(DisclosureRow(label="Versand", value=copy["shipping_hint"]))
     return Disclosure(
         title=copy["title"], product_id=product_id, rows=rows, sources=["shopware-store-api"]
+    )
+
+
+def disclosure_from_tool(product_id: str, data: dict[str, Any]) -> Disclosure:
+    """The plugin's rows as the blueprint's ``Disclosure``. ``text`` is the shop-authored
+    sentence (``Grundpreis: 25,80 € / 1 l``) and is relayed byte for byte as the row value;
+    a row's ``url`` (the shipping-cost page) becomes a footnote. ``product_id`` stays the id
+    the model asked for — the tool resolves a family to its best child and reports that."""
+    rows: list[DisclosureRow] = []
+    footnotes: list[str] = []
+    for row in data.get("rows") or []:
+        if not isinstance(row, dict):
+            continue
+        text = str(row.get("text") or row.get("value") or "").strip()
+        label = str(row.get("label") or row.get("key") or "").strip()
+        if not text:
+            continue
+        rows.append(DisclosureRow(label=label or text, value=text))
+        if row.get("url"):
+            footnotes.append(f"{label}: {row['url']}")
+    locale = str((data.get("_meta") or {}).get("locale") or "")
+    language = locale.split("-")[0].lower()
+    title = _TITLE_BY_LANGUAGE.get(language) or load_copy()["title"]
+    return Disclosure(
+        title=title,
+        product_id=product_id,
+        rows=rows,
+        sources=[PLUGIN_SOURCE],
+        footnotes=footnotes,
     )
 
 

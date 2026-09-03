@@ -9,7 +9,7 @@ final class StageRequest
 {
     /**
      * @param list<array<string, mixed>> $items the agent's original items (kept for audit)
-     * @param list<array<string, mixed>>|null $guardrailNotes host-side guardrail results
+     * @param list<mixed>|null $guardrailNotes host-side guardrail results (usually strings)
      */
     public function __construct(
         public readonly string $summary,

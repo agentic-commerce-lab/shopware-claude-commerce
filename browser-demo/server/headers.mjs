@@ -56,8 +56,8 @@ export function contentTypeFor(extension) {
   return MIME_TYPES[extension.toLowerCase()] || 'application/octet-stream';
 }
 
-/** Immutable caching for content-hashed Vite assets and the Pyodide distribution only. */
+/** Immutable caching for content-hashed files only (Vite assets, esbuild engine assets). */
 export function cacheControlFor(pathname) {
-  if (pathname.startsWith('/demo/assets/') || pathname.startsWith('/demo/pyodide/')) return 'public, max-age=31536000, immutable';
+  if (pathname.startsWith('/demo/assets/') || /^\/assets\/[^/]+-[A-Z0-9]{8}\.[a-z]+$/.test(pathname)) return 'public, max-age=31536000, immutable';
   return 'no-cache';
 }

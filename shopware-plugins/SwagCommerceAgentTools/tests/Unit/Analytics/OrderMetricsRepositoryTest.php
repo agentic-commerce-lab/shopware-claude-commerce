@@ -47,7 +47,7 @@ class OrderMetricsRepositoryTest extends TestCase
         });
 
         $metrics = new OrderMetricsRepository($this->registry(['order' => $orders]));
-        $totals = $metrics->totals(new \DateTimeImmutable('2026-08-01'), new \DateTimeImmutable('2026-09-01'), self::SALES_CHANNEL_ID, MetricsSegment::parse('category:' . self::CATEGORY_ID), $context);
+        $totals = $metrics->totals(self::utc('2026-08-01'), self::utc('2026-09-01'), self::SALES_CHANNEL_ID, MetricsSegment::parse('category:' . self::CATEGORY_ID), $context);
 
         static::assertSame(['revenue' => 1500.46, 'orders' => 10, 'aov' => 150.05], $totals);
 
@@ -71,7 +71,7 @@ class OrderMetricsRepositoryTest extends TestCase
         $orders = $this->repository(static fn (): AggregationResultCollection => new AggregationResultCollection([]));
         $metrics = new OrderMetricsRepository($this->registry(['order' => $orders]));
 
-        static::assertSame(['revenue' => 0.0, 'orders' => 0, 'aov' => null], $metrics->totals(new \DateTimeImmutable('2026-08-01'), new \DateTimeImmutable('2026-09-01'), null, null, Context::createDefaultContext()));
+        static::assertSame(['revenue' => 0.0, 'orders' => 0, 'aov' => null], $metrics->totals(self::utc('2026-08-01'), self::utc('2026-09-01'), null, null, Context::createDefaultContext()));
     }
 
     public function testUnitsUseLineItemsScopedToProductTypeAndOrderDate(): void
@@ -84,7 +84,7 @@ class OrderMetricsRepositoryTest extends TestCase
         });
         $metrics = new OrderMetricsRepository($this->registry(['order_line_item' => $lineItems]));
 
-        $units = $metrics->units(new \DateTimeImmutable('2026-08-01'), new \DateTimeImmutable('2026-09-01'), null, MetricsSegment::parse('sales_channel:' . self::SALES_CHANNEL_ID), Context::createDefaultContext());
+        $units = $metrics->units(self::utc('2026-08-01'), self::utc('2026-09-01'), null, MetricsSegment::parse('sales_channel:' . self::SALES_CHANNEL_ID), Context::createDefaultContext());
 
         static::assertSame(42, $units);
         static::assertInstanceOf(Criteria::class, $captured);
@@ -105,8 +105,8 @@ class OrderMetricsRepositoryTest extends TestCase
             ]),
         ]));
         $metrics = new OrderMetricsRepository($this->registry(['order' => $orders]));
-        $from = new \DateTimeImmutable('2026-08-01');
-        $to = new \DateTimeImmutable('2026-08-03');
+        $from = self::utc('2026-08-01');
+        $to = self::utc('2026-08-03');
         $context = Context::createDefaultContext();
 
         static::assertSame([
@@ -134,7 +134,7 @@ class OrderMetricsRepositoryTest extends TestCase
 
         static::assertSame(
             [['date' => '2026-08-01 00:00:00', 'value' => 7]],
-            $metrics->series(MetricName::Units, Granularity::Month, new \DateTimeImmutable('2026-08-01'), new \DateTimeImmutable('2026-09-01'), null, null, Context::createDefaultContext()),
+            $metrics->series(MetricName::Units, Granularity::Month, self::utc('2026-08-01'), self::utc('2026-09-01'), null, null, Context::createDefaultContext()),
         );
     }
 
@@ -143,7 +143,7 @@ class OrderMetricsRepositoryTest extends TestCase
         $orders = $this->repository(static fn (): AggregationResultCollection => new AggregationResultCollection([]));
         $metrics = new OrderMetricsRepository($this->registry(['order' => $orders]));
 
-        static::assertSame([], $metrics->series(MetricName::Sales, Granularity::Day, new \DateTimeImmutable('2026-08-01'), new \DateTimeImmutable('2026-08-02'), null, null, Context::createDefaultContext()));
+        static::assertSame([], $metrics->series(MetricName::Sales, Granularity::Day, self::utc('2026-08-01'), self::utc('2026-08-02'), null, null, Context::createDefaultContext()));
     }
 
     public function testSegmentParsing(): void
@@ -182,6 +182,17 @@ class OrderMetricsRepositoryTest extends TestCase
         $repository->method('aggregate')->willReturnCallback($aggregate);
 
         return $repository;
+    }
+
+    /**
+     * A period boundary in UTC. The repository formats the boundaries it is given with
+     * their own offset (ReportingPeriod builds them in the clock's zone); the shop container
+     * runs date.timezone=Europe/Berlin, so a naive `new \DateTimeImmutable('2026-08-01')`
+     * would carry +02:00 there and +00:00 on a UTC host.
+     */
+    private static function utc(string $date): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable($date, new \DateTimeZone('UTC'));
     }
 
     /**

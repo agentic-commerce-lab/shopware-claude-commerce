@@ -186,3 +186,19 @@ def _category_of(title: str) -> str | None:
         if any(needle in lowered for needle in needles):
             return category
     return None
+
+
+def policy_from_tool_row(row: dict) -> Policy:
+    """A ``shopping-policy-search`` row (``SwagCommerceAgentTools``) as the blueprint's
+    ``Policy``. The plugin's ``category`` names the navigation the page came from
+    (``footer-navigation`` / ``service-navigation`` / ``landing-page``); the host keeps its
+    topical category (returns / shipping / …) derived from the title, so the model sees the
+    same vocabulary on both paths, and falls back to the plugin's when the title says
+    nothing."""
+    title = str(row.get("title") or row.get("policy_id") or "Policy")
+    return Policy(
+        policy_id=str(row.get("policy_id") or title),
+        title=title,
+        category=_category_of(title) or (str(row["category"]) if row.get("category") else None),
+        content=str(row.get("content") or "")[:MAX_POLICY_CHARS],
+    )

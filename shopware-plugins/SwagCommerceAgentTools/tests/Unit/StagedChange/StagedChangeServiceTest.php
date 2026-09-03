@@ -7,6 +7,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Shopware\Core\Content\Product\ProductCollection;
+use Shopware\Core\Content\Product\ProductEntity;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\DefinitionInstanceRegistry;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
@@ -24,6 +25,7 @@ use Swag\CommerceAgentTools\StagedChange\ChangePlan;
 use Swag\CommerceAgentTools\StagedChange\ChangeStatus;
 use Swag\CommerceAgentTools\StagedChange\Entity\AgentStagedChangeCollection;
 use Swag\CommerceAgentTools\StagedChange\Entity\AgentStagedChangeEntity;
+use Swag\CommerceAgentTools\StagedChange\RebasedPayload;
 use Swag\CommerceAgentTools\StagedChange\StagedChangeException;
 use Swag\CommerceAgentTools\StagedChange\StagedChangeService;
 use Swag\CommerceAgentTools\StagedChange\StagedChangeStateMachine;
@@ -38,6 +40,7 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 #[CoversClass(ActorResolver::class)]
 #[CoversClass(AgentStagedChangeEntity::class)]
 #[CoversClass(StageRequest::class)]
+#[CoversClass(RebasedPayload::class)]
 class StagedChangeServiceTest extends TestCase
 {
     /** @var EntityRepository<AgentStagedChangeCollection>&MockObject */
@@ -127,6 +130,8 @@ class StagedChangeServiceTest extends TestCase
         $applied = ChangeFixtures::change(ChangeStatus::Applied);
         $applied->setAppliedBy(ChangeFixtures::USER_ID);
         $this->changeRepository->method('search')->willReturn(ChangeFixtures::searchResult($context, $applied));
+        // The stock is still where staging saw it (3): the restock lands on the previewed level.
+        $this->productRepository->method('search')->willReturn($this->productsWithStock($context, 3));
 
         $this->productRepository->expects($this->once())->method('upsert')
             ->with([['id' => ChangeFixtures::PRODUCT_ID, 'stock' => 28]], $context)
@@ -137,7 +142,8 @@ class StagedChangeServiceTest extends TestCase
                 && $payload[0]['status'] === 'applied'
                 && $payload[0]['appliedBy'] === ChangeFixtures::USER_ID
                 && $payload[0]['appliedAt'] instanceof \DateTimeImmutable
-                && $payload[0]['errorMessage'] === null),
+                && $payload[0]['errorMessage'] === null
+                && !\array_key_exists('guardrailNotes', $payload[0])),
             $context,
         );
 
@@ -148,6 +154,73 @@ class StagedChangeServiceTest extends TestCase
         static::assertInstanceOf(AgentChangeAppliedEvent::class, $this->dispatched[0]);
         static::assertSame('swag.agent.change.applied', $this->dispatched[0]->getName());
         static::assertSame('user', $this->dispatched[0]->getActorKind());
+    }
+
+    public function testApplyRestocksOnTheCurrentLevelAndNotesAMovedBase(): void
+    {
+        // Staged as 3 → 28 (+25); two units sold in between, so the write is 1 + 25 = 26.
+        $context = ChangeFixtures::adminContext([]);
+        $staged = ChangeFixtures::change();
+        $staged->setGuardrailNotes(['host: within the restock cap']);
+        $this->changeRepository->method('search')->willReturn(ChangeFixtures::searchResult($context, ChangeFixtures::change(ChangeStatus::Applied)));
+        $this->productRepository->method('search')->willReturn($this->productsWithStock($context, 1));
+
+        $this->productRepository->expects($this->once())->method('upsert')
+            ->with([['id' => ChangeFixtures::PRODUCT_ID, 'stock' => 26]], $context)
+            ->willReturn($this->writtenEvent($context));
+        $this->changeRepository->expects($this->once())->method('update')->with(
+            $this->callback(static fn (array $payload): bool => $payload[0]['status'] === 'applied'
+                && $payload[0]['guardrailNotes'] === [
+                    'host: within the restock cap',
+                    'stock on ' . ChangeFixtures::PRODUCT_ID . ' moved from 3 to 1 since staging; applied +25 on the current level → 26',
+                ]),
+            $context,
+        );
+
+        $this->service()->apply($staged, $context);
+    }
+
+    public function testDryRunWriteUsesTheRebasedRestockToo(): void
+    {
+        $context = ChangeFixtures::adminContext([]);
+        $this->productRepository->method('search')->willReturn($this->productsWithStock($context, 10));
+        $this->productRepository->expects($this->once())->method('upsert')
+            ->with([['id' => ChangeFixtures::PRODUCT_ID, 'stock' => 35]], $context)
+            ->willReturn($this->writtenEvent($context));
+
+        $this->service()->executeWrite(ChangeFixtures::change(), $context);
+    }
+
+    public function testNonRestockPayloadsAreReplayedAsStaged(): void
+    {
+        $context = ChangeFixtures::adminContext([]);
+        $change = ChangeFixtures::change();
+        $change->setKind('price_update');
+        $change->setPayload([['id' => ChangeFixtures::PRODUCT_ID, 'price' => [['currencyId' => 'c', 'gross' => 9.9, 'net' => 8.32, 'linked' => true]]]]);
+        $change->setPreview([['target' => ChangeFixtures::PRODUCT_ID, 'targetLabel' => 'Hocker', 'field' => 'price.gross', 'before' => 8.9, 'after' => 9.9]]);
+        $this->productRepository->expects($this->never())->method('search');
+
+        $rebased = $this->service()->rebaseRestock($change, $context);
+
+        static::assertSame($change->getPayload(), $rebased->payload);
+        static::assertSame([], $rebased->notes);
+    }
+
+    public function testApplyRecordsAVanishedRestockTargetAndKeepsStatusStaged(): void
+    {
+        $context = ChangeFixtures::adminContext([]);
+        $this->productRepository->method('search')->willReturn($this->productsWithStock($context, null));
+        $this->productRepository->expects($this->never())->method('upsert');
+        $this->changeRepository->expects($this->once())->method('update')->with(
+            $this->callback(static fn (array $payload): bool => $payload[0]['id'] === ChangeFixtures::CHANGE_ID
+                && str_contains((string) $payload[0]['errorMessage'], 'do not exist')),
+            $context,
+        );
+
+        $this->expectException(StagedChangeException::class);
+        $this->expectExceptionCode(StagedChangeException::CODE_PRODUCTS_MISSING);
+
+        $this->service()->apply(ChangeFixtures::change(), $context);
     }
 
     #[DataProvider('terminalStatusProvider')]
@@ -187,6 +260,7 @@ class StagedChangeServiceTest extends TestCase
     public function testApplyRecordsWriteFailureAndKeepsStatusStaged(): void
     {
         $context = ChangeFixtures::adminContext([]);
+        $this->productRepository->method('search')->willReturn($this->productsWithStock($context, 3));
         $this->productRepository->method('upsert')->willThrowException(new \RuntimeException('stock must be >= 0'));
 
         $this->changeRepository->expects($this->once())->method('update')->with(
@@ -272,5 +346,25 @@ class StagedChangeServiceTest extends TestCase
     private function writtenEvent(Context $context): EntityWrittenContainerEvent
     {
         return new EntityWrittenContainerEvent($context, new NestedEventCollection([]), []);
+    }
+
+    /**
+     * The product repository's answer to the apply-time stock read: the fixture product
+     * with the given stock, or no product at all when `null` (it was deleted meanwhile).
+     *
+     * @return EntitySearchResult<ProductCollection>
+     */
+    private function productsWithStock(Context $context, ?int $stock): EntitySearchResult
+    {
+        $products = [];
+        if ($stock !== null) {
+            $product = new ProductEntity();
+            $product->setId(ChangeFixtures::PRODUCT_ID);
+            $product->setUniqueIdentifier(ChangeFixtures::PRODUCT_ID);
+            $product->setStock($stock);
+            $products[] = $product;
+        }
+
+        return new EntitySearchResult('product', \count($products), new ProductCollection($products), null, new Criteria(), $context);
     }
 }

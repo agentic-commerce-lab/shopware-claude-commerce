@@ -29,7 +29,7 @@ class AgentStagedChangeEntity extends Entity
     /** @var list<array<string, mixed>>|null */
     protected ?array $preview = null;
 
-    /** @var list<array<string, mixed>>|null */
+    /** @var list<mixed>|null host-side guardrail lines (strings) plus apply-time notes */
     protected ?array $guardrailNotes = null;
 
     protected string $createdBy;
@@ -157,7 +157,7 @@ class AgentStagedChangeEntity extends Entity
     }
 
     /**
-     * @return list<array<string, mixed>>|null
+     * @return list<mixed>|null
      */
     public function getGuardrailNotes(): ?array
     {
@@ -165,7 +165,7 @@ class AgentStagedChangeEntity extends Entity
     }
 
     /**
-     * @param list<array<string, mixed>>|null $guardrailNotes
+     * @param list<mixed>|null $guardrailNotes
      */
     public function setGuardrailNotes(?array $guardrailNotes): void
     {

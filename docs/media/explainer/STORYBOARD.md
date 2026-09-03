@@ -15,7 +15,7 @@ language: en
 - **Type by role:** `display` / `headline` Inter 400 sentence case, negative tracking, for every statement; `kicker` JetBrains Mono uppercase 0.16em with the blue ✱ opens each frame's region; `code` JetBrains Mono for terminals, endpoints, JSON, repo names; `body` / `lead` Inter 400. Weights 400 and 700 only. Legibility floor 1.4cqw for load-bearing text.
 - **Motion grammar + reveal model:** long-tail `power3` settles (`expo.out` on a fast arrival); no overshoot, no bounce. Every frame reveals on the VO: at t=0 only what the voice is saying; each further element enters on its spoken cue, most of them in the back half; the final window is a held read. During a hold: stillness, or subtle jitter / a live SVG internal at most — no breathing, no back-half pan or push. Entrances are `fromTo`; internal seams are velocity-matched cuts (`cut-catalog.md`). Between-frame transitions are story's `transition_in`, injected by the harness.
 - **Rhythm / held frames:** Frame 2 (statement) and Frame 7 (safety relay) are the deliberate held reads — few elements, long holds; Frame 12 holds its lockup for the tail. Frames 4, 5, 8, 9, 10, 11 are the dense, continuously developing shots.
-- **Live-capture slots (v3 draft):** Frame 8 (`#f08-slot-chat`) and Frame 9 (`#f09-slot-portal`) carry HTML recreations tagged `recreation · live capture pending`. The final render swaps the slot contents for real captures of `localhost:3005` (assistant chat turn) and `localhost:3006` (merchant portal, staged price change approved) **without changing the frame durations or cue times** — the voice is locked.
+- **Live-capture slots (v3 final):** Frame 8 (`#f08-slot-chat`) and Frame 9 (`#f09-slot-portal`) are filled with real captures taken 2026-09-03 (`data-slot-state="live"`): `localhost:3005` assistant turn ("I'm looking for a t-shirt in size M" → card → Add to cart → cart drawer → Shopware checkout) and `localhost:3006` merchant portal (dashboard + briefing → "Raise the price of the olive oil to 13.90 €" → staged card from Shopware's dry-run preview → Approve → applied). The draft's HTML recreations were replaced **without changing the frame durations or cue times** — the voice is locked.
 - **Caption band:** bottom ~17% (below y≈896px) stays clear on every frame; content lives in the top ~83%.
 - **Negative list:** no pure white / pure black grounds, no purple-blue "AI" gradients, bokeh, glows over 0.45 opacity, or decorative shapes standing in for a real asset; no browser chrome, real cursors, scrollbars, nav bars; no slideshow (front-load then freeze) and no screensaver (elements floating independently); no `repeat: -1`, no `Math.random`, no CSS transitions on animated elements; no fabricated numbers — every figure on screen traces to the repo or the captured shop (prices, totals, endpoint names, capability names, version `2026-04-08`).
 
@@ -202,7 +202,7 @@ Scene 5 (13.1–16.3s): hard cut to the locked finale — "Checkout completes in
 
 ## Frame 8 — Demo: shop to checkout
 
-- scene: Captured screens held as hero in a floating window: the product grid with the assistant rail → the assistant turn appears in the rail (**live-capture slot `#f08-slot-chat`**: HTML recreation in the draft, tagged; real `localhost:3005` chat capture in the final) → the cart drawer with "Check out on Shopware" → cut to the real Shopware checkout showing the same cart (CA-TSHIRT, €59.98).
+- scene: Captured screens held as hero in a floating window: the product grid with the assistant rail showing the real turn (**live-capture slot `#f08-slot-chat`, live**: "I'm looking for a t-shirt in size M" → "We've got the Claude Commerce T-Shirt in size M, in stock for €29.99" + product card → Add to cart → "Added the Claude Commerce T-Shirt (M) to your cart — subtotal is now €29.99") → the cart drawer with "Checkout in Shopware" → cut to the real Shopware checkout showing the same cart (CA-TSHIRT-M ×1, €29.99).
 - voiceover: "Watch it run. Search the live catalog. Add to a real Shopware cart. Then — Check out on Shopware. Same cart, same total — in the shop's own checkout."
 - duration: 9.92s
 - transition_in: crossfade
@@ -213,22 +213,22 @@ Scene 5 (13.1–16.3s): hard cut to the locked finale — "Checkout completes in
 - beat: excitement → trust
 - blueprint: device-surface-showcase (Adapt)
 - focal: assets/ui-cart-open.png
-- roles: ui-grid-cart.png = cutout (the floating window's first screen) · ui-cart-open.png = cutout (second screen, the hero) · shopware-checkout.png = cutout (third screen, the payoff)
+- roles: ui-grid-reply.png / ui-grid-added.png = cutout (the floating window's first screen, live chat turn in two states) · ui-cart-open.png = cutout (second screen, the hero) · shopware-checkout.png = cutout (third screen, the payoff)
 - sfx: none
-- asset_candidates: assets/ui-grid-cart.png — shopping UI with product grid and assistant rail; assets/ui-cart-open.png — cart drawer with Claude Commerce T-Shirt and "Check out on Shopware"; assets/shopware-checkout.png — real Shopware checkout with the same cart (CA-TSHIRT, €59.98)
+- asset_candidates: assets/ui-grid-reply.png — storefront grid + assistant reply with the size-M card; assets/ui-grid-added.png — same, after "Add to cart" (subtotal €29.99); assets/ui-cart-open.png — cart drawer with Claude Commerce T-Shirt — M and "Checkout in Shopware"; assets/shopware-checkout.png — real Shopware checkout with the same cart (CA-TSHIRT-M, €29.99)
 
 narrativeRole: The shopping proof: the loop from Frame 3 on real screens, ending in Shopware.
 keyMessage: The cart the agent built is the cart Shopware checks out.
 
-Adapt: a floating window held as hero while its screens cycle through a real flow, cursorless. The assistant turn sits in the slot `#f08-slot-chat` (rail area of the window): draft = compact HTML card tagged `recreation · live capture pending`; final = the captured chat turn image, same position, same cue (@1.03). Camera: one push-in onto the cart drawer at the handoff, then a hard cut to the checkout screen.
-Scene 1 (0.0–2.6s): kicker `✱ DEMO · SHOPPING AGENT`; the floating window pops in with `ui-grid-cart.png`; label `localhost:3005 · storefront/web`.
-Scene 2 (2.6–5.4s): on "Search the live catalog" (@1.03) the slot content rises in the rail; on "Add to a real Shopware cart" (@2.75) a `coral` ring draws around the T-Shirt card.
-Scene 3 (5.4–8.6s): hard cut inside the window to `ui-cart-open.png`; zoom toward the drawer; on "Check out on Shopware" (@5.14) a blue ring draws around the button — the frame's one blue.
-Scene 4 (8.6–9.9s): on "Same cart, same total" (@6.65) inverse zoom-through to `shopware-checkout.png`; label swaps to `localhost:8080 · Shopware checkout`; callouts `Grand total €59.98 — same cart` (@7.70) and `CA-TSHIRT · quantity 2` (@8.54). Hold.
+Adapt: a floating window held as hero while its screens cycle through a real flow, cursorless. The slot `#f08-slot-chat` is the window's first screen in two captured states (`ui-grid-reply.png` → `ui-grid-added.png`), same cues as the draft (@1.03 reply on screen, @2.9 the "Added" turn fades in). Camera: one push-in onto the cart drawer at the handoff, then a hard cut to the checkout screen.
+Scene 1 (0.0–2.6s): kicker `✱ DEMO · SHOPPING AGENT`; the floating window pops in with `ui-grid-reply.png`; label `localhost:3005 · storefront/web`.
+Scene 2 (2.6–5.4s): the reply with the size-M card is on screen for "Search the live catalog" (@1.03); on "Add to a real Shopware cart" (@2.75) a blue ring draws around the product card and `ui-grid-added.png` fades in ("Added … subtotal is now €29.99").
+Scene 3 (5.4–8.6s): hard cut inside the window to `ui-cart-open.png`; zoom toward the drawer; on "Check out on Shopware" (@5.14) a blue ring draws around the "Checkout in Shopware" button — the frame's one blue.
+Scene 4 (8.6–9.9s): on "Same cart, same total" (@6.65) inverse zoom-through to `shopware-checkout.png`; label swaps to `localhost:8080 · Shopware checkout`; callouts `Total €29.99 — same cart` (@7.70) and `CA-TSHIRT-M · quantity 1` (@8.54). Hold.
 
 ## Frame 9 — Demo: stage, approve, apply
 
-- scene: The merchant proof in a floating window (**live-capture slot `#f09-slot-portal`**: HTML recreation of the staged-change card in the draft, tagged; real `localhost:3006` portal capture — dashboard + assistant rail with a staged price change approved — in the final). Draft content: `stage_price_update` → Admin MCP `shopware-entity-upsert · dryRun=true` → StagedChange {before 29.99, after 27.99} → `pending approval` → approve → the same payload replayed `dryRun=false` → `applied`.
+- scene: The merchant proof on the real portal (**live-capture slot `#f09-slot-portal`, live**: `localhost:3006` window left — dashboard + assistant rail after the morning briefing → "1 change awaiting approval" → applied; the staged-change card from the rail pulled out as a zoom on the right — `Awaiting approval · 12,90 € → 13,90 € · SHOPWARE PREVIEW: CA-OIL 12.90 → 13.90 EUR · preview: server dry-run OK · Approve / Dismiss · Nothing applies until you approve` → `Approved · applied: wrote product · Approved by ops@example.com`). Transport chips under the window: `POST /api/_mcp · tools/call shopware-entity-upsert · dryRun=true → 0 writes` and `POST /api/merchant/changes/{id}/apply · 200 applied`.
 - voiceover: "A price change is staged as a server-side dry run over the Admin MCP — before and after become the diff. Nothing touches the shop until someone approves. Then one call replays it."
 - duration: 13.013s
 - transition_in: push-slide LEFT
@@ -238,19 +238,20 @@ Scene 4 (8.6–9.9s): on "Same cart, same total" (@6.65) inverse zoom-through to
 - persuasion: Show-don't-tell of the approval gate itself — and of the dry run that produces the diff
 - beat: control
 - blueprint: agent-progress-theater (Adapt)
-- focal: (HTML-built staged-change card in the slot; portal capture in the final)
-- roles: none
+- focal: assets/portal-card-staged.png
+- roles: portal-briefing.png / portal-staged.png / portal-applied.png = cutout (the portal window in three captured states) · portal-card-staged.png / portal-card-applied.png = cutout (the rail card zoom, the hero)
 - sfx: none
+- asset_candidates: assets/portal-briefing.png — merchant dashboard with KPI row, "Needs you today" and the assistant's morning briefing; assets/portal-staged.png — same, with "1 change awaiting approval" and the staged card in the rail; assets/portal-applied.png — after Approve; assets/portal-card-staged.png — the staged card (Awaiting approval, 12,90 → 13,90, Shopware preview, Approve/Dismiss); assets/portal-card-applied.png — the card after apply (Approved, applied: wrote product)
 
 narrativeRole: The merchant proof: stage (server dry run) → diff → approve → replay, using the real tool, change shape and route names (docs/shopware-mapping.md, ADR-12).
 keyMessage: Staging writes nothing — the dry run returns the diff; only an approved apply replays the payload for real.
 
-Adapt: a trigger hands the frame to the machine, status theater, then a receipt whose rows check off. Everything inside the window is the slot `#f09-slot-portal`; the frame's cues stay when the slot content is swapped for the portal capture (callouts replace the receipt rows at the same times). Values illustrative for the seeded catalog, tagged `example values`.
-Scene 1 (0.0–1.9s): kicker `✱ DEMO · MERCHANT AGENT`; the call `stage_price_update(listing="Claude Commerce T-Shirt", price=27.99)` types on; the window pops with an empty StagedChange panel (`staging…`).
-Scene 2 (1.9–5.7s): on "server-side dry run over the Admin MCP" (@1.89) the transport chip lands: `POST /api/_mcp · tools/call shopware-entity-upsert · dryRun=true`; rows target · field land.
-Scene 3 (5.7–8.0s): on "before and after become the diff" (@5.73) rows `before 29.99 EUR` / `after 27.99 EUR` land with a highlight sweep; `guardrails ok · −6.7 % within cap`; status flips to `pending approval`.
-Scene 4 (8.0–11.2s): on "Nothing touches the shop until someone approves" (@7.99) the host log reveals `dryRun=true → 0 writes`, `ledger: staged`, `approval: required (portal)`; the gate icon draws on.
-Scene 5 (11.2–13.0s): on "Then one call replays it" (@11.19) the log types `POST /api/merchant/changes/{id}/apply` → `shopware-entity-upsert · dryRun=false · same payload` → `200 · ledger: applied`; status flips to `applied` (success green); the panel's top rule turns `coral` — the frame's one blue. Hold.
+Adapt: a trigger hands the frame to the machine, status theater, then a receipt — all on the real portal. Everything inside `#f09-slot-portal` is captured footage (portal window left, rail-card zoom right); the draft's cues were kept exactly. Real values from the live shop (CA-OIL 12.90 → 13.90 EUR); the price was reverted afterwards.
+Scene 1 (0.0–1.9s): kicker `✱ DEMO · MERCHANT AGENT`; label `localhost:3006 · merchant/web · live capture`; the merchant's request `› Raise the price of the olive oil to 13.90 €` types on; the portal window (dashboard + briefing in the rail, `portal-briefing.png`) settles in.
+Scene 2 (1.9–5.7s): on "server-side dry run over the Admin MCP" (@1.89) the transport chip lands under the window: `POST /api/_mcp · tools/call shopware-entity-upsert · dryRun=true → 0 writes`.
+Scene 3 (5.7–8.0s): on "before and after become the diff" (@5.73) the window shows `portal-staged.png` ("1 change awaiting approval"); a lead line pulls the staged card out of the rail as a zoom (`portal-card-staged.png`): `12,90 € → 13,90 €`, `SHOPWARE PREVIEW · server dry-run OK — would write product, product_translation`.
+Scene 4 (8.0–11.2s): on "Nothing touches the shop until someone approves" (@7.99) hold on the card — `Awaiting approval`, `Approve / Dismiss`, "Nothing applies until you approve." — with a slow push-in.
+Scene 5 (11.2–13.0s): on "Then one call replays it" (@11.19) the second chip types `POST /api/merchant/changes/{id}/apply` → `200 applied`; the card flips to `portal-card-applied.png` (`Approved · applied: wrote product · Approved by ops@example.com`); the window shows `portal-applied.png`; the window's top rule turns `coral` — the frame's one blue. Hold.
 
 ## Frame 10 — Build your own
 

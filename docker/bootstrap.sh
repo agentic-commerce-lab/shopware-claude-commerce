@@ -4,6 +4,9 @@
 # Idempotent and re-runnable: every step looks before it writes, so running it twice
 # yields the same state (one agent signing key, one shop signing key, one integration,
 # one ACL role, no duplicate products/CMS pages/orders). See docker/README.md.
+#
+# Plugins: SwagAgenticCommerce + SwagMcpMerchantTools (pinned clones), CommerceAgentsHandoff
+# (docker/plugins) and SwagCommerceAgentTools (shopware-plugins/, this repo's agent tools).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -28,6 +31,13 @@ PLUGIN_DIR="${SHOP_ROOT}/custom/plugins/SwagAgenticCommerce"
 MERCHANT_DIR="${SHOP_ROOT}/custom/plugins/SwagMcpMerchantTools"
 HANDOFF_SRC="$ROOT/docker/plugins/CommerceAgentsHandoff"
 HANDOFF_DIR="${SHOP_ROOT}/custom/plugins/CommerceAgentsHandoff"
+# SwagCommerceAgentTools (this repo): Store API MCP tools for the shopping agent and Admin
+# MCP tools for the merchant agent (staged-change ledger swag_agent_staged_change, analytics).
+AGENT_TOOLS_NAME="SwagCommerceAgentTools"
+AGENT_TOOLS_SRC="$ROOT/shopware-plugins/${AGENT_TOOLS_NAME}"
+AGENT_TOOLS_DIR="${SHOP_ROOT}/custom/plugins/${AGENT_TOOLS_NAME}"
+# Development leftovers that must not travel into the shop (the container has its own vendor/).
+AGENT_TOOLS_EXCLUDES=(--exclude='./vendor' --exclude='./.phpunit.cache' --exclude='./.phpstan.cache' --exclude='./phpstan.neon' --exclude='./composer.lock')
 
 GENERATED_ENV="$ROOT/docker/.generated.env"
 SECRETS_DIR="$ROOT/secrets"
@@ -220,6 +230,31 @@ exec_root "chown -R www-data:www-data ${HANDOFF_DIR}"
 console 'plugin:refresh' >/dev/null
 ensure_plugin_active CommerceAgentsHandoff
 console 'cache:clear' >/dev/null
+
+step "${AGENT_TOOLS_NAME} (Store API + Admin MCP agent tools, ledger swag_agent_staged_change)"
+if [[ ! -f "${AGENT_TOOLS_SRC}/composer.json" ]]; then
+  echo "plugin source missing at ${AGENT_TOOLS_SRC}" >&2
+  exit 1
+fi
+# Mirror the repo folder into the container (a symlink cannot cross the Docker boundary and a
+# bind mount would be chowned by dockware on boot): wipe, then stream a tar without vendor/
+# and caches, so files removed from the repo do not linger in the shop.
+exec_root "rm -rf ${AGENT_TOOLS_DIR} && mkdir -p ${AGENT_TOOLS_DIR}"
+# COPYFILE_DISABLE / --no-xattrs: macOS bsdtar would otherwise add AppleDouble `._*` twins,
+# which Shopware's migration loader then tries to load as PHP classes.
+COPYFILE_DISABLE=1 tar --no-xattrs -C "$AGENT_TOOLS_SRC" "${AGENT_TOOLS_EXCLUDES[@]}" -cf - . \
+  | docker exec -i -u root "$CONTAINER" tar --no-xattrs -C "$AGENT_TOOLS_DIR" -xf -
+exec_root "chown -R www-data:www-data ${AGENT_TOOLS_DIR}"
+console 'plugin:refresh' >/dev/null
+ensure_plugin_active "$AGENT_TOOLS_NAME"
+# plugin:install/update run the migrations; this is the no-op re-check for a re-run with
+# unchanged version (a new migration without a version bump still lands).
+if ! migrate_output="$(console "database:migrate --all ${AGENT_TOOLS_NAME}" 2>&1)"; then
+  echo "${migrate_output}" >&2
+  exit 1
+fi
+console 'cache:clear' >/dev/null
+echo "debug:mcp: $(exec_shop 'php bin/console debug:mcp' | grep -c -E '^\| agent-' | tr -d '[:space:]') Admin agent tools registered (Store API tools are listed by /store-api/_mcp only)"
 
 step "Agent signing key -> agent-profile.json (exactly one signing_keys entry)"
 mkdir -p "$SECRETS_DIR"

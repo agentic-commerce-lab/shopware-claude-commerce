@@ -8,6 +8,10 @@
 #      upsert ok, `user` search refused (docker/merchant_identity.py --verify-only)
 #   5. Handoff code round trip: POST -> /checkout/confirm, replay/GET -> /checkout/cart
 #   6. Idempotency counts: one integration/role/product/CMS page/... (docker/verify_state.py)
+#   7. SwagCommerceAgentTools: /store-api/_mcp lists shopping-policy-search, -disclosure,
+#      -fulfillment-options (each called once); /api/_mcp lists agent-change-*,
+#      agent-business-snapshot, agent-metrics-series (read tools called once)
+#      (docker/agent_tools_check.py). 6.7.13 lists every tool directly (McpToolGroup inert).
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -86,6 +90,13 @@ if "$PYTHON" "$ROOT/docker/verify_state.py" --shop-url "$SHOP_URL" --container "
   pass "no duplicates after re-runs"
 else
   fail "idempotency counts"
+fi
+
+section "7. Agent tools (SwagCommerceAgentTools)"
+if "$PYTHON" "$ROOT/docker/agent_tools_check.py" --shop-url "$SHOP_URL" --generated-env "$GENERATED_ENV"; then
+  pass "shopping-* on /store-api/_mcp and agent-* on /api/_mcp listed and answering"
+else
+  fail "agent tools check"
 fi
 
 echo

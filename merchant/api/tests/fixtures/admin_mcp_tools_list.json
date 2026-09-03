@@ -1,5 +1,5 @@
 {
-  "_note": "Live tools/list from /api/_mcp as admin (full allowlist). The claude-merchant-agent integration sees the subset in docs/shopware-mapping.md.",
+  "_note": "Live tools/list from /api/_mcp as admin (full allowlist). The claude-merchant-agent integration sees the subset in docs/shopware-mapping.md. The agent-* tools are SwagCommerceAgentTools (this repo, shopware-plugins/) recorded 2026-09-03 through the integration token; FakeAdmin lists them only with agent_tools=True.",
   "endpoint": "/api/_mcp",
   "shopware": "6.7.13.0 (dockware/shopware:6.7.13.0, MCP_SERVER=1)",
   "recorded": "2026-09-03",
@@ -581,6 +581,166 @@
         }
       },
       "description": "Read or update theme appearance settings (colors, logos, fonts) for a sales channel. Use action \"get\" to read the current theme config. Use action \"update\" with a config JSON to change values; dryRun=true (default) previews changes. Pass a salesChannelId to scope to a specific channel (see shopware://sales-channels for IDs)."
+    },
+    {
+      "name": "agent-business-snapshot",
+      "title": "Business Snapshot",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "string",
+            "default": "30d"
+          },
+          "salesChannelId": {
+            "type": "string",
+            "default": ""
+          }
+        }
+      },
+      "description": "The merchant's daily digest numbers in one call: revenue, order count, average order value and units sold for a period (default 30d) with the change versus the previous period. Traffic and conversion rate are returned as null with a note because Shopware core does not measure them. Use agent-metrics-series when a value per day, week or month is needed."
+    },
+    {
+      "name": "agent-change-apply",
+      "title": "Apply Agent Change",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "changeId": {
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "changeId"
+        ]
+      },
+      "description": "Approves a staged agent change and writes it to the live catalog. Refuses changes that are not in status \"staged\". dryRun=true (default) re-runs the write in a rolled-back transaction and returns the preview without changing anything; dryRun=false performs the write, marks the change as applied and stamps the approving principal. Only the approver should call this with dryRun=false; the agent that staged the change must not."
+    },
+    {
+      "name": "agent-change-discard",
+      "title": "Discard Agent Change",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "changeId": {
+            "type": "string"
+          },
+          "dryRun": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "changeId"
+        ]
+      },
+      "description": "Rejects a staged agent change so it is never written; the catalog stays untouched. Refuses changes that are not in status \"staged\". dryRun=true (default) only reports what would happen; dryRun=false marks the change as discarded and stamps the principal."
+    },
+    {
+      "name": "agent-change-list",
+      "title": "List Agent Changes",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "default": "staged"
+          },
+          "limit": {
+            "type": "integer",
+            "default": 25
+          },
+          "page": {
+            "type": "integer",
+            "default": 1
+          }
+        }
+      },
+      "description": "Shows the changes agents have proposed for this shop and their approval state: pending (staged), already applied, or discarded. Each entry carries the before/after preview and who staged or approved it. Filter by status \"staged\" (default), \"applied\", \"discarded\" or \"all\". Read-only."
+    },
+    {
+      "name": "agent-change-stage",
+      "title": "Stage Agent Change",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "items": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string",
+            "default": ""
+          },
+          "guardrailNotes": {
+            "type": "string",
+            "default": ""
+          },
+          "salesChannelId": {
+            "type": "string",
+            "default": ""
+          },
+          "currency": {
+            "type": "string",
+            "default": ""
+          },
+          "margins": {
+            "type": "string",
+            "default": ""
+          },
+          "dryRun": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "kind",
+          "items",
+          "summary"
+        ]
+      },
+      "description": "Proposes a catalog change for human approval instead of writing it: listing text (listing_update), prices (price_update) or stock/activation (inventory_action). Returns a server-computed before/after preview for every field, produced by running the real write in a rolled-back transaction. With dryRun=true (default) nothing is stored; dryRun=false records the change as \"staged\" for agent-change-apply. This tool never modifies products itself. Items are a JSON array; see the plugin README for the per-kind item shape."
+    },
+    {
+      "name": "agent-metrics-series",
+      "title": "Metrics Series",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "metric": {
+            "type": "string"
+          },
+          "period": {
+            "type": "string",
+            "default": "30d"
+          },
+          "granularity": {
+            "type": "string",
+            "default": "day"
+          },
+          "segment": {
+            "type": "string",
+            "default": ""
+          },
+          "salesChannelId": {
+            "type": "string",
+            "default": ""
+          }
+        },
+        "required": [
+          "metric"
+        ]
+      },
+      "description": "A time series of one business metric for charts and trend questions: sales, orders, aov (average order value) or units per day, week or month over a period (default 30d), optionally sliced by \"category:<uuid>\" or \"sales_channel:<uuid>\". Traffic and conversion return an empty series with a note. For a single headline figure with period comparison use agent-business-snapshot."
     }
   ]
 }

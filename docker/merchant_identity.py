@@ -12,7 +12,15 @@ again — the script says so. Bootstrap itself authenticates with the admin pass
 (setup only); the hosts get ``SHOPWARE_INTEGRATION_ACCESS_KEY/SECRET_KEY`` and nothing else.
 
 ``MCP_TOOL_ALLOWLIST`` and ``ACL_PRIVILEGES`` are the single source of truth; the READMEs
-reference them.
+reference them. Both extend the core ``shopware-entity-*`` set with the Admin tools of
+``SwagCommerceAgentTools`` (``agent-change-*``, ``agent-business-snapshot``,
+``agent-metrics-series``) and the ``agent_change:*`` / ``swag_agent_staged_change:*``
+privileges they check, read from the plugin's ``acl-role-template.json``. The host's
+integration is both stager and approver because the approval gate lives in the host
+(portal route); the template's maker-checker split (``claude-merchant-agent`` without
+``agent_change:update``, ``agent-change-approver`` with it) is for deployments where a
+human approves inside Shopware. The Store API tools (``shopping-*``) have no allowlist —
+``/store-api/_mcp`` is bounded by the sales-channel access key only.
 """
 
 from __future__ import annotations
@@ -36,8 +44,19 @@ from shopware_common.mcp_client import McpClient, McpError  # noqa: E402
 INTEGRATION_NAME = "claude-merchant-agent"
 ACL_ROLE_NAME = "claude-merchant-agent"
 
-# The Admin MCP tools merchant/api/admin_client.py calls (merchant/README.md lists the same).
-MCP_TOOL_ALLOWLIST: tuple[str, ...] = (
+AGENT_TOOLS_PLUGIN_DIR = REPO_ROOT / "shopware-plugins" / "SwagCommerceAgentTools"
+AGENT_TOOLS_ROLE_TEMPLATE = (
+    AGENT_TOOLS_PLUGIN_DIR / "src" / "Resources" / "config" / "acl-role-template.json"
+)
+# The template roles whose privileges and tools the host's integration unites (see module doc).
+AGENT_TOOLS_TEMPLATE_ROLES: tuple[str, ...] = ("claude-merchant-agent", "agent-change-approver")
+# Only the plugin's own privileges are taken from the template; the entity privileges it
+# lists (product, order, ...) are already covered by ACL_PRIVILEGES below.
+AGENT_TOOLS_PRIVILEGE_PREFIXES: tuple[str, ...] = ("agent_change:", "swag_agent_staged_change:")
+AGENT_TOOLS_TOOL_PREFIX = "agent-"
+
+# The core Admin MCP tools merchant/api/admin_client.py calls (merchant/README.md lists the same).
+CORE_MCP_TOOL_ALLOWLIST: tuple[str, ...] = (
     "shopware-entity-search",
     "shopware-entity-read",
     "shopware-entity-aggregate",
@@ -45,6 +64,42 @@ MCP_TOOL_ALLOWLIST: tuple[str, ...] = (
     "shopware-entity-delete",
     "shopware-entity-schema",
 )
+
+
+def _role_template() -> dict[str, Any]:
+    if not AGENT_TOOLS_ROLE_TEMPLATE.exists():
+        raise RuntimeError(f"plugin role template missing: {AGENT_TOOLS_ROLE_TEMPLATE}")
+    return json.loads(AGENT_TOOLS_ROLE_TEMPLATE.read_text(encoding="utf-8"))
+
+
+def agent_tools_from_template() -> tuple[str, ...]:
+    """The plugin's Admin MCP tools (``agent-*``) named in the template's allowlists."""
+    template = _role_template()
+    tools: set[str] = set()
+    for role in AGENT_TOOLS_TEMPLATE_ROLES:
+        tools.update(
+            name
+            for name in (template.get("mcpAllowlist") or {}).get(role, [])
+            if str(name).startswith(AGENT_TOOLS_TOOL_PREFIX)
+        )
+    return tuple(sorted(tools))
+
+
+def agent_privileges_from_template() -> tuple[str, ...]:
+    """``agent_change:*`` and ``swag_agent_staged_change:*`` from the template roles."""
+    template = _role_template()
+    privileges: set[str] = set()
+    for role in AGENT_TOOLS_TEMPLATE_ROLES:
+        privileges.update(
+            name
+            for name in ((template.get("roles") or {}).get(role) or {}).get("privileges", [])
+            if str(name).startswith(AGENT_TOOLS_PRIVILEGE_PREFIXES)
+        )
+    return tuple(sorted(privileges))
+
+
+AGENT_MCP_TOOLS: tuple[str, ...] = agent_tools_from_template()
+MCP_TOOL_ALLOWLIST: tuple[str, ...] = tuple(sorted({*CORE_MCP_TOOL_ALLOWLIST, *AGENT_MCP_TOOLS}))
 
 # read = :read, write = :create + :update, delete = :delete (ADR-14).
 _READ_ONLY_ENTITIES: tuple[str, ...] = (
@@ -91,7 +146,8 @@ def _privileges() -> tuple[str, ...]:
         privileges.extend(
             (f"{entity}:read", f"{entity}:create", f"{entity}:update", f"{entity}:delete")
         )
-    return tuple(sorted(privileges))
+    privileges.extend(agent_privileges_from_template())
+    return tuple(sorted(set(privileges)))
 
 
 ACL_PRIVILEGES: tuple[str, ...] = _privileges()

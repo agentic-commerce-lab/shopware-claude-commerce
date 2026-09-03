@@ -216,11 +216,26 @@ class BrowserTransport(httpx.AsyncBaseTransport):
 
 
 def install_transport() -> None:
-    """Must run before ``anthropic`` (which binds ``httpx.AsyncHTTPTransport`` at import)."""
+    """Must run before ``anthropic`` (which binds ``httpx.AsyncHTTPTransport`` at import).
+    Also installs the thread-free anyio shim the ASGI apps need."""
     httpx.AsyncHTTPTransport = BrowserTransport  # type: ignore[misc,assignment]
     import httpx._client as httpx_client
 
     httpx_client.AsyncHTTPTransport = BrowserTransport  # type: ignore[attr-defined]
+    install_threadless_anyio()
+
+
+def install_threadless_anyio() -> None:
+    """Pyodide has no worker threads (``RuntimeError: can't start new thread``). Starlette and
+    FastAPI push sync endpoints, sync dependencies and sync iterators through
+    ``anyio.to_thread.run_sync``; run them inline on the event loop instead. Everything in this
+    worker is single-threaded anyway, so nothing is lost."""
+    import anyio.to_thread as anyio_to_thread
+
+    async def run_sync_inline(func: Callable[..., Any], *args: Any, **_: Any) -> Any:
+        return func(*args)
+
+    anyio_to_thread.run_sync = run_sync_inline  # type: ignore[assignment]
 
 
 # --------------------------------------------------------------------------------- ASGI

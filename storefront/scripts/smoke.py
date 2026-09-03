@@ -9,9 +9,14 @@
 
 Exercises discovery, ``tools/list`` on ``/ucp/mcp``, search → details (variants) → cart
 add / update / remove (signed when ``UCP_AGENT_SIGNING_KEY_PEM_FILE`` is set), policies
-from the shop's CMS pages, fulfillment options, order history behind the cart token, and
-the handoff: a code is minted for the cart and POSTed to the plugin, which must answer a
-redirect to ``/checkout/confirm`` (and refuse the replay).
+from the shop's CMS pages, fulfillment options, disclosures, order history behind the cart
+token, and the handoff: a code is minted for the cart and POSTed to the plugin, which must
+answer a redirect to ``/checkout/confirm`` (and refuse the replay).
+
+Agent tools (``SHOPWARE_AGENT_TOOLS``): the run detects ``SwagCommerceAgentTools`` on
+``/store-api/_mcp`` exactly like the host does at startup. When the shop advertises the
+``shopping-*`` tools, the smoke asserts that policies, disclosure and fulfillment were
+answered by the plugin (``--agent-tools host`` forces the host path instead).
 """
 
 from __future__ import annotations
@@ -30,6 +35,12 @@ from dotenv import dotenv_values  # noqa: E402
 
 from demo_common import load_demo_env  # noqa: E402
 from shopping_agent import ShoppingSessionContext  # noqa: E402
+from storefront.api.agent_tools import (  # noqa: E402
+    MODE_PLUGIN,
+    MODES,
+    SHOPPING_TOOLS,
+    ShoppingAgentTools,
+)
 from storefront.api.handoff import HandoffBroker  # noqa: E402
 from storefront.api.shopware_backend import ShopwareStorefrontBackend  # noqa: E402
 from storefront.api.store_api import StoreApiClient  # noqa: E402
@@ -46,18 +57,23 @@ CHECKOUT_CONFIRM = "/checkout/confirm"
 CHECKOUT_CART = "/checkout/cart"
 
 
-async def check_transport(transport: str, *, fallback: bool) -> None:
+async def check_transport(transport: str, *, fallback: bool, agent_tools_mode: str | None) -> None:
     shop = shop_url_from_env()
     client = UcpClient(shop, transport=transport, fallback=fallback)  # type: ignore[arg-type]
     store_api = StoreApiClient(shop)
     handoff = HandoffBroker(shop)
+    agent_tools = ShoppingAgentTools(shop, store_api.access_key, mode=agent_tools_mode)
     backend = ShopwareStorefrontBackend(
-        client, store_api=store_api, store_name="Shopware", handoff=handoff
+        client, store_api=store_api, store_name="Shopware", handoff=handoff, agent_tools=agent_tools
     )
     session = ShoppingSessionContext(session_id=f"smoke-{transport}", user_id="guest")
     print(
         f"\n== UCP over {transport.upper()} (signing {'on' if client.signs_requests else 'off'}, fallback {'on' if fallback else 'off'})"
     )
+    await agent_tools.detect()
+    advertised = sorted(set(SHOPPING_TOOLS) & agent_tools.advertised)
+    print(f"agent tools: {agent_tools.description}; /store-api/_mcp advertises {advertised}")
+    plugin_expected = agent_tools.active and set(SHOPPING_TOOLS) <= agent_tools.advertised
 
     discovery = await client.discover()
     version = (discovery.get("ucp") or {}).get("version", "?")
@@ -126,6 +142,26 @@ async def check_transport(transport: str, *, fallback: bool) -> None:
         f"policies: {len(policies)} matches, live={backend.policies.live}, first={policies[0].title!r}"
     )
 
+    disclosure = await backend.get_disclosure(session, sku)
+    assert disclosure is not None and disclosure.rows, "disclosure missing"
+    print(
+        f"disclosure: {disclosure.title!r} via {disclosure.sources}: "
+        + "; ".join(row.value for row in disclosure.rows)
+    )
+
+    if plugin_expected:
+        served = set(agent_tools.calls)
+        assert served >= set(SHOPPING_TOOLS), (
+            f"the plugin advertises {SHOPPING_TOOLS} but only {sorted(served)} were called"
+        )
+        assert disclosure.sources == ["swag-commerce-agent-tools:shopping-disclosure"], (
+            disclosure.sources
+        )
+        print(f"agent tools: plugin path used for {', '.join(sorted(served))}")
+    else:
+        assert agent_tools.calls == [], f"host path expected, plugin called {agent_tools.calls}"
+        print("agent tools: host path (plugin not advertised or SHOPWARE_AGENT_TOOLS=host)")
+
     orders = await backend.get_orders(session)
     print(f"orders behind the cart token: {len(orders)} (a fresh guest cart has none)")
 
@@ -138,6 +174,7 @@ async def check_transport(transport: str, *, fallback: bool) -> None:
     assert cart.items == [], "remove left items"
     print("cart: remove ok")
 
+    await agent_tools.aclose()
     await client.aclose()
     await store_api.aclose()
     print(f"smoke ok over {transport} against {shop}")
@@ -173,10 +210,18 @@ async def main() -> None:
         action="store_true",
         help="fail instead of falling back to the other transport",
     )
+    parser.add_argument(
+        "--agent-tools",
+        choices=MODES,
+        default=None,
+        help=f"SHOPWARE_AGENT_TOOLS for this run (default: the environment, else auto → {MODE_PLUGIN} when advertised)",
+    )
     args = parser.parse_args()
     transports = list(TRANSPORTS) if args.transport == "both" else [args.transport]
     for transport in transports:
-        await check_transport(transport, fallback=not args.no_fallback)
+        await check_transport(
+            transport, fallback=not args.no_fallback, agent_tools_mode=args.agent_tools
+        )
 
 
 if __name__ == "__main__":

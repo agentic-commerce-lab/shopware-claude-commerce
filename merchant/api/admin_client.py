@@ -59,7 +59,7 @@ MCP_TOOLS_USED: tuple[str, ...] = (
 )
 
 TransportName = Literal["mcp", "rest", "fake"]
-Operation = Literal["search", "read", "aggregate", "upsert", "delete"]
+Operation = Literal["search", "read", "aggregate", "upsert", "delete", "tool"]
 
 
 class AdminAPIError(RuntimeError):
@@ -272,6 +272,14 @@ class McpTransport:
 
     async def tool_names(self) -> list[str]:
         return sorted(await self.client.tool_names())
+
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        """A tool outside the ``shopware-entity-*`` set — the ``agent-*`` tools of
+        ``SwagCommerceAgentTools`` (``merchant/api/agent_tools.py``). The parsed
+        ``{"success", "data", "_meta"}`` payload; ``success: false`` is the caller's to read.
+        Logged as operation ``tool`` so ``writes()`` keeps counting only entity writes."""
+        self.calls.append(AdminCall("tool", name, arguments))
+        return await self._call(name, arguments, entity=name)
 
     async def _call(self, tool: str, arguments: dict[str, Any], *, entity: str) -> dict[str, Any]:
         """One ``tools/call``; the parsed ``{"success", ...}`` payload. Transport and

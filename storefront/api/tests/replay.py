@@ -14,6 +14,13 @@
   ``dryRun``) and answers a text block carrying the JSON document.
 * With ``public_key`` set the replay verifies RFC 9421 / RFC 9530 on every UCP request
   the way the shop does under ``signaturePolicy=strict`` (401 otherwise).
+* ``/store-api/_mcp`` is the Store API MCP server with ``SwagCommerceAgentTools``
+  installed: the handshake needs the ``sw-access-key``, ``tools/list`` and the three
+  ``shopping-*`` ``tools/call`` answers are the recorded live ones
+  (``fixtures/store_api_mcp_agent_tools.json``, ids remapped to this module's constants);
+  the ``sw-context-token`` of every call is kept in ``agent_tool_tokens`` so tests can
+  prove the cart token travels with the call. ``agent_tools_available=False`` hides the
+  plugin (``tools/list`` without the ``shopping-*`` tools, calls answer "Tool not found").
 """
 
 from __future__ import annotations
@@ -47,6 +54,9 @@ SHIPPING_CATEGORY_ID = "99999999999999999999999999999902"
 CONTACT_CATEGORY_ID = "99999999999999999999999999999903"
 SEARCH_QUERY = "shirt"
 MCP_SESSION_ID = "replay-mcp-session"
+STORE_API_MCP_SESSION_ID = "replay-store-api-mcp-session"
+AGENT_TOOLS_FIXTURE = FIXTURES / "store_api_mcp_agent_tools.json"
+AGENT_TOOL_PREFIX = "shopping-"
 OAUTH_CODE = "replay-authorization-code"
 ACCESS_TOKEN = "replay-access-token"
 REFRESH_TOKEN = "replay-refresh-token"
@@ -381,7 +391,12 @@ def _ucp_error(status: int, code: str, content: str) -> httpx.Response:
 class ShopwareReplay:
     """In-memory Shopware: UCP REST + MCP, Store API, OAuth AS."""
 
-    def __init__(self, public_key: ec.EllipticCurvePublicKey | None = None) -> None:
+    def __init__(
+        self,
+        public_key: ec.EllipticCurvePublicKey | None = None,
+        *,
+        agent_tools_available: bool = True,
+    ) -> None:
         self.public_key = public_key
         self.carts: dict[str, dict[str, Any]] = {}
         self.requests: list[httpx.Request] = []
@@ -391,6 +406,13 @@ class ShopwareReplay:
         self._cart_seq = 0
         recorded = json.loads((FIXTURES / "ucp_mcp_tools_list.json").read_text(encoding="utf-8"))
         self._tools = {"tools": recorded["tools"]}
+        # SwagCommerceAgentTools on the Store API MCP server.
+        self.agent_tools_available = agent_tools_available
+        self.agent_tool_calls: list[dict[str, Any]] = []
+        self.agent_tool_tokens: list[str | None] = []
+        self.agent_tool_failures: set[str] = set()  # tool names that answer isError
+        self.store_api_mcp_sessions: set[str] = set()
+        self._agent_tools = json.loads(AGENT_TOOLS_FIXTURE.read_text(encoding="utf-8"))
 
     # ------------------------------------------------------------------ dispatch
 
@@ -416,6 +438,8 @@ class ShopwareReplay:
                 return self._ucp_rest(method, path[len("/ucp/v1") :], body)
             if path == "/ucp/mcp":
                 return self._ucp_mcp(method, request, body)
+        if path == "/store-api/_mcp":
+            return self._store_api_mcp(method, request, body)
         if path.startswith("/store-api/"):
             return self._store_api(method, path, parsed.query, request, body)
         return httpx.Response(404, json={"detail": f"unmocked {method} {path}"})
@@ -649,6 +673,119 @@ class ShopwareReplay:
             200,
             headers={"content-type": "text/event-stream"},
             content=f"event: message\ndata: {json.dumps(message)}\n\n".encode(),
+        )
+
+    # ------------------------------------------------------------------ Store API MCP
+
+    def _store_api_mcp(
+        self, method: str, request: httpx.Request, body: dict[str, Any]
+    ) -> httpx.Response:
+        """``/store-api/_mcp``: the sales-channel key authenticates, the session id is
+        handed out on ``initialize``; ``shopping-*`` tools answer the recorded documents."""
+        if request.headers.get("sw-access-key") != "test-key":
+            return httpx.Response(401, json={"errors": [{"detail": "Access key is invalid"}]})
+        if method == "DELETE":
+            self.store_api_mcp_sessions.discard(request.headers.get("mcp-session-id", ""))
+            return httpx.Response(200)
+        if method != "POST":
+            return httpx.Response(405)
+        rpc_method = body.get("method")
+        rpc_id = body.get("id")
+        if rpc_method == "initialize":
+            self.store_api_mcp_sessions.add(STORE_API_MCP_SESSION_ID)
+            return httpx.Response(
+                200,
+                headers={"Mcp-Session-Id": STORE_API_MCP_SESSION_ID},
+                json={
+                    "jsonrpc": "2.0",
+                    "id": rpc_id,
+                    "result": {
+                        "protocolVersion": self._agent_tools["protocolVersion"],
+                        "capabilities": {"tools": {"listChanged": False}},
+                        "serverInfo": self._agent_tools["serverInfo"],
+                    },
+                },
+            )
+        if request.headers.get("mcp-session-id") not in self.store_api_mcp_sessions:
+            return httpx.Response(
+                400,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": rpc_id,
+                    "error": {"code": -32600, "message": "A valid session id is REQUIRED"},
+                },
+            )
+        if rpc_method == "notifications/initialized":
+            return httpx.Response(202)
+        if rpc_method == "tools/list":
+            tools = [
+                tool
+                for tool in self._agent_tools["tools"]
+                if self.agent_tools_available or not tool["name"].startswith(AGENT_TOOL_PREFIX)
+            ]
+            return self._sse({"jsonrpc": "2.0", "id": rpc_id, "result": {"tools": tools}})
+        if rpc_method != "tools/call":
+            return self._rpc_error(rpc_id, -32601, f"Method not found: {rpc_method}")
+        params = body.get("params") or {}
+        name = str(params.get("name") or "")
+        arguments = params.get("arguments") or {}
+        self.agent_tool_calls.append({"name": name, "arguments": arguments})
+        self.agent_tool_tokens.append(request.headers.get("sw-context-token"))
+        if name.startswith(AGENT_TOOL_PREFIX) and not self.agent_tools_available:
+            return self._rpc_error(rpc_id, -32602, f"Tool not found: {name}")
+        if name in self.agent_tool_failures:
+            return self._sse(
+                {
+                    "jsonrpc": "2.0",
+                    "id": rpc_id,
+                    "result": {
+                        "content": [{"type": "text", "text": "Error while executing tool"}],
+                        "isError": True,
+                    },
+                }
+            )
+        recorded = self._recorded_agent_tool_answer(name, arguments)
+        if recorded is None:
+            return self._rpc_error(rpc_id, -32602, f"Tool not found: {name}")
+        return self._sse(
+            {
+                "jsonrpc": "2.0",
+                "id": rpc_id,
+                "result": {
+                    "content": [{"type": "text", "text": json.dumps(recorded)}],
+                    "isError": False,
+                },
+            }
+        )
+
+    def _recorded_agent_tool_answer(
+        self, name: str, arguments: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        responses = self._agent_tools["responses"]
+        if name == "shopping-policy-search":
+            query = str(arguments.get("query") or "").lower()
+            key = "shopping-policy-search:kontakt" if "kontakt" in query else name
+            if "zzzz" in query:
+                return {"success": True, "data": [], "_meta": {"query": query, "pagesSearched": 5}}
+            return deepcopy(responses[key]["result"])
+        if name == "shopping-disclosure":
+            product_id = str(arguments.get("productId") or "")
+            if product_id == OIL_ID:
+                return deepcopy(responses["shopping-disclosure:oil"]["result"])
+            if product_id in {PRODUCT_ID, VARIANT_S, VARIANT_M, VARIANT_L}:
+                return deepcopy(responses["shopping-disclosure:family"]["result"])
+            return deepcopy(responses["shopping-disclosure:unknown"]["result"])
+        if name == "shopping-fulfillment-options":
+            return deepcopy(responses["shopping-fulfillment-options"]["result"])
+        if name == "shopware-store-api-context":
+            return {"success": True, "data": {"salesChannelId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa0"}}
+        return None
+
+    @staticmethod
+    def _rpc_error(rpc_id: Any, code: int, message: str) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"jsonrpc": "2.0", "id": rpc_id, "error": {"code": code, "message": message}},
         )
 
     # ------------------------------------------------------------------ OAuth AS

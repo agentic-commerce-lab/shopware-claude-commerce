@@ -6,9 +6,15 @@ use Shopware\Core\Content\Product\ProductEntity;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\DataAbstractionLayer\Search\Criteria;
+use Shopware\Core\Framework\DataAbstractionLayer\Search\EntitySearchResult;
 
 /**
  * Reads the products referenced by a change through the Admin DAL (ACL applies).
+ *
+ * Variants are read with inheritance enabled: a child that leaves `taxId` or `price`
+ * empty inherits its parent's values in the storefront, and the snapshot has to see
+ * exactly those (otherwise a variant repriced by the agent would get net = gross and
+ * a payload that drops the currencies it inherits).
  */
 class ProductSnapshotLoader
 {
@@ -36,8 +42,15 @@ class ProductSnapshotLoader
         $criteria = new Criteria(array_values(array_unique($productIds)));
         $criteria->addAssociation('tax');
 
+        $result = $context->enableInheritance(
+            fn (Context $inheriting) => $this->productRepository->search($criteria, $inheriting),
+        );
+        if (!$result instanceof EntitySearchResult) {
+            throw StagedChangeException::productsMissing($productIds);
+        }
+
         $snapshots = [];
-        foreach ($this->productRepository->search($criteria, $context)->getEntities() as $product) {
+        foreach ($result->getEntities() as $product) {
             $snapshots[$product->getId()] = $this->snapshot($product);
         }
 

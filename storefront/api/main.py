@@ -46,6 +46,7 @@ from shopware_common.anthropic_client import build_anthropic_client
 from shopware_common.clock import host_clock
 
 from .agent_config import build_shopping_config
+from .agent_tools import ShoppingAgentTools
 from .brand import BrandSource
 from .catalog_warmup import warm_catalog
 from .handoff import HandoffBroker, public_url_from_env
@@ -75,6 +76,8 @@ store_api = StoreApiClient(shop_url)
 brand_source = BrandSource(store_api, fallback_name=STORE_NAME)
 identity = ShopwareIdentityLinking(ucp_client, store_api, public_url=public_url)
 handoff = HandoffBroker(shop_url, public_url=public_url)
+# SwagCommerceAgentTools on /store-api/_mcp (SHOPWARE_AGENT_TOOLS=plugin|host, auto-detected).
+agent_tools = ShoppingAgentTools(shop_url, store_api.access_key)
 backend = ShopwareStorefrontBackend(
     ucp_client,
     store_api=store_api,
@@ -85,6 +88,7 @@ backend = ShopwareStorefrontBackend(
         linked.customer_context_token if (linked := identity.identity(sid)) else None
     ),
     on_auth_failure=identity.drop,
+    agent_tools=agent_tools,
 )
 shopping_config = build_shopping_config(backend.store_name)
 agent = ShoppingAgent(
@@ -132,15 +136,19 @@ _warmup_task: asyncio.Task | None = None
 async def _lifespan_with_warmup(app_) -> AsyncIterator[None]:
     global _warmup_task
     async with _host_lifespan(app_):
+        await agent_tools.detect()
         logger.info(
-            "UCP transport %s (fallback %s), signing %s, handoff %s, identity linking %s",
+            "UCP transport %s (fallback %s), signing %s, handoff %s, identity linking %s, "
+            "agent tools %s",
             ucp_client.transport,
             "on" if ucp_client.fallback else "off",
             "on" if ucp_client.signs_requests else "off",
             "on" if handoff.configured else "off",
             "on" if identity.configured else f"off ({identity.unavailable_reason})",
+            agent_tools.description,
         )
         _warmup_task = asyncio.create_task(warm_catalog(backend))
+        # The host index stays warm as the fallback of the plugin path.
         try:
             await backend.policies.rebuild()
         except Exception:
@@ -148,6 +156,7 @@ async def _lifespan_with_warmup(app_) -> AsyncIterator[None]:
         try:
             yield
         finally:
+            await agent_tools.aclose()
             await ucp_client.aclose()
 
 

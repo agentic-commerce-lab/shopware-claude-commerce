@@ -22,6 +22,9 @@ PYTHON="${PYTHON:-python3}"
 
 # Pure-Python distributions pinned in requirements.txt that Pyodide's distribution lacks.
 PURE_PINS=(anthropic docstring-parser httpx-sse mcp pydantic-settings pyjwt python-dotenv python-multipart sse-starlette)
+# Browser-only extras (not in requirements.txt): Pyodide ships no IANA tz database, but
+# shopware_common/clock.py resolves the shop's zone through zoneinfo → the tzdata wheel.
+EXTRA_PINS=("tzdata==2026.3")
 
 mkdir -p "$OUT" "$CACHE" "$DEST"
 rm -f "$OUT"/*.whl "$DEST"/*.whl
@@ -36,6 +39,7 @@ pin_of() { # pin_of <name> → name==version from requirements.txt (case-insensi
 echo "collecting pure-Python pins"
 specs=()
 for name in "${PURE_PINS[@]}"; do specs+=("$(pin_of "$name")"); done
+specs+=("${EXTRA_PINS[@]}")
 "$PYTHON" -m pip download --quiet --no-deps --only-binary=:all: --dest "$CACHE" "${specs[@]}"
 
 echo "building blueprint wheels (pinned commit from requirements.txt)"

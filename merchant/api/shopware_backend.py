@@ -8,6 +8,15 @@ Reads come from ``shopware-entity-search`` / ``-read`` / ``-aggregate``. Every
 ``dryRun=true`` (Shopware runs the write in a transaction and rolls it back), records
 the server's verdict in ``guardrail_notes`` and stores the payload with the change.
 ``apply_change`` is the only live write: it replays that payload with ``dryRun=false``.
+
+That is the **host path**. With ``SwagCommerceAgentTools`` installed (``SHOPWARE_AGENT_TOOLS``,
+``agent_tools.py``) the **plugin path** hands the same items to ``agent-change-stage``: the
+ledger row lives in Shopware's ``swag_agent_staged_change``, ``get_pending_changes`` reads
+``agent-change-list``, ``apply_change`` / ``discard_change`` call ``agent-change-apply`` /
+``-discard`` after the host's approval gate, and ``get_business_snapshot`` /
+``query_metrics`` read ``agent-business-snapshot`` / ``agent-metrics-series``. Promotions
+(a kind the plugin refuses) and the ``chg-NNNN`` ids of the SQLite ledger keep the host
+path in every mode. The blueprint gates run unchanged on both paths.
 """
 
 from __future__ import annotations
@@ -47,12 +56,22 @@ from shopping_agent import Order
 
 from .admin_client import EUR_CURRENCY_ID, AdminAPIError, AdminTransport
 from .agent_config import DATA_DIR, ShopwareSettings
+from .agent_tools import (
+    PLUGIN_CHANGE_KINDS,
+    AgentToolsError,
+    MerchantAgentTools,
+    plugin_period,
+    preview_note as plugin_preview_note,
+    staged_change_from_row,
+)
 from .catalog import CatalogCache, ProductRecord
 from .insights import (
     GRANULARITIES,
     OPEN_ORDER_STATES,
     PAYMENT_PROBLEM_STATES,
     Period,
+    bucket_date,
+    bucket_starts,
     change_pct,
     derive_issues,
     histogram_aggregation,
@@ -103,7 +122,13 @@ METRIC_ALIASES = {
     "average order value": "aov",
 }
 STOREFRONT_CHANNEL_NAME = "Storefront"
+PLUGIN_SNAPSHOT_NOTE = (
+    "Totals from the shop's agent-business-snapshot (SwagCommerceAgentTools), cancelled "
+    "orders excluded; Shopware has no traffic or conversion source."
+)
+PLUGIN_APPLIED_NOTE = "applied: agent-change-apply wrote the change through Shopware's ledger"
 Clock = Callable[[], datetime]
+PluginItems = list[dict[str, Any]]
 
 
 def _margin_pct(price: float, unit_cost: float | None) -> float | None:
@@ -121,11 +146,14 @@ class ShopwareMerchantBackend(MerchantBackend):
         *,
         ledger: SqliteChangeLedger | None = None,
         clock: Clock | None = None,
+        agent_tools: MerchantAgentTools | None = None,
     ) -> None:
         self.admin = admin
         self._settings = settings
         self._config = config
         self.ledger = ledger or SqliteChangeLedger(config, settings.ledger_dsn)
+        #: The plugin path (``SHOPWARE_AGENT_TOOLS``); ``warm()`` detects the effective mode.
+        self.agent_tools = agent_tools or MerchantAgentTools(admin)
         self.catalog = CatalogCache(admin)
         self._writer = ShopwareWriter(admin, self.catalog)
         self.thresholds = load_thresholds(
@@ -157,9 +185,14 @@ class ShopwareMerchantBackend(MerchantBackend):
     def all_listings(self) -> list[Listing]:
         return self.catalog.all_listings()
 
+    @property
+    def plugin_tools_active(self) -> bool:
+        return self.agent_tools.active
+
     async def warm(self) -> None:
-        """Catalog, sales channel and the recent-order feed. The catalog must load; the
-        other two degrade to empty with a warning."""
+        """Agent-tools detection, catalog, sales channel and the recent-order feed. The
+        catalog must load; the other reads degrade to empty with a warning."""
+        await self.agent_tools.detect()
         await self.catalog.refresh()
         try:
             await self._resolve_sales_channel()

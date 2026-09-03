@@ -14,6 +14,12 @@ Variants: Shopware's UCP documents list a family (parent) with ``variants[]``; a
 whose id equals the parent is the parent itself, not a child SKU. Real children come from
 the Store API (``parentId`` filter) so out-of-stock sizes are listed and refused, and a
 variant id resolves to its own details from any session.
+
+Policies, disclosures and fulfillment have two authors (``SHOPWARE_AGENT_TOOLS``): the
+shop's ``SwagCommerceAgentTools`` Store API MCP tools (``agent_tools.py``, the default when
+the shop advertises them) or this host's own implementations (``policies.py``,
+``disclosures.py``, the Store API shipping methods). A plugin call that fails falls back to
+the host implementation for that call.
 """
 
 from __future__ import annotations
@@ -45,9 +51,10 @@ from shopping_agent import (
 )
 from shopware_common.handoff import HandoffCode
 
-from .disclosures import disclosure_from_store_product
+from .agent_tools import AgentToolsError, ShoppingAgentTools
+from .disclosures import disclosure_from_store_product, disclosure_from_tool
 from .handoff import HandoffBroker
-from .policies import PolicyIndex
+from .policies import PolicyIndex, policy_from_tool_row
 from .store_api import StoreApiClient, StoreApiError
 from .ucp_client import UcpAuthError, UcpCartGoneError, UcpClient, UcpError
 
@@ -140,12 +147,15 @@ class ShopwareStorefrontBackend(StorefrontBackend):
         token_provider: TokenProvider | None = None,
         customer_token_provider: CustomerTokenProvider | None = None,
         on_auth_failure: Callable[[str], None] | None = None,
+        agent_tools: ShoppingAgentTools | None = None,
     ) -> None:
         self.client = client or UcpClient()
         self.store_api = store_api or StoreApiClient(self.client.shop_url)
         self.store_name = store_name
         self.policies = policies or PolicyIndex(self.store_api)
         self.handoff = handoff or HandoffBroker(self.client.shop_url)
+        #: ``None`` pins the host path; otherwise :attr:`ShoppingAgentTools.active` decides.
+        self.agent_tools = agent_tools
         self._token_provider = token_provider
         self._customer_token_provider = customer_token_provider
         self._on_auth_failure = on_auth_failure
@@ -672,12 +682,36 @@ class ShopwareStorefrontBackend(StorefrontBackend):
 
     # ------------------------------------------------------------------ policies & facts
 
+    @property
+    def plugin_tools_active(self) -> bool:
+        return self.agent_tools is not None and self.agent_tools.active
+
     async def search_policies(self, session: ShoppingSessionContext, query: str) -> list[Policy]:
+        if self.plugin_tools_active:
+            assert self.agent_tools is not None
+            try:
+                rows = await self.agent_tools.policy_search(
+                    query, context_token=self.cart_id_for(session.session_id)
+                )
+            except AgentToolsError as error:
+                logger.warning("shopping-policy-search failed (%s); host policy index", error)
+            else:
+                return [policy_from_tool_row(row) for row in rows]
         return await self.policies.search(session, query)
 
     async def get_disclosure(
         self, session: ShoppingSessionContext, product_id: str
     ) -> Disclosure | None:
+        if self.plugin_tools_active:
+            assert self.agent_tools is not None
+            try:
+                data = await self.agent_tools.disclosure(
+                    product_id, context_token=self.cart_id_for(session.session_id)
+                )
+            except AgentToolsError as error:
+                logger.warning("shopping-disclosure failed (%s); host disclosure", error)
+            else:
+                return disclosure_from_tool(product_id, data)
         try:
             product = await self.store_api.product(product_id)
             if not product and (parent := self.variant_of.get(product_id)):
@@ -691,6 +725,16 @@ class ShopwareStorefrontBackend(StorefrontBackend):
     async def get_fulfillment_options(
         self, session: ShoppingSessionContext, product_ids: list[str]
     ) -> list[FulfillmentOption]:
+        if self.plugin_tools_active:
+            assert self.agent_tools is not None
+            try:
+                data = await self.agent_tools.fulfillment_options(
+                    product_ids, context_token=self.cart_id_for(session.session_id)
+                )
+            except AgentToolsError as error:
+                logger.warning("shopping-fulfillment-options failed (%s); host path", error)
+            else:
+                return [_fulfillment_from_tool(option) for option in data.get("options") or []]
         try:
             methods = await self.store_api.shipping_methods(self.cart_id_for(session.session_id))
         except StoreApiError:
@@ -856,6 +900,40 @@ def _variant_from_store(parent: dict[str, Any], child: dict[str, Any]) -> Produc
         variant_of=str(parent.get("id")),
         in_stock=_in_stock(child),
     )
+
+
+def _fulfillment_from_tool(option: dict[str, Any]) -> FulfillmentOption:
+    """One ``shopping-fulfillment-options`` option as the blueprint's ``FulfillmentOption``.
+    The ETA line mirrors the host path: the method's own transport time (``shippingTime``)
+    first, the products' availability window (``eta``, the widest product delivery time) in
+    brackets; a plugin that reports only ``eta`` gets the single range."""
+    name = str(option.get("name") or "Versand")
+    availability = _eta_text(option.get("eta"))
+    transport = _eta_text(option.get("shippingTime"))
+    if transport and availability and transport != availability:
+        eta = f"{name}: {transport} (Verfügbarkeit: {availability})"
+    else:
+        eta = f"{name}: {transport or availability or DEFAULT_ETA}"
+    fee = option.get("fee") or {}
+    amount = fee.get("amount") if isinstance(fee, dict) else None
+    try:
+        fee_value = round(float(amount), 2) if amount is not None else 0.0
+    except (TypeError, ValueError):
+        fee_value = 0.0
+    method = str(option.get("method") or "shipping")
+    return FulfillmentOption(
+        method=method if method in {"delivery", "pickup", "shipping"} else "shipping",  # type: ignore[arg-type]
+        eta=eta,
+        fee=fee_value,
+        location=option.get("location") if isinstance(option.get("location"), str) else None,
+    )
+
+
+def _eta_text(value: Any) -> str | None:
+    if isinstance(value, dict):
+        text = value.get("text")
+        return str(text) if text else None
+    return str(value) if isinstance(value, str) and value else None
 
 
 def _shipping_fee(method: dict[str, Any]) -> float:

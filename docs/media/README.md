@@ -11,7 +11,7 @@ The 1080p `explainer.mp4` is not tracked in git (root `.gitignore`); it is publi
 
 Repository shown in the video: **https://github.com/sthamann/shopware_claude_commerce** (on screen in frames 4, 10 and 12; the URL is not narrated — the voice points to "the repository link in the description").
 
-Previous cut: v2 (122.6 s, ten frames) is the version behind the currently uploaded GitHub attachment — see the note under *Web variant*.
+Previous cut: v2 (122.6 s, ten frames).
 
 ## Live captures (v3 final)
 
@@ -35,7 +35,7 @@ ffmpeg -y -i docs/media/explainer.mp4 -vf scale=-2:720 -c:v libx264 -preset slow
 
 GitHub only renders an inline video player for files uploaded as an *attachment* (drag the file into the README editor, an issue or a PR comment; GitHub returns a `https://github.com/user-attachments/assets/…` URL) and that URL is what goes into the README. A plain repository path such as `docs/media/explainer-web.mp4` is shown as a link, not as a player. Keep the file in the repo anyway so the attachment can be regenerated after a re-render.
 
-**Action required after this render:** the current upload `https://github.com/user-attachments/assets/60dd0425-91ba-43fc-bd2c-f5c750158e7c` (stored in `github-video-url.txt` and referenced by the root `README.md` "Demo video" section) is still the **v2** cut. Upload the new `explainer-web.mp4` as an attachment, then replace the URL in both the root `README.md` and `docs/media/github-video-url.txt`.
+**Current GitHub attachment:** `https://github.com/user-attachments/assets/60dd0425-91ba-43fc-bd2c-f5c750158e7c` — the v3 `explainer-web.mp4` (1280×720, CRF 24, 5.5 MB, 149.4 s), stored in `github-video-url.txt` and embedded in the root `README.md` "Demo video" section. After a future re-render: encode the new `explainer-web.mp4` as above, upload it as an attachment (drag it into an issue comment; GitHub returns a new `user-attachments/assets/…` URL), then replace the URL in both the root `README.md` and `docs/media/github-video-url.txt`.
 
 ## What the video says (v3)
 

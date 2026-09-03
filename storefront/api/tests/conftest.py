@@ -26,6 +26,7 @@ import pytest
 
 from shopping_agent import ShoppingSessionContext, ShoppingSessionState
 from shopware_common.http_signing import RequestSigner
+from storefront.api.agent_tools import MODE_AUTO, ShoppingAgentTools
 from storefront.api.handoff import HandoffBroker
 from storefront.api.shopware_backend import ShopwareStorefrontBackend
 from storefront.api.store_api import StoreApiClient
@@ -89,8 +90,36 @@ def handoff() -> HandoffBroker:
 def backend(
     client: UcpClient, store_api: StoreApiClient, handoff: HandoffBroker
 ) -> ShopwareStorefrontBackend:
+    """The host path for policies / disclosures / fulfillment (no ``agent_tools``)."""
     return ShopwareStorefrontBackend(
         client, store_api=store_api, store_name="Shopware", handoff=handoff
+    )
+
+
+@pytest.fixture
+def agent_tools(transport: httpx.MockTransport) -> ShoppingAgentTools:
+    """``SwagCommerceAgentTools`` on the replay's ``/store-api/_mcp``, mode ``auto`` (not yet
+    detected — tests call ``detect()`` or set the mode)."""
+    return ShoppingAgentTools(
+        "http://shopware.test",
+        "test-key",
+        http=httpx.AsyncClient(transport=transport),
+        mode=MODE_AUTO,
+    )
+
+
+@pytest.fixture
+async def plugin_backend(
+    client: UcpClient,
+    store_api: StoreApiClient,
+    handoff: HandoffBroker,
+    agent_tools: ShoppingAgentTools,
+) -> ShopwareStorefrontBackend:
+    """The plugin path: ``detect()`` has run against a shop that advertises the tools."""
+    await agent_tools.detect()
+    assert agent_tools.active
+    return ShopwareStorefrontBackend(
+        client, store_api=store_api, store_name="Shopware", handoff=handoff, agent_tools=agent_tools
     )
 
 

@@ -167,7 +167,11 @@ class FulfillmentOptionsTool extends McpToolResponse
             'name' => $method->getTranslation('name'),
             'description' => $method->getTranslation('description'),
             'selected' => $method->getId() === $context->getShippingMethod()->getId(),
+            // eta: when the parcel can be with the shopper (widest product delivery time,
+            // falling back to the method's); shippingTime: the carrier's own transport time,
+            // so "Express 1-2 Tage" stays visible next to a product that needs 2-4 Tage to ship.
             'eta' => $eta,
+            'shippingTime' => $methodEta,
             'fee' => $allShippingFree
                 ? ['amount' => 0.0, 'currency' => $context->getCurrency()->getIsoCode(), 'estimated' => false]
                 : $fee?->toArray(),

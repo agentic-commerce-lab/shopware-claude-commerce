@@ -149,7 +149,7 @@ class ChangeStageTool extends McpToolResponse
             ], ['dryRun' => true, 'note' => 'Nothing was stored. Call again with dryRun=false to record the change for approval.']);
         }
 
-        /** @var list<array<string, mixed>>|null $decodedGuardrails */
+        /** @var list<mixed>|null $decodedGuardrails */
         $request = new StageRequest(
             summary: $summary,
             note: trim($note) !== '' ? trim($note) : null,

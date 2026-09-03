@@ -2,6 +2,7 @@
 
 namespace Swag\CommerceAgentTools\StagedChange;
 
+use Shopware\Core\Content\Product\ProductEntity;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\DefinitionInstanceRegistry;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
@@ -21,9 +22,12 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 /**
  * Persists the ledger and executes the stage → apply / discard workflow.
  *
- * Staging never writes to the live catalog. Applying writes exactly the payload
- * that was previewed, through the DAL, with the caller's ACL context. Both
- * transitions are guarded by the state machine and stamp the acting principal.
+ * Staging never writes to the live catalog. Applying writes the payload that was
+ * previewed, through the DAL, with the caller's ACL context — with one deliberate
+ * exception: a restock carries the staged *delta*, so the stock is re-read at apply
+ * time and `current + delta` is written (a sale or a second restock between staging
+ * and approval is not overwritten by a stale absolute level). Both transitions are
+ * guarded by the state machine and stamp the acting principal.
  */
 class StagedChangeService
 {
@@ -31,6 +35,7 @@ class StagedChangeService
     public const CONFIG_APPROVER_NAME = 'SwagCommerceAgentTools.config.approverName';
     public const CONFIG_MAX_ITEMS = 'SwagCommerceAgentTools.config.maxItemsPerChange';
     public const DEFAULT_MAX_ITEMS = 50;
+    public const FIELD_STOCK = 'stock';
 
     /**
      * @param EntityRepository<AgentStagedChangeCollection> $changeRepository
@@ -126,7 +131,83 @@ class StagedChangeService
      */
     public function executeWrite(AgentStagedChangeEntity $change, Context $context): EntityWrittenContainerEvent
     {
-        return $this->write($change->getTargetEntity(), $change->getPayload(), $context);
+        return $this->write($change->getTargetEntity(), $this->rebaseRestock($change, $context)->payload, $context);
+    }
+
+    /**
+     * The payload to write now. Restock rows of an inventory action are rebased on the
+     * stock the product has *at this moment*: the preview row's `after - before` is the
+     * delta the agent asked for, and that delta is applied to the current level. Every
+     * rebased row that moved since staging is reported in `notes` for the approver.
+     */
+    public function rebaseRestock(AgentStagedChangeEntity $change, Context $context): RebasedPayload
+    {
+        $payload = $change->getPayload();
+        if ($change->getKind() !== ChangeKind::InventoryAction->value || $change->getTargetEntity() !== ChangePlanner::TARGET_PRODUCT) {
+            return new RebasedPayload($payload, []);
+        }
+
+        $deltas = [];
+        foreach ($change->getPreview() ?? [] as $row) {
+            if (($row['field'] ?? null) !== self::FIELD_STOCK || !\is_string($row['target'] ?? null)) {
+                continue;
+            }
+            $before = $row['before'] ?? null;
+            $after = $row['after'] ?? null;
+            if (!\is_int($before) || !\is_int($after)) {
+                continue;
+            }
+            $deltas[$row['target']] = ['before' => $before, 'delta' => $after - $before];
+        }
+        if ($deltas === []) {
+            return new RebasedPayload($payload, []);
+        }
+
+        $current = $this->currentStock(array_keys($deltas), $context);
+        $notes = [];
+        $rebased = [];
+        foreach ($payload as $row) {
+            $id = $row['id'] ?? null;
+            if (\is_string($id) && isset($deltas[$id]) && \array_key_exists(self::FIELD_STOCK, $row)) {
+                if (!isset($current[$id])) {
+                    throw StagedChangeException::productsMissing([$id]);
+                }
+                $row[self::FIELD_STOCK] = $current[$id] + $deltas[$id]['delta'];
+                if ($current[$id] !== $deltas[$id]['before']) {
+                    $notes[] = \sprintf(
+                        'stock on %s moved from %d to %d since staging; applied %+d on the current level → %d',
+                        $id,
+                        $deltas[$id]['before'],
+                        $current[$id],
+                        $deltas[$id]['delta'],
+                        $row[self::FIELD_STOCK],
+                    );
+                }
+            }
+            $rebased[] = $row;
+        }
+
+        return new RebasedPayload($rebased, $notes);
+    }
+
+    /**
+     * @param list<string> $productIds
+     *
+     * @return array<string, int> current stock keyed by product ID (missing products are absent)
+     */
+    private function currentStock(array $productIds, Context $context): array
+    {
+        $criteria = new Criteria($productIds);
+        $result = $this->registry->getRepository(ChangePlanner::TARGET_PRODUCT)->search($criteria, $context);
+
+        $stock = [];
+        foreach ($result->getEntities() as $product) {
+            if ($product instanceof ProductEntity) {
+                $stock[$product->getId()] = $product->getStock();
+            }
+        }
+
+        return $stock;
     }
 
     /**
@@ -155,7 +236,8 @@ class StagedChangeService
         $actor = $this->actorResolver->resolve($context);
 
         try {
-            $this->executeWrite($change, $context);
+            $rebased = $this->rebaseRestock($change, $context);
+            $this->write($change->getTargetEntity(), $rebased->payload, $context);
         } catch (\Throwable $e) {
             $this->changeRepository->update([[
                 'id' => $change->getId(),
@@ -165,13 +247,17 @@ class StagedChangeService
             throw $e;
         }
 
-        $this->changeRepository->update([[
+        $update = [
             'id' => $change->getId(),
             'status' => ChangeStatus::Applied->value,
             'appliedBy' => $actor['id'],
             'appliedAt' => new \DateTimeImmutable(),
             'errorMessage' => null,
-        ]], $context);
+        ];
+        if ($rebased->notes !== []) {
+            $update['guardrailNotes'] = [...($change->getGuardrailNotes() ?? []), ...$rebased->notes];
+        }
+        $this->changeRepository->update([$update], $context);
 
         $applied = $this->find($change->getId(), $context);
 
