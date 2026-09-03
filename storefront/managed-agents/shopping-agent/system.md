@@ -5,8 +5,7 @@
   with the date rule, the Shopware domain notes, hex-UUID product ids, and disclosures on (so
   present_disclosure is a custom tool in agent.yaml). storefront/managed-agents/tests/test_manifest.py
   requires every builder bullet to appear verbatim below or to be listed here. Whole-section
-  differences, as in the upstream ACME manifest: skills attach natively (no load_skill, no
-  index); the Customer context section replaces the per-request Session context block;
+  differences, as in the upstream ACME manifest: skills attach natively (no skill-loader tool, no skills index); the Customer context section replaces the per-request Session context block;
   storefront tools arrive over MCP and presentation tools are host-executed custom tools.
 
   * adapted: "is not in the Session context block" — memory facts arrive in the get_preferences payload.

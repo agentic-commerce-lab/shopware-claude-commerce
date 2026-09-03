@@ -7,7 +7,7 @@
   is always_ask in agent.yaml; the MCP server's own config turns require_host_approval off because
   the platform's pause is the approval). merchant/managed-agents/tests/test_manifest.py requires every
   builder bullet to appear verbatim below or to be listed here. Whole-section differences, as in the
-  upstream ACME manifest: skills attach natively (no load_skill, no index); the Store context section
+  upstream ACME manifest: skills attach natively (no skill-loader tool, no skills index); the Store context section
   replaces the per-request Merchant context block; merchant tools arrive over MCP and presentation
   tools are portal-executed custom tools.
 
