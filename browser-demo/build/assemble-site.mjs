@@ -15,7 +15,7 @@
  *
  * Serve with `npm start` (server/index.mjs) or GitHub Pages. Pages cannot set COOP/COEP;
  * the playground service worker adds them (coi-serviceworker behaviour). DEMO_BASE_PATH
- * prefixes engine URLs for project Pages (`/shopware_claude_commerce/`). The service
+ * prefixes engine URLs for project Pages (`/shopware-claude-commerce/`). The service
  * worker keeps logical `/demo/` and `/php/` route constants; only `browser-worker.js`
  * has those quoted paths rewritten (see prepareEngineWorkerSource).
  */

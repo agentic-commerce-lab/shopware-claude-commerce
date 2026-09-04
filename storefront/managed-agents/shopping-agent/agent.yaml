@@ -343,5 +343,5 @@ tools:
 
 metadata:
   agent: shopping-agent
-  source: shopware_claude_commerce/storefront/managed-agents
+  source: shopware-claude-commerce/storefront/managed-agents
   blueprint: anthropics/commerce-agents@fd4d59224ab96b43c6dc6888207c67b3bd5a24cf

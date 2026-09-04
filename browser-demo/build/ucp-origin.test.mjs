@@ -7,8 +7,8 @@ import { originOnly, rewriteUcpConfig } from './ucp-origin.mjs';
 
 describe('UCP origin rewrite for project Pages', () => {
   const seed = 'http://127.0.0.1:4188';
-  const livePublic = 'https://sthamann.github.io/shopware_claude_commerce';
-  const liveOrigin = 'https://sthamann.github.io';
+  const livePublic = 'https://agentic-commerce-lab.github.io/shopware-claude-commerce';
+  const liveOrigin = 'https://agentic-commerce-lab.github.io';
 
   it('strips a path from origin-only fields even after a previous bad rewrite', () => {
     const config = {

@@ -16,7 +16,7 @@ under each table below and pinning their behaviors in Step 4.
 
 ## Step 1: Locate things
 
-1. The reference (`sthamann/shopware_claude_commerce`): the current repo, a local clone, or a fresh
+1. The reference (`agentic-commerce-lab/shopware-claude-commerce`): the current repo, a local clone, or a fresh
    clone; and the blueprint commit its `requirements.txt` pins.
 2. The user's agent: the storefront host (`storefront/api/`) or the merchant host (`merchant/api/`),
    its backend class, and its skills directory (`vendor/skills/shopping/` passed as `skills_dir=`

@@ -10,7 +10,7 @@
 
 ## Frame 10 — Commerce Operating System
 
-- scene: Statement lands — "Shopware is the Commerce Operating System for the Agent Economy." — then the repo lockup `github.com/sthamann/shopware_claude_commerce` (on screen only; the voice points to the link in the description) and a terminal pill types the five-command quick start (docker compose up · bootstrap · venv + pip · env · uvicorn). Holds on the lockup.
+- scene: Statement lands — "Shopware is the Commerce Operating System for the Agent Economy." — then the repo lockup `github.com/agentic-commerce-lab/shopware-claude-commerce` (on screen only; the voice points to the link in the description) and a terminal pill types the five-command quick start (docker compose up · bootstrap · venv + pip · env · uvicorn). Holds on the lockup.
 - voiceover: "Shopware is the Commerce Operating System for the Agent Economy. The repository link is in the description. Five commands — and it runs."
 - duration: 12.801s
 - transition_in: zoom-through
@@ -29,7 +29,7 @@ keyMessage: The tagline, the repo, five commands.
 
 Adapt: keep the signature of the install-command end card — the headline demotes, a terminal springs in, the commands type and hold with a blinking caret — with five commands instead of one, typed in cascade, and the thesis line as the headline.
 Scene 1 (0.0–4.2s): ground + grid; kicker `✱ SHOPWARE × CLAUDE COMMERCE AGENTS` centered; the thesis "Shopware is the Commerce Operating System for the Agent Economy." enters centered at `display` via **per-word staggered reveal** (`dynamic-content-sequencing`), each word on its spoken beat; "Commerce Operating System" carries the frame's one blue (`coral`). Hold briefly.
-Scene 2 (4.4–6.6s): on "The repository link", the thesis **nudges** up to `headline` scale (slow-fast-slow, power3); a mono lockup `github.com/sthamann/shopware_claude_commerce` with a hairline pill `MIT` **spring-pops** beneath it (`spring-pop-entrance`, smooth settle).
+Scene 2 (4.4–6.6s): on "The repository link", the thesis **nudges** up to `headline` scale (slow-fast-slow, power3); a mono lockup `github.com/agentic-commerce-lab/shopware-claude-commerce` with a hairline pill `MIT` **spring-pops** beneath it (`spring-pop-entrance`, smooth settle).
 Scene 3 (6.6–12.0s): on "Five commands", a terminal pill (`code-surface`, ~70% width, centered, upper-middle so the caption band stays clear) springs in; the five README commands **type on** in cascade (`discrete-text-sequence`), one per line, each with a `$` prompt: `docker compose -f docker/compose.yaml up -d` · `./docker/bootstrap.sh` · `python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements-dev.txt` · `cp .env.example .env && cat docker/.generated.env >> .env` · `uvicorn storefront.api.main:app --port 8004`; a status line `→ http://localhost:8004 · http://localhost:3005` fades up on "and it runs".
 Scene 4 (12.0–12.8s): caret blinks (square-wave on timeline time); everything else still — the film's final held frame. No exit motion beyond the hold.
 

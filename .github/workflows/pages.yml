@@ -1,5 +1,5 @@
 # Build the in-browser demo and publish it to GitHub Pages.
-# Live URL: https://sthamann.github.io/shopware_claude_commerce/
+# Live URL: https://agentic-commerce-lab.github.io/shopware-claude-commerce/
 #
 # GitHub Pages is static: no Node Anthropic proxy, no COOP/COEP headers.
 # The assembled site injects a public-path prefix and the playground service

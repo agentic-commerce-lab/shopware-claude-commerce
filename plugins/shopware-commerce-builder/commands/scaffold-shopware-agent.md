@@ -3,7 +3,7 @@ description: "Interview the user about their Shopware shop (URL, sales channel, 
 argument-hint: "[shop URL, Shopware version, and which agent(s), if known]"
 ---
 
-Scaffold a commerce agent for a Shopware 6 shop on the `sthamann/shopware_claude_commerce`
+Scaffold a commerce agent for a Shopware 6 shop on the `agentic-commerce-lab/shopware-claude-commerce`
 reference, which runs Anthropic's `commerce-agents` blueprint unmodified against Shopware. The
 shopping agent serves a customer over `ShopwareStorefrontBackend` (UCP for catalog and cart, the
 Store API for what UCP lacks, a one-time handoff code into Shopware's own checkout); the merchant
@@ -19,7 +19,7 @@ runs.
 
 1. The current repo is the reference when `storefront/api/shopware_backend.py` and
    `merchant/api/shopware_backend.py` exist; otherwise use a local clone, or clone
-   `https://github.com/sthamann/shopware_claude_commerce.git` under `/tmp`. Note its commit, and
+   `https://github.com/agentic-commerce-lab/shopware-claude-commerce.git` under `/tmp`. Note its commit, and
    the Anthropic blueprint commit its `requirements.txt` pins (the `UPSTREAM` line), for Step 2b.
 2. Read these before writing anything:
    - `README.md` (the mapping table, the safety model, the configuration table), then

@@ -244,5 +244,5 @@ tools:
 
 metadata:
   agent: merchant-agent
-  source: shopware_claude_commerce/merchant/managed-agents
+  source: shopware-claude-commerce/merchant/managed-agents
   blueprint: anthropics/commerce-agents@fd4d59224ab96b43c6dc6888207c67b3bd5a24cf
