@@ -14,11 +14,11 @@ describe('sales-channel URL rewrite under a project Pages prefix', { skip: playg
   const { shopUrlVariants } = await import(SQL_DUMP.href);
 
   it('keeps a path prefix on GitHub project Pages origins', () => {
-    const urls = shopUrlVariants('https://sthamann.github.io/shopware_claude_commerce');
-    assert.ok(urls.includes('https://sthamann.github.io/shopware_claude_commerce'));
-    assert.ok(urls.includes('http://sthamann.github.io/shopware_claude_commerce'));
-    assert.ok(!urls.includes('https://sthamann.github.io'));
-    assert.ok(!urls.includes('http://sthamann.github.io'));
+    const urls = shopUrlVariants('https://agentic-commerce-lab.github.io/shopware-claude-commerce');
+    assert.ok(urls.includes('https://agentic-commerce-lab.github.io/shopware-claude-commerce'));
+    assert.ok(urls.includes('http://agentic-commerce-lab.github.io/shopware-claude-commerce'));
+    assert.ok(!urls.includes('https://agentic-commerce-lab.github.io'));
+    assert.ok(!urls.includes('http://agentic-commerce-lab.github.io'));
   });
 
   it('stays pathless at the origin root (local npm start)', () => {

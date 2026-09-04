@@ -3,7 +3,7 @@ description: "Map a Shopware shopping or merchant agent the user already runs or
 argument-hint: "[where the agent's code is, and what prompted the review, if known]"
 ---
 
-Review the user's Shopware commerce agent against the `sthamann/shopware_claude_commerce`
+Review the user's Shopware commerce agent against the `agentic-commerce-lab/shopware-claude-commerce`
 reference. The user said:
 
 $ARGUMENTS

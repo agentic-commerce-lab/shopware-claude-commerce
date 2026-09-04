@@ -1,4 +1,4 @@
-# SCRIPT — Shopware × Claude Commerce Agents explainer (github.com/sthamann/shopware_claude_commerce)
+# SCRIPT — Shopware × Claude Commerce Agents explainer (github.com/agentic-commerce-lab/shopware-claude-commerce)
 
 **Voice:** Kokoro `bm_george` (offline; British male, measured) — HeyGen not signed in
 **Voice settings:** speed 1.0

@@ -1,7 +1,7 @@
 Badge lines for README.md (paste next to the existing badges; README is owned by another agent).
 
-[![CI](https://github.com/sthamann/shopware_claude_commerce/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sthamann/shopware_claude_commerce/actions/workflows/ci.yml)
-[![Integration (Docker Shopware)](https://github.com/sthamann/shopware_claude_commerce/actions/workflows/integration.yml/badge.svg)](https://github.com/sthamann/shopware_claude_commerce/actions/workflows/integration.yml)
+[![CI](https://github.com/agentic-commerce-lab/shopware-claude-commerce/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/agentic-commerce-lab/shopware-claude-commerce/actions/workflows/ci.yml)
+[![Integration (Docker Shopware)](https://github.com/agentic-commerce-lab/shopware-claude-commerce/actions/workflows/integration.yml/badge.svg)](https://github.com/agentic-commerce-lab/shopware-claude-commerce/actions/workflows/integration.yml)
 
 Workflows:
   ci.yml          push/PR to main — ruff + pytest (Python 3.11/3.12), Next.js builds (Node 22),

@@ -115,6 +115,6 @@ export const FIXTURE_PUBLIC_ASSETS_ARCHIVE = 'public-assets.tar.gz';
 
 /**
  * Public path of the assembled site. `/` for the local Node server; GitHub project Pages
- * sets `/shopware_claude_commerce/` via DEMO_BASE_PATH in .github/workflows/pages.yml.
+ * sets `/shopware-claude-commerce/` via DEMO_BASE_PATH in .github/workflows/pages.yml.
  */
 export { viteBaseFromEnv as DEMO_VITE_BASE } from './public-base.mjs';

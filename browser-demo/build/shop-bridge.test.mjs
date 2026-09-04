@@ -7,18 +7,18 @@ import { extractStorefrontProduct, phpRequestUrl } from '../app/src/engine/shop-
 
 describe('phpRequestUrl', () => {
   it('keeps a Pages shop URL intact', () => {
-    const href = 'https://sthamann.github.io/shopware_claude_commerce/store-api/search?search=a';
-    assert.equal(phpRequestUrl(href, '/shopware_claude_commerce'), href);
+    const href = 'https://agentic-commerce-lab.github.io/shopware-claude-commerce/store-api/search?search=a';
+    assert.equal(phpRequestUrl(href, '/shopware-claude-commerce'), href);
   });
 
   it('restores the Pages prefix when httpx dropped it', () => {
     assert.equal(
-      phpRequestUrl('https://sthamann.github.io/store-api/search?search=a', '/shopware_claude_commerce'),
-      'https://sthamann.github.io/shopware_claude_commerce/store-api/search?search=a',
+      phpRequestUrl('https://agentic-commerce-lab.github.io/store-api/search?search=a', '/shopware-claude-commerce'),
+      'https://agentic-commerce-lab.github.io/shopware-claude-commerce/store-api/search?search=a',
     );
     assert.equal(
-      phpRequestUrl('https://sthamann.github.io/api/_mcp', '/shopware_claude_commerce'),
-      'https://sthamann.github.io/shopware_claude_commerce/api/_mcp',
+      phpRequestUrl('https://agentic-commerce-lab.github.io/api/_mcp', '/shopware-claude-commerce'),
+      'https://agentic-commerce-lab.github.io/shopware-claude-commerce/api/_mcp',
     );
   });
 

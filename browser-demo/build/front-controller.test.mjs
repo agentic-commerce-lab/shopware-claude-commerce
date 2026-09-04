@@ -26,15 +26,15 @@ describe('Shopware front-controller APP_URL under a project Pages prefix', { ski
 
   it('strips hop-by-hop and X-Forwarded headers before PHP WASM', () => {
     const out = phpRequestHeaders({
-      Host: 'sthamann.github.io',
+      Host: 'agentic-commerce-lab.github.io',
       Accept: 'text/html',
       'Accept-Encoding': 'gzip, deflate, br',
-      'X-Forwarded-Host': 'sthamann.github.io',
+      'X-Forwarded-Host': 'agentic-commerce-lab.github.io',
       'X-Forwarded-Proto': 'https',
-      'X-Forwarded-Prefix': '/shopware_claude_commerce',
+      'X-Forwarded-Prefix': '/shopware-claude-commerce',
       Cookie: 'sw_playground_version=6.7.13.1',
     });
-    assert.equal(out.Host, 'sthamann.github.io');
+    assert.equal(out.Host, 'agentic-commerce-lab.github.io');
     assert.equal(out.Accept, 'text/html');
     assert.equal(out.Cookie, 'sw_playground_version=6.7.13.1');
     assert.equal(out['Accept-Encoding'], undefined);

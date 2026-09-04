@@ -16,7 +16,7 @@ setup.
 ## Install
 
 ```bash
-claude plugin marketplace add sthamann/shopware_claude_commerce     # or the path of a local clone
+claude plugin marketplace add agentic-commerce-lab/shopware-claude-commerce     # or the path of a local clone
 claude plugin install shopware-commerce-builder@shopware-claude-commerce
 ```
 

@@ -117,7 +117,7 @@ keyMessage: Blueprint untouched on top, thin adapters in the middle, MCP into Sh
 Adapt: labeled stations on one locked canvas, revealed in traversal order by connectors drawing on top-down; each station reveals on its cue.
 Scene 1 (0.0–1.3s): ground + grid; kicker `✱ HOW IT'S WIRED`; the TOP station "Claude" (Messages API · Agent SDK) with a `warm` dot — the frame's only warm.
 Scene 2 (0.0–3.6s): on "Anthropic's blueprint packages" (@0.02) a connector draws into station 2: the wide card `anthropics/commerce-agents` with chips `shopping_agent · StorefrontBackend`, `merchant_agent · MerchantBackend`, `commerce_common`; on "pinned, unmodified" (@1.99) the badge `pinned @ fd4d5922 · 0 changes` pops at its right edge.
-Scene 3 (3.6–5.6s): on "Two thin Shopware backends" (@3.60) two connectors draw in parallel into `storefront/api` (`ucp_client.py · shopware_backend.py · identity.py`) and `merchant/api` (`admin_transport.py · shopware_backend.py · staging.py`) under the mono label `github.com/sthamann/shopware_claude_commerce`.
+Scene 3 (3.6–5.6s): on "Two thin Shopware backends" (@3.60) two connectors draw in parallel into `storefront/api` (`ucp_client.py · shopware_backend.py · identity.py`) and `merchant/api` (`admin_transport.py · shopware_backend.py · staging.py`) under the mono label `github.com/agentic-commerce-lab/shopware-claude-commerce`.
 Scene 4 (5.6–9.7s): on "MCP on both sides" (@5.64) both connectors draw into the SHOPWARE band (blue top rule — the frame's one blue), each connector tagged `MCP`; on "shoppers over UCP-MCP" (@7.52) the chip `/ucp/mcp` lights and a mono session strip `initialize → Mcp-Session-Id → tools/call` types beneath it; `/.well-known/ucp` sits to its left, unlit.
 Scene 5 (9.7–14.7s): on "merchants over the Admin MCP" (@9.72) the chip `/api/_mcp` lights; on "dry-run previews computed on the server" (@11.92) the chip `dryRun=true` lights and the callout `preview computed server-side → StagedChange {before, after}` pops beside it.
 Scene 6 (14.7–16.3s): on "REST is the fallback" (@14.72) two `muted` chips `/ucp/v1/*` and `/api/*` fade up with the tag `REST · fallback`; band label `Shopware 6.7 · SwagAgenticCommerce · core MCP` fades up. Hold.
@@ -255,7 +255,7 @@ Scene 5 (11.2–13.0s): on "Then one call replays it" (@11.19) the second chip t
 
 ## Frame 10 — Build your own
 
-- scene: Terminal-style frame for the Claude Code plugin `shopware-commerce-builder`: three lines type on — `claude plugin marketplace add sthamann/shopware_claude_commerce` · `claude plugin install shopware-commerce-builder@shopware-claude-commerce` · `/scaffold-shopware-agent` — then two columns fill: FIVE COMMANDS (scaffold · add-shopware-flow · author-shopware-evals · review-shopware-agent · shopware-ucp-doctor) and SIX SKILLS (ucp-mapping · admin-mcp · promotions · variants · compliance-de · identity-and-handoff).
+- scene: Terminal-style frame for the Claude Code plugin `shopware-commerce-builder`: three lines type on — `claude plugin marketplace add agentic-commerce-lab/shopware-claude-commerce` · `claude plugin install shopware-commerce-builder@shopware-claude-commerce` · `/scaffold-shopware-agent` — then two columns fill: FIVE COMMANDS (scaffold · add-shopware-flow · author-shopware-evals · review-shopware-agent · shopware-ucp-doctor) and SIX SKILLS (ucp-mapping · admin-mcp · promotions · variants · compliance-de · identity-and-handoff).
 - voiceover: "Build your own with Claude Code: add the marketplace, install the plugin, run scaffold. Five commands, six Shopware skills, from UCP mapping to German compliance."
 - duration: 11.669s
 - transition_in: crossfade
@@ -274,7 +274,7 @@ keyMessage: Three commands to install, one to scaffold; the Shopware knowledge s
 
 Adapt: the typed-command signature — a terminal, three lines typing in sequence with a caret — then the frame splits: the terminal demotes to the upper half and two chip columns cascade in beneath on the cues.
 Scene 1 (0.0–2.3s): ground + grid; kicker `✱ BUILD YOUR OWN · CLAUDE CODE PLUGIN`; a terminal (`code-surface`, ~78% width) with title `claude — zsh`; headline chip `shopware-commerce-builder` at its right.
-Scene 2 (2.3–6.3s): on "add the marketplace" (@2.28) line 1 types `$ claude plugin marketplace add sthamann/shopware_claude_commerce`; on "install the plugin" (@3.52) line 2 `$ claude plugin install shopware-commerce-builder@shopware-claude-commerce`; on "run scaffold" (@4.78) line 3 `> /scaffold-shopware-agent` with a blinking caret.
+Scene 2 (2.3–6.3s): on "add the marketplace" (@2.28) line 1 types `$ claude plugin marketplace add agentic-commerce-lab/shopware-claude-commerce`; on "install the plugin" (@3.52) line 2 `$ claude plugin install shopware-commerce-builder@shopware-claude-commerce`; on "run scaffold" (@4.78) line 3 `> /scaffold-shopware-agent` with a blinking caret.
 Scene 3 (6.3–7.5s): on "Five commands" (@6.36) the terminal demotes upward; a left column of five mono chips cascades in: `/scaffold-shopware-agent` · `/add-shopware-flow` · `/author-shopware-evals` · `/review-shopware-agent` · `/shopware-ucp-doctor`.
 Scene 4 (7.5–11.7s): on "six Shopware skills" (@7.48) a right column of six chips cascades in: `shopware-ucp-mapping` · `shopware-admin-mcp` · `shopware-promotions` · `shopware-variants` · `shopware-compliance-de` · `shopware-identity-and-handoff`; on "UCP mapping" (@9.24) the first chip lights `coral`; on "German compliance" (@10.21) `shopware-compliance-de` lights — the two blues of the frame, one at a time. Hold.
 
@@ -305,7 +305,7 @@ Scene 4 (13.8–17.4s): on "CI gates" (@13.84) a strip lands at the foot: `ci.ym
 
 ## Frame 12 — Commerce Operating System
 
-- scene: Statement lands — "Shopware is the Commerce Operating System for the Agent Economy." — then a roadmap row labelled IN PROGRESS: `SwagCommerceAgentTools` (Store API MCP tools · `swag_agent_staged_change` + `agent-change-*` · Flow Builder events); then the repo lockup `github.com/sthamann/shopware_claude_commerce` (on screen only) and a terminal pill types the five-command quick start. Holds on the lockup.
+- scene: Statement lands — "Shopware is the Commerce Operating System for the Agent Economy." — then a roadmap row labelled IN PROGRESS: `SwagCommerceAgentTools` (Store API MCP tools · `swag_agent_staged_change` + `agent-change-*` · Flow Builder events); then the repo lockup `github.com/agentic-commerce-lab/shopware-claude-commerce` (on screen only) and a terminal pill types the five-command quick start. Holds on the lockup.
 - voiceover: "Shopware is the Commerce Operating System for the Agent Economy. Next, in progress: SwagCommerceAgentTools, agent tools and staged changes inside Shopware. Repository link in the description. Five commands — and it runs."
 - duration: 19.013s
 - transition_in: zoom-through
@@ -325,6 +325,6 @@ keyMessage: The tagline, the roadmap, the repo, five commands.
 Adapt: the install-command end card — headline demotes, a terminal springs in, commands type and hold with a blinking caret — with a roadmap row inserted between headline and lockup.
 Scene 1 (0.0–4.0s): ground + grid; kicker `✱ SHOPWARE × CLAUDE COMMERCE AGENTS`; the thesis enters centered at `display`, each word on its beat (Shopware @0.05 … Economy @3.20); "Commerce Operating System" carries the blue.
 Scene 2 (4.0–11.7s): on "Next, in progress" (@4.09) the thesis nudges up to `headline`; a roadmap row pops beneath: pill `IN PROGRESS` (amber hairline) + `SwagCommerceAgentTools` + mono sub `Store API MCP tools · swag_agent_staged_change · agent-change-stage/apply/discard/list · Flow Builder events` (@4.9, sub @7.9).
-Scene 3 (11.7–14.0s): on "Repository link" (@11.73) the mono lockup `github.com/sthamann/shopware_claude_commerce` with the pill `MIT` pops beneath the roadmap row.
+Scene 3 (11.7–14.0s): on "Repository link" (@11.73) the mono lockup `github.com/agentic-commerce-lab/shopware-claude-commerce` with the pill `MIT` pops beneath the roadmap row.
 Scene 4 (14.0–17.8s): on "Five commands" (@14.05) the terminal springs in; the five README commands type in cascade; the status line `→ shopping agent on :8004 · UI on :3005 · portal on :3006` fades up on "and it runs" (@15.13 → lands after the last command).
 Scene 5 (17.8–19.0s): caret blinks; everything else still — the film's final held frame.

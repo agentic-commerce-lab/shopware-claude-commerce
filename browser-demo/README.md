@@ -1,6 +1,6 @@
 # Browser demo — Shopware × Claude Commerce Agents in the browser
 
-**[Open the live demo](https://sthamann.github.io/shopware_claude_commerce/)** — click that link; nothing to install.
+**[Open the live demo](https://agentic-commerce-lab.github.io/shopware-claude-commerce/)** — click that link; nothing to install.
 
 Shopware 6.7.13.1 runs in the tab (PHP WASM + MariaDB WASM via [FriendsOfShopware/shopware-playground](https://github.com/FriendsOfShopware/shopware-playground)). The blueprint shopping and merchant hosts run on **Pyodide**. GitHub Actions builds the gitignored WASM shop and publishes the static tree to GitHub Pages.
 
@@ -10,7 +10,7 @@ Cold boot downloads ≈ 150 MB and takes ~20–40 s on a typical laptop. A reloa
 
 | Piece | Link |
 |---|---|
-| Live demo (this folder) | [sthamann.github.io/shopware_claude_commerce](https://sthamann.github.io/shopware_claude_commerce/) |
+| Live demo (this folder) | [agentic-commerce-lab.github.io/shopware-claude-commerce](https://agentic-commerce-lab.github.io/shopware-claude-commerce/) |
 | Claude Code plugin | [`shopware-commerce-builder`](../plugins/shopware-commerce-builder/) |
 | Shopware MCP / staging plugin | [`SwagCommerceAgentTools`](../shopware-plugins/SwagCommerceAgentTools/) |
 | Checkout handoff plugin | [`CommerceAgentsHandoff`](../docker/plugins/CommerceAgentsHandoff/) |
@@ -49,8 +49,8 @@ npm start              # → http://127.0.0.1:4188
 A Pages-shaped local tree (project path prefix):
 
 ```bash
-DEMO_BASE_PATH=/shopware_claude_commerce/ npm run build:app
-DEMO_BASE_PATH=/shopware_claude_commerce/ npm run build:site
+DEMO_BASE_PATH=/shopware-claude-commerce/ npm run build:app
+DEMO_BASE_PATH=/shopware-claude-commerce/ npm run build:site
 ```
 
 That prefix is what [pages.yml](../.github/workflows/pages.yml) sets from `actions/configure-pages`.
@@ -225,7 +225,7 @@ The local server reads `../.env` (repo root) then `browser-demo/.env`. Relevant 
 | `ANTHROPIC_WORKSPACE_ID` | Identity-linked keys |
 | `DEMO_PROXY_*` | Per-session / per-IP budgets — see `server/anthropic-proxy.mjs` |
 | `PORT`, `HOST` | Listen address (default `4188`, `127.0.0.1`) |
-| `DEMO_BASE_PATH` | Public path for the assembled site (`/` locally, `/shopware_claude_commerce/` on Pages) |
+| `DEMO_BASE_PATH` | Public path for the assembled site (`/` locally, `/shopware-claude-commerce/` on Pages) |
 
 Build-time pins (playground commit, plugin refs, Pyodide version): `build/config.mjs`.
 Third-party code changes: `patches/README.md`. Shipped licenses: `THIRD_PARTY.md`.

@@ -15,7 +15,7 @@ describe('app-route classification under a project Pages prefix', { skip: playgr
   const previous = globalThis.self;
 
   before(() => {
-    globalThis.self = { __DEMO_PUBLIC_BASE__: '/shopware_claude_commerce' };
+    globalThis.self = { __DEMO_PUBLIC_BASE__: '/shopware-claude-commerce' };
   });
 
   after(() => {
@@ -25,10 +25,10 @@ describe('app-route classification under a project Pages prefix', { skip: playgr
 
   it('never routes demo host artifacts or PHP prelude files to PHP WASM', () => {
     const staticPaths = [
-      '/shopware_claude_commerce/demo/host/bootstrap.py',
-      '/shopware_claude_commerce/demo/host/repo-tree.tar',
-      '/shopware_claude_commerce/php/auto_prepend.php',
-      '/shopware_claude_commerce/demo/wheels/manifest.json',
+      '/shopware-claude-commerce/demo/host/bootstrap.py',
+      '/shopware-claude-commerce/demo/host/repo-tree.tar',
+      '/shopware-claude-commerce/php/auto_prepend.php',
+      '/shopware-claude-commerce/demo/wheels/manifest.json',
     ];
     for (const path of staticPaths) {
       assert.equal(isEngineBypassPath(path), true, path);
@@ -38,8 +38,8 @@ describe('app-route classification under a project Pages prefix', { skip: playgr
   });
 
   it('still treats the storefront front controller as PHP', () => {
-    assert.equal(isShopwarePhpPath('/shopware_claude_commerce/index.php', true), true);
-    assert.equal(isEngineBypassPath('/shopware_claude_commerce/index.php'), false);
+    assert.equal(isShopwarePhpPath('/shopware-claude-commerce/index.php', true), true);
+    assert.equal(isEngineBypassPath('/shopware-claude-commerce/index.php'), false);
   });
 
   it('posts PHP bridge messages with transfer options, then the legacy list', () => {
@@ -59,11 +59,11 @@ describe('app-route classification under a project Pages prefix', { skip: playgr
 
   it('drops X-Forwarded-* and Accept-Encoding before PHP WASM', () => {
     const out = phpRequestHeaders({
-      Host: 'sthamann.github.io',
+      Host: 'agentic-commerce-lab.github.io',
       'Accept-Encoding': 'gzip',
-      'X-Forwarded-Host': 'sthamann.github.io',
+      'X-Forwarded-Host': 'agentic-commerce-lab.github.io',
     });
-    assert.equal(out.Host, 'sthamann.github.io');
+    assert.equal(out.Host, 'agentic-commerce-lab.github.io');
     assert.equal(out['Accept-Encoding'], undefined);
     assert.equal(out['X-Forwarded-Host'], undefined);
   });

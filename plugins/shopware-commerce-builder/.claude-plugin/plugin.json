@@ -5,8 +5,8 @@
   "author": {
     "name": "shopware AG"
   },
-  "homepage": "https://github.com/sthamann/shopware_claude_commerce/tree/main/plugins/shopware-commerce-builder",
-  "repository": "https://github.com/sthamann/shopware_claude_commerce",
+  "homepage": "https://github.com/agentic-commerce-lab/shopware-claude-commerce/tree/main/plugins/shopware-commerce-builder",
+  "repository": "https://github.com/agentic-commerce-lab/shopware-claude-commerce",
   "license": "MIT",
   "keywords": ["shopware", "commerce", "ucp", "mcp", "shopping-agent", "merchant-agent"]
 }

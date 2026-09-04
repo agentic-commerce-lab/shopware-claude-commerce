@@ -5,7 +5,7 @@ description: How Shopware's UCP surface (discovery, the MCP and REST transports,
 
 # UCP to StorefrontBackend
 
-Paths are in the Shopware reference repo (`sthamann/shopware_claude_commerce`): `storefront/api/`
+Paths are in the Shopware reference repo (`agentic-commerce-lab/shopware-claude-commerce`): `storefront/api/`
 holds the host, `shopware_common/` the transport code, `docs/shopware-mapping.md` the tables read
 from the live shop. The blueprint contract is `StorefrontBackend` in Anthropic's
 `shopping-agent/core/shopping_agent/backend.py`, installed at the commit `requirements.txt` pins.

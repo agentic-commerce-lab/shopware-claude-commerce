@@ -4,7 +4,7 @@
   "description": "Shopware x Claude Commerce Agents: the shopware-commerce-builder plugin for running Anthropic's shopping and merchant agents against a Shopware 6 shop over UCP and the Admin API MCP.",
   "owner": {
     "name": "shopware AG",
-    "url": "https://github.com/sthamann/shopware_claude_commerce"
+    "url": "https://github.com/agentic-commerce-lab/shopware-claude-commerce"
   },
   "plugins": [
     {
@@ -15,8 +15,8 @@
       "author": {
         "name": "shopware AG"
       },
-      "homepage": "https://github.com/sthamann/shopware_claude_commerce/tree/main/plugins/shopware-commerce-builder",
-      "repository": "https://github.com/sthamann/shopware_claude_commerce",
+      "homepage": "https://github.com/agentic-commerce-lab/shopware-claude-commerce/tree/main/plugins/shopware-commerce-builder",
+      "repository": "https://github.com/agentic-commerce-lab/shopware-claude-commerce",
       "license": "MIT",
       "keywords": ["shopware", "commerce", "ucp", "mcp", "shopping-agent", "merchant-agent"],
       "category": "development"

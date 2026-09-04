@@ -16,7 +16,7 @@ capture: yes
 
 ## Intent
 
-An English explainer / launch video for `github.com/sthamann/shopware_claude_commerce`: on September 2, 2026
+An English explainer / launch video for `github.com/agentic-commerce-lab/shopware-claude-commerce`: on September 2, 2026
 Anthropic published an open-source blueprint for commerce agents; one day later this is Shopware's
 implementation — running. Not "a Claude shop" — Shopware as the commerce execution layer any
 agent runs on. Sell-and-show: the story is conceptual (architecture, safety, advantages) and the demo
@@ -41,7 +41,7 @@ diagram aesthetic.
 ## Notes
 
 - Brand: Shopware blue `#189EFF` as the primary accent; Claude / Anthropic warm `#D97757` sparingly as the secondary accent; clean sans type.
-- Story beats (in order): hook (Sept 2, 2026 blueprint; one day later this is Shopware's implementation — running) → the idea (execution layer, not a Claude shop) → two agents (shopping: search → compare → real cart → handoff to Shopware checkout; merchant: analyze → stage → human approves → apply) → wiring (blueprint pinned + unmodified → thin backends → UCP for shoppers, Admin API / MCP with server-side dry-run previews for merchants) → three Shopware advantages (native UCP, dry-run previews from the core, commerce semantics in the core) → safety (model proposes, person or policy applies; provenance gates; checkout completes in Shopware, never in the agent) → demo beats (search → add to cart → checkout on Shopware; staged price change → approve → applied) → close ("Shopware is the Commerce Operating System for the Agent Economy", repo `github.com/sthamann/shopware_claude_commerce` on screen — not narrated, five-command quick start).
+- Story beats (in order): hook (Sept 2, 2026 blueprint; one day later this is Shopware's implementation — running) → the idea (execution layer, not a Claude shop) → two agents (shopping: search → compare → real cart → handoff to Shopware checkout; merchant: analyze → stage → human approves → apply) → wiring (blueprint pinned + unmodified → thin backends → UCP for shoppers, Admin API / MCP with server-side dry-run previews for merchants) → three Shopware advantages (native UCP, dry-run previews from the core, commerce semantics in the core) → safety (model proposes, person or policy applies; provenance gates; checkout completes in Shopware, never in the agent) → demo beats (search → add to cart → checkout on Shopware; staged price change → approve → applied) → close ("Shopware is the Commerce Operating System for the Agent Economy", repo `github.com/agentic-commerce-lab/shopware-claude-commerce` on screen — not narrated, five-command quick start).
 - Sources: MASTERPLAN.md §0, §1.1, §2.3, §4.1, §4.2, §6; README.md; progress.md; docs/shopware-mapping.md.
 - Deliverables: rendered MP4 at `docs/media/explainer.mp4` (1080p H.264), poster PNG `docs/media/explainer-poster.png`, `docs/media/README.md` with re-render commands and script.
 - Autonomous run: no board, no checkpoint questions; visible decisions with reasons instead.

@@ -4,7 +4,7 @@
 /**
  * PHP-WASM request URL for a shop call. The service worker sends the full href.
  * Path-only URLs lose the GitHub Pages prefix when PHPRequestHandler joins them
- * against an absoluteUrl that already includes `/shopware_claude_commerce`, and
+ * against an absoluteUrl that already includes `/shopware-claude-commerce`, and
  * Shopware then maps no sales channel (HTML 400 on /store-api, 404 on /api/_mcp).
  */
 export function phpRequestUrl(href, publicBase = '') {

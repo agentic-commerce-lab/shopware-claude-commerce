@@ -3,11 +3,11 @@
 
 /**
  * Public path of this deployment. Vite `base` is `/` locally and
- * `/shopware_claude_commerce/` on GitHub project Pages.
+ * `/shopware-claude-commerce/` on GitHub project Pages.
  */
 export const PUBLIC_BASE = String(import.meta.env.BASE_URL || '/').replace(/\/$/, '');
 
-/** Origin-absolute path (`/index.php` → `/shopware_claude_commerce/index.php` on Pages). */
+/** Origin-absolute path (`/index.php` → `/shopware-claude-commerce/index.php` on Pages). */
 export function demoUrl(path: string): string {
   const normalised = path.startsWith('/') ? path : `/${path}`;
   return PUBLIC_BASE ? `${PUBLIC_BASE}${normalised}` : normalised;
