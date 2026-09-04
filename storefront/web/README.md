@@ -37,6 +37,7 @@ Shopware-specific routes (`storefront/api/main.py`):
 | `GET /api/auth/shopware/start` | `Header` → `signIn()` | Answers `{ authorization_url }`; the app leaves with `window.location.assign`. |
 | `POST /api/auth/signout` | signed-in badge | Drops the Identity Linking token for the session. |
 | `GET /api/brand` | `StoreShell`, `Header` | Store name, tagline, logo, and brand colours (`--brand`, `--brand-contrast`). |
+| `POST /api/session/sync-catalog` | `lib/session.ts` after start | Listing search through the executor so grid titles enter chat provenance. |
 
 Product ids are Shopware's 32-hex UUIDs; prices are EUR and rendered with `de-DE` formatting via
 `lib/format.ts` (the shared `formatMoney` is en-US/USD, so the app never uses it).

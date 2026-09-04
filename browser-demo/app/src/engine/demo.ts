@@ -28,6 +28,7 @@ import {
 import { Playground } from './playground';
 import { rewriteUcpConfig } from '../../../build/ucp-origin.mjs';
 import { demoUrl, shopPublicOrigin } from './public-base';
+import { extractStorefrontProduct } from './shop-bridge.mjs';
 
 export type DemoView = 'shop' | 'shopping' | 'merchant';
 export const DEMO_VIEWS: readonly DemoView[] = ['shop', 'shopping', 'merchant'];
@@ -112,6 +113,8 @@ export class DemoController {
   private listeners = new Set<Listener>();
   private started = false;
   private shopBootPromise: Promise<void> | null = null;
+  private storefrontProduct: { id: string; name: string } | null = null;
+  private lastFocusedProductId: string | null = null;
   private stepStart = new Map<string, number>();
   state: DemoState;
 
@@ -237,6 +240,7 @@ export class DemoController {
     }
     if (!path) return;
     this.update({ framePath: path });
+    this.captureStorefrontProduct(frame?.contentDocument ?? null);
     if (!this.state.shopReady) {
       const ms = this.mark('storefront-rendered');
       if (oops) {
@@ -409,6 +413,12 @@ export class DemoController {
     if (data.type !== OVERLAY_MESSAGE_TYPE) return;
     if (data.action === 'ready') {
       this.pushOverlayStatus();
+      const productId = typeof data.productId === 'string' ? data.productId : '';
+      if (/^[0-9a-f]{32}$/i.test(productId)) {
+        this.rememberStorefrontProduct(productId, String(data.productName || ''));
+      } else {
+        this.captureStorefrontProduct(this.frame?.contentDocument ?? null);
+      }
       return;
     }
     const view = OVERLAY_ACTIONS[String(data.action)];
@@ -424,7 +434,12 @@ export class DemoController {
     }
     if (view === 'shopping' && this.state.view !== 'shopping') {
       // The vendored StoreShell reads the cart id when it mounts: bind first, then mount.
-      void this.bindShoppingCart().finally(() => this.applyView(view));
+      void this.bindShoppingCart()
+        .finally(() => this.applyView(view))
+        .then(() => {
+          void this.syncShoppingCatalogWhenReady();
+          void this.focusStorefrontProductWhenReady();
+        });
       return;
     }
     this.applyView(view);
@@ -449,11 +464,83 @@ export class DemoController {
         localStorage.setItem(STORAGE_KEYS.storefrontCartId, token);
         // A previous session may hold another cart: start fresh so it re-attaches.
         sessionStorage.removeItem(STORAGE_KEYS.storefrontSession);
+        this.lastFocusedProductId = null;
       }
     } catch {
       /* storage unavailable */
     }
     return token;
+  }
+
+  private captureStorefrontProduct(doc: Document | null): void {
+    if (!doc) return;
+    const found = extractStorefrontProduct(doc.documentElement?.outerHTML || doc.body?.innerHTML || '');
+    if (found) this.rememberStorefrontProduct(found.id, found.name);
+  }
+
+  private rememberStorefrontProduct(id: string, name: string): void {
+    if (!/^[0-9a-f]{32}$/i.test(id)) return;
+    this.storefrontProduct = { id, name };
+    if (this.state.view === 'shopping') void this.focusStorefrontProductWhenReady();
+  }
+
+  private async shoppingSessionId(attempts = 25): Promise<string> {
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      try {
+        const sessionId = sessionStorage.getItem(STORAGE_KEYS.storefrontSession) || '';
+        if (sessionId) return sessionId;
+      } catch {
+        /* storage unavailable */
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 150));
+    }
+    return '';
+  }
+
+  /** Grid products → session provenance so chat can name what the customer already sees. */
+  private async syncShoppingCatalogWhenReady(): Promise<void> {
+    const sessionId = await this.shoppingSessionId();
+    if (!sessionId) return;
+    try {
+      await fetch(`${VIRTUAL_ORIGINS.shopping}/api/session/sync-catalog`, {
+        method: 'POST',
+        headers: { accept: 'application/json', 'X-Session-Id': sessionId },
+      });
+    } catch {
+      /* host still booting */
+    }
+  }
+
+  /**
+   * H7: the iframe PDP must enter session provenance through get_product_details
+   * before chat can talk about "the current one" or add it.
+   */
+  private async focusStorefrontProductWhenReady(): Promise<void> {
+    const product = this.storefrontProduct;
+    if (!product || product.id === this.lastFocusedProductId) return;
+    for (let attempt = 0; attempt < 25; attempt += 1) {
+      const sessionId = await this.shoppingSessionId(1);
+      if (sessionId) {
+        try {
+          const res = await fetch(`${VIRTUAL_ORIGINS.shopping}/api/session/focus`, {
+            method: 'POST',
+            headers: {
+              accept: 'application/json',
+              'content-type': 'application/json',
+              'X-Session-Id': sessionId,
+            },
+            body: JSON.stringify({ product_id: product.id }),
+          });
+          if (res.ok) {
+            this.lastFocusedProductId = product.id;
+            return;
+          }
+        } catch {
+          /* host still booting */
+        }
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 150));
+    }
   }
 
   /**

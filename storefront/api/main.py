@@ -8,6 +8,8 @@
 Routes beyond the shared storefront host (``demo_common.build_storefront_host``):
 
     POST /api/cart/add                    the grid's add button (details → add, same gates)
+    POST /api/session/focus               storefront PDP → get_product_details + app-event (H7)
+    POST /api/session/sync-catalog        grid catalog → session provenance
     POST /api/cart/attach                 bind the session to an existing Shopware cart id
     GET  /api/checkout/handoff/{ticket}   mint a one-time handoff code and POST it to the shop
     GET  /api/auth/shopware/start         identity-linking availability + how to sign in
@@ -112,6 +114,10 @@ class CartAttachRequest(BaseModel):
     cart_id: str = Field(min_length=1, max_length=512)
 
 
+class ProductFocusRequest(BaseModel):
+    product_id: str = Field(min_length=1, max_length=64)
+
+
 class ShopwareLoginRequest(BaseModel):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=1, max_length=256)
@@ -147,7 +153,7 @@ async def _lifespan_with_warmup(app_) -> AsyncIterator[None]:
             "on" if identity.configured else f"off ({identity.unavailable_reason})",
             agent_tools.description,
         )
-        _warmup_task = asyncio.create_task(warm_catalog(backend))
+        _warmup_task = asyncio.create_task(warm_catalog(backend, shopping_config))
         # The host index stays warm as the fallback of the plugin path.
         try:
             await backend.policies.rebuild()
@@ -179,14 +185,8 @@ def shopping_context(record, request: Request | None = None) -> ShoppingSessionC
     )
 
 
-@app.post("/api/cart/add")
-async def cart_add(
-    request: CartAddRequest, http_request: Request, record: host.CurrentSession
-) -> dict:
-    """The grid button. It reads the product through the agent's own
-    ``get_product_details`` tool first, so the record (and its variants) enter session
-    provenance exactly as a conversation would, then adds through the same gated executor."""
-    executor = agent.executor_class(
+def _shopping_executor(record, http_request: Request | None = None):
+    return agent.executor_class(
         backend=backend,
         config=agent.config,
         skills=agent.skills,
@@ -194,6 +194,63 @@ async def cart_add(
         state=record.state,
         memory=agent.memory,
     )
+
+
+async def ingest_grid_catalog(record, http_request: Request | None = None) -> int:
+    """Put the products the grid already shows into session provenance (H7).
+
+    The grid reads ``backend.products``; chat only sees ``seen_products`` after a tool
+    call. One listing search (same catalog as ``GET /api/products``) closes that gap.
+    """
+    if record.state.seen_products:
+        return len(record.state.seen_products)
+    executor = _shopping_executor(record, http_request)
+    await executor.execute("search_products", {"query": "", "limit": 24})
+    if not record.state.seen_products:
+        for product_id in list(backend.products)[:24]:
+            await executor.execute("get_product_details", {"product_id": product_id})
+    titles: list[str] = []
+    seen: set[str] = set()
+    for details in backend.products.values():
+        title = (details.title or "").strip()
+        if title and title not in seen:
+            seen.add(title)
+            titles.append(title)
+    if titles:
+        note = (
+            "The storefront product grid is showing: "
+            + ", ".join(titles[:12])
+            + ". Those are this shop's live products — look them up with "
+            "search_products or get_product_details (the exact title is enough) "
+            "instead of inventing aisles or saying they are not in view."
+        )
+        if note not in record.pending_app_events:
+            record.pending_app_events.append(note)
+    host.sessions.save(record)
+    return len(record.state.seen_products)
+
+
+@app.middleware("http")
+async def sync_catalog_before_chat(request: Request, call_next):
+    if request.method == "POST" and request.url.path.rstrip("/").endswith("/api/chat"):
+        session_id = request.headers.get(SESSION_HEADER)
+        if session_id:
+            try:
+                record = host.sessions.require(session_id)
+                await ingest_grid_catalog(record, request)
+            except Exception:
+                logger.exception("catalog sync before chat failed")
+    return await call_next(request)
+
+
+@app.post("/api/cart/add")
+async def cart_add(
+    request: CartAddRequest, http_request: Request, record: host.CurrentSession
+) -> dict:
+    """The grid button. It reads the product through the agent's own
+    ``get_product_details`` tool first, so the record (and its variants) enter session
+    provenance exactly as a conversation would, then adds through the same gated executor."""
+    executor = _shopping_executor(record, http_request)
     details = await executor.execute("get_product_details", {"product_id": request.product_id})
     if details.is_error:
         raise HTTPException(status_code=404, detail="Product not found")
@@ -203,6 +260,39 @@ async def cart_add(
         request,
         note="Customer tapped the add-to-cart button on {title} ({product_id}), quantity {quantity}.",
     )
+
+
+@app.post("/api/session/focus")
+async def session_focus(
+    request: ProductFocusRequest, http_request: Request, record: host.CurrentSession
+) -> dict:
+    """Storefront navigation: the visitor opened a PDP. Read it through
+    ``get_product_details`` so the record (and its variants) enter provenance (H7),
+    then queue an app-event note the next chat turn hands to the model."""
+    executor = _shopping_executor(record, http_request)
+    details = await executor.execute("get_product_details", {"product_id": request.product_id})
+    if details.is_error:
+        raise HTTPException(status_code=404, detail="Product not found")
+    product = record.state.seen_products.get(request.product_id) or backend.products.get(
+        request.product_id
+    )
+    title = product.title if product is not None else request.product_id
+    note = (
+        f"The customer opened {title} on the Shopware storefront "
+        f"(product_id {request.product_id}). Treat it as the current product "
+        "until they navigate away or search for something else."
+    )
+    if note not in record.pending_app_events:
+        record.pending_app_events.append(note)
+    host.sessions.save(record)
+    return {"ok": True, "product_id": request.product_id, "title": title}
+
+
+@app.post("/api/session/sync-catalog")
+async def session_sync_catalog(http_request: Request, record: host.CurrentSession) -> dict:
+    """Customer-demo grid → session: the products ``GET /api/products`` already shows."""
+    count = await ingest_grid_catalog(record, http_request)
+    return {"ok": True, "products": count}
 
 
 @app.post("/api/cart/attach")

@@ -5,7 +5,8 @@
   iframe (storefront and administration). It talks to the shell (window.parent) over
   postMessage only:
 
-    → { type: 'commerce-agents-demo', action: 'open-shopping' | 'open-merchant' | 'ready' }
+    → { type: 'commerce-agents-demo', action: 'open-shopping' | 'open-merchant' | 'ready',
+        productId?, productName? }
     ← { type: 'commerce-agents-demo-status', text, phase: 'booting' | 'ready' | 'error',
         agents: { shopping: 'idle'|'loading'|'ready'|'error', merchant: ... } }
 
@@ -42,7 +43,8 @@
   @media (max-width: 480px) { .ca-demo { right: 12px; bottom: 12px; } .ca-demo__panel { width: calc(100vw - 24px); } }
 </style>
 
-<div class="ca-demo" id="commerce-agents-demo" data-surface="{{ surface|default('storefront') }}" data-phase="booting">
+{% set demoProduct = page.product|default(null) %}
+<div class="ca-demo" id="commerce-agents-demo" data-surface="{{ surface|default('storefront') }}" data-phase="booting"{% if demoProduct %} data-product-id="{{ demoProduct.id }}" data-product-name="{{ demoProduct.translated.name|default(demoProduct.name) }}"{% endif %}>
   <div class="ca-demo__panel" role="dialog" aria-label="Agentic Commerce demo" id="commerce-agents-demo-panel">
     <div class="ca-demo__head">
       <h2>Shopware × Claude Commerce Agents</h2>
@@ -110,8 +112,14 @@
     root.classList.toggle('ca-demo--open', next);
     launcher.setAttribute('aria-expanded', String(next));
   }
+  function currentProduct() {
+    return {
+      productId: root.getAttribute('data-product-id') || '',
+      productName: root.getAttribute('data-product-name') || '',
+    };
+  }
   function send(action, extra) {
-    var payload = Object.assign({ type: MESSAGE_TYPE, action: action, surface: root.getAttribute('data-surface'), path: location.pathname + location.search }, extra || {});
+    var payload = Object.assign({ type: MESSAGE_TYPE, action: action, surface: root.getAttribute('data-surface'), path: location.pathname + location.search }, currentProduct(), extra || {});
     if (embedded) {
       window.parent.postMessage(payload, location.origin);
       return true;

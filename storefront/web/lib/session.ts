@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { api, fetchAuthStatus, fetchSignInUrl, signOut as postSignOut } from "./api";
+import { api, fetchAuthStatus, fetchSignInUrl, signOut as postSignOut, syncCatalog } from "./api";
 
 const STORAGE_KEY = "shopware-storefront-session";
 
@@ -42,6 +42,7 @@ export function useStoreSession(): StoreSession {
             setSessionId(stored);
             setSignedIn(status.signed_in);
           }
+          void syncCatalog();
           return;
         }
       }
@@ -52,6 +53,7 @@ export function useStoreSession(): StoreSession {
       if (fresh) {
         window.sessionStorage.setItem(STORAGE_KEY, fresh);
         api.session = fresh;
+        void syncCatalog();
       }
       setSessionId(fresh);
       setSignedIn(false);

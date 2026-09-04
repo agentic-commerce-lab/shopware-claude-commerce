@@ -63,12 +63,20 @@ def _shop_origin() -> str:
     return str(demo_bridge.shopOrigin) if demo_bridge is not None else ""
 
 
+def _netloc(value: object) -> str:
+    if isinstance(value, bytes):
+        return value.decode()
+    return str(value or "")
+
+
 def _is_shop_url(url: httpx.URL) -> bool:
+    """Same host as the WASM shop. The Pages path prefix is restored in the JS
+    bridge — matching host-only here still routes a dropped-prefix URL to PHP."""
     origin = _shop_origin()
     if not origin:
         return False
     parts = urlsplit(origin)
-    return url.scheme == parts.scheme and url.netloc.decode() == parts.netloc
+    return url.scheme == parts.scheme and _netloc(url.netloc) == _netloc(parts.netloc)
 
 
 class _ReadableStreamBody(httpx.AsyncByteStream):

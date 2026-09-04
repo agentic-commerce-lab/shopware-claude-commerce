@@ -18,6 +18,7 @@ from .conftest import HANDOFF_SECRET
 from .replay import (
     CART_ID,
     GONE_CART_ID,
+    MAIN_ID,
     OIL_ID,
     ORDER_NUMBER,
     PRODUCT_ID,
@@ -109,6 +110,46 @@ async def test_an_unknown_product_id_is_none(backend, session):
     assert await backend.get_product_details(session, "ffffffffffffffffffffffffffffffff") is None
 
 
+async def test_search_falls_back_to_listing_when_ucp_and_search_return_html(
+    backend, session, shop
+):
+    shop.ucp_search_html = True
+    shop.store_search_html = True
+    products = await backend.search_products(session, "shirt", limit=5)
+    assert {p.product_id for p in products} == {PRODUCT_ID}
+
+
+async def test_an_unknown_aisle_stays_empty_when_search_falls_back(backend, session, shop):
+    shop.ucp_search_html = True
+    products = await backend.search_products(session, "lamps", limit=5)
+    assert products == []
+
+
+async def test_an_exact_grid_title_is_found_when_search_returns_empty(backend, session, shop):
+    """The customer demo: UCP/search miss the title the grid already shows."""
+    shop.ucp_search_html = True
+    shop.store_search_html = True
+    products = await backend.search_products(session, "Main product", limit=5)
+    assert [p.product_id for p in products] == [MAIN_ID]
+    assert products[0].title == "Main product"
+
+
+async def test_electronics_matches_the_seeded_shopware_aisle(backend, session, shop):
+    shop.ucp_search_html = True
+    shop.store_search_html = True
+    products = await backend.search_products(session, "electronics", limit=5)
+    assert {p.product_id for p in products} == {MAIN_ID}
+
+
+async def test_get_product_details_resolves_the_exact_grid_title(backend, session, shop):
+    shop.ucp_search_html = True
+    shop.store_search_html = True
+    details = await backend.get_product_details(session, "Main product")
+    assert details is not None
+    assert details.product_id == MAIN_ID
+    assert details.title == "Main product"
+
+
 async def test_price_filters_are_enforced_on_the_result(backend, session):
     cheap = await backend.search_products(
         session, "", filters=SearchFilters(max_price=20.0), limit=5
@@ -117,7 +158,7 @@ async def test_price_filters_are_enforced_on_the_result(backend, session):
     pricey = await backend.search_products(
         session, "", filters=SearchFilters(min_price=20.0), limit=5
     )
-    assert [p.product_id for p in pricey] == [PRODUCT_ID]
+    assert {p.product_id for p in pricey} == {PRODUCT_ID, MAIN_ID}
 
 
 # ---------------------------------------------------------------------------- cart & handoff

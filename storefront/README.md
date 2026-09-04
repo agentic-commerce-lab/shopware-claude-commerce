@@ -12,7 +12,7 @@ storefront/api/
   policies.py         PolicyIndex over CMS footer/service pages, /agents.md, /llms.txt, fallback copy
   disclosures.py      PAngV base price, delivery time, VAT rows from Store API data + fixed copy
   brand.py            shop name / locale / currency for the web UI
-  catalog_warmup.py   grid products entered into provenance at session start
+  catalog_warmup.py   grid products + live category/title notes at session start
   main.py             FastAPI host (routes below)
   tests/              netless replay of UCP over MCP + REST, Store API, OAuth AS; runs every test on both transports
 storefront/data/      recorded UCP fixtures, discovery document, disclosure_copy.de.json
@@ -31,6 +31,8 @@ uvicorn storefront.api.main:app --port 8004
 |---|---|
 | `GET /api/health` | process check (no Anthropic key) |
 | `POST /api/session` | start a shopping session; warm-up grid products enter provenance |
+| `POST /api/session/focus` | storefront PDP navigation — `get_product_details` through the executor (H7), then an app-event note so chat knows the current product |
+| `POST /api/session/sync-catalog` | customer-demo grid → session: listing search through the executor so visible titles enter provenance |
 | `GET /api/products` | display cache (filled by search / warm-up) |
 | `POST /api/cart/add` | direct add — runs `get_product_details` through the executor first, so the provenance gate holds |
 | `POST /api/cart/attach` | adopt an existing Shopware context token as this session's cart |
@@ -65,6 +67,12 @@ delivery by it (eval `shop-clock-002`). The clock itself comes from `shopware_co
 on this repo's routes (`POST /api/cart/add`); the shared `/api/chat` route in the vendored
 `demo_common` still passes the server's naive `datetime.now()` — see
 `docs/anthropic-upstream-notes.md` §5.
+
+`domain_search_notes` tells the model not to invent aisles (home goods, lamps, a generic
+mall). After warm-up it also names live categories and titles from the Shopware catalog.
+`search_products` uses UCP, then Store API search, then the same `POST /store-api/product`
+listing as the grid, then the in-memory cache. `get_product_details` accepts a hex id or
+an exact grid title ("Main product").
 
 ### Shopware facts the backend relies on
 

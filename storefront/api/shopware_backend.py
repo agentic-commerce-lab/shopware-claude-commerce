@@ -65,6 +65,7 @@ CustomerTokenProvider = Callable[[str], str | None]
 
 _CONTEXT = {"address_country": "DE", "language": "de"}
 _TAG = re.compile(r"<[^>]+>")
+_HEX_ID = re.compile(r"^[0-9a-f]{32}$", re.IGNORECASE)
 DEFAULT_CURRENCY = "EUR"
 DEFAULT_ETA = "siehe Produkt-Lieferzeit"
 HANDOFF_LABEL = "Checkout in Shopware"
@@ -230,29 +231,13 @@ class ShopwareStorefrontBackend(StorefrontBackend):
         filters: SearchFilters | None = None,
         limit: int = 8,
     ) -> list[Product]:
-        catalog: dict[str, Any] = {
-            "query": query,
-            "context": _CONTEXT,
-            "pagination": {"limit": limit},
-        }
-        price: dict[str, int] = {}
-        if filters and filters.min_price is not None:
-            price["min"] = int(round(filters.min_price * 100))
-        if filters and filters.max_price is not None:
-            price["max"] = int(round(filters.max_price * 100))
-        if price:
-            catalog["filters"] = {"price": price}
-        try:
-            payload = await self._ucp(session.session_id, "search_catalog", {"catalog": catalog})
-            records = payload.get("products") or payload.get("items") or []
-        except UcpError as error:
-            logger.warning("UCP search failed (%s); Store API fallback", error)
-            try:
-                records = [
-                    _store_api_to_ucp(p) for p in await self.store_api.search_products(query, limit)
-                ]
-            except StoreApiError:
-                records = []
+        term = (query or "").strip()
+        if not term or term == "*":
+            records = await self._list_catalog_records(limit)
+        else:
+            records = await self._search_catalog_records(session.session_id, term, limit)
+        if not records:
+            records = self._cached_catalog_records(term, limit)
         state = self._state(session)
         products = [
             self._remember_product(state, record) for record in records if _record_id(record)
@@ -262,9 +247,104 @@ class ShopwareStorefrontBackend(StorefrontBackend):
             products = [p for p in products if _within_price(p, filters)]
         return products[:limit]
 
+    async def _search_catalog_records(
+        self, session_id: str, term: str, limit: int
+    ) -> list[dict[str, Any]]:
+        catalog = {
+            "query": term,
+            "context": _CONTEXT,
+            "pagination": {"limit": limit},
+        }
+        try:
+            payload = await self._ucp(session_id, "search_catalog", {"catalog": catalog})
+            records = payload.get("products") or payload.get("items") or []
+        except UcpError as error:
+            logger.warning("UCP search failed (%s); Store API fallback", error)
+            records = []
+        if records:
+            return records
+        try:
+            return [
+                _store_api_to_ucp(product)
+                for product in await self.store_api.search_products(term, limit)
+            ]
+        except StoreApiError as error:
+            logger.warning("Store API search failed (%s)", error)
+            return []
+
+    async def _list_catalog_records(self, limit: int) -> list[dict[str, Any]]:
+        """The product grid's catalog: Store API listing, not UCP search.
+
+        An empty UCP ``search_catalog`` is not a listing — it often returns a subset or
+        HTML — while ``POST /store-api/product`` is what filled ``GET /api/products``.
+        """
+        try:
+            return [
+                _store_api_to_ucp(product) for product in await self.store_api.list_products(limit)
+            ]
+        except StoreApiError as error:
+            logger.warning("Store API listing failed (%s)", error)
+            return []
+
+    def _cached_catalog_records(self, query: str, limit: int) -> list[dict[str, Any]]:
+        """Last resort: the in-memory grid cache (warm-up / earlier searches)."""
+        tokens = [part for part in (query or "").lower().split() if part and part != "*"]
+        records: list[dict[str, Any]] = []
+        for details in self.products.values():
+            blob = " ".join(
+                part
+                for part in (
+                    details.title,
+                    details.category,
+                    details.brand,
+                    details.short_description,
+                )
+                if part
+            ).lower()
+            if tokens and not all(token in blob for token in tokens):
+                continue
+            records.append(_details_to_ucp(details))
+            if len(records) >= limit:
+                break
+        return records
+
+    def resolve_catalog_ref(self, token: str) -> str | None:
+        """Exact product title (or a unique variant title) → id. Hex ids are left alone."""
+        needle = (token or "").strip().strip("\"'")
+        if not needle or _HEX_ID.match(needle):
+            return None
+        lowered = needle.lower()
+        exact = [
+            details
+            for details in self.products.values()
+            if (details.title or "").strip().lower() == lowered
+        ]
+        if exact:
+            return exact[0].product_id
+        variant_hits: list[str] = []
+        for details in self.products.values():
+            family = (details.title or "").strip()
+            for variant in details.variants:
+                title = (variant.title or "").strip()
+                aliases = {title.lower(), f"{family} - {title}".lower(), f"{family} — {title}".lower()}
+                if lowered in aliases:
+                    variant_hits.append(variant.product_id)
+        if len(variant_hits) == 1:
+            return variant_hits[0]
+        return None
+
     async def get_product_details(
         self, session: ShoppingSessionContext, product_id: str
     ) -> ProductDetails | None:
+        resolved = self.resolve_catalog_ref(product_id)
+        if resolved:
+            product_id = resolved
+        elif not _HEX_ID.match((product_id or "").strip()):
+            await self.search_products(session, product_id, limit=8)
+            resolved = self.resolve_catalog_ref(product_id)
+            if not resolved:
+                return None
+            product_id = resolved
         state = self._state(session)
         parent = self.variant_of.get(product_id)
         if parent is not None and parent != product_id:
@@ -834,6 +914,36 @@ def _family_options(record: dict[str, Any], variants: list[Product]) -> dict[str
             ]
             options[str(spec["name"])] = [v for v in values if v]
     return options or _options_of(variants)
+
+
+def _details_to_ucp(details: ProductDetails) -> dict[str, Any]:
+    return {
+        "id": details.product_id,
+        "title": details.title,
+        "name": details.title,
+        "description": details.long_description or details.short_description,
+        "price": details.price,
+        "currency": details.currency,
+        "image_url": details.image_url,
+        "available": details.in_stock,
+        "tags": [details.category] if details.category else [],
+        "categories": (
+            [{"name": details.category, "translated": {"name": details.category}}]
+            if details.category
+            else []
+        ),
+        "manufacturer": {"name": details.brand} if details.brand else None,
+        "variants": [
+            {
+                "id": variant.product_id,
+                "title": variant.title,
+                "price": variant.price,
+                "currency": variant.currency,
+                "availability": {"available": variant.in_stock},
+            }
+            for variant in details.variants
+        ],
+    }
 
 
 def _store_api_to_ucp(product: dict[str, Any]) -> dict[str, Any]:

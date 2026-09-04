@@ -20,7 +20,8 @@ The overlay never calls the agents itself; it talks to the embedding shell (`win
 
 ```text
 overlay → shell   { type: 'commerce-agents-demo', action: 'ready' | 'open-shopping' | 'open-merchant',
-                    surface: 'storefront' | 'administration', path }
+                    surface: 'storefront' | 'administration', path,
+                    productId?, productName? }   # product fields on a PDP (`page.product`)
 shell → overlay   { type: 'commerce-agents-demo-status', text, phase: 'booting' | 'ready' | 'error',
                     agents: { shopping: 'idle'|'loading'|'ready'|'error', merchant: … } }
 ```

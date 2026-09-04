@@ -141,6 +141,7 @@ twice then `curl -s http://localhost:8080/.well-known/ucp | jq '.signing_keys | 
 - [x] Pages storefront boot: UCP `embeddedAllowedOrigins` stay pathless; sales-channel domains keep the repo prefix; SW → page PHP bridge uses `{ transfer }` (`build/ucp-origin.mjs`)
 - [x] Pages storefront after boot: `APP_URL` keeps the repo path (otherwise Shopware maps no sales channel → Oops 400 and `all.css` 404); leftover PHP sessions are closed between WASM requests; iframe Oops is not treated as storefront-ready
 - [x] Pages theme/media + lazy chunks: CI publishes compiled `theme/<hash>/all.css` + seed media from `ci-fixtures/…/public-assets.tar.gz`; Vite emits absolute `/<repo>/demo/assets/…` URLs for MerchantView / shopping chunks; `.env.local` `MCP_SERVER=1` is written when prepare-shop is skipped
+- [x] Shopping chat catalog blindness — empty UCP/Store API search while the grid showed products; Pages PHP URLs dropped `/shopware_claude_commerce`; iframe PDP never entered session provenance. Fixed: listing/cache search fallback, `POST /api/session/sync-catalog` + `/focus`, `phpRequestUrl`, live category notes. Overlay `data-product-*` needs a WASM rebuild to ship on Pages; buy-widget DOM extract works without it.
 - [ ] End-to-end acceptance on a fresh Pages build (cold boot, chat turn, cart, handoff) documented and gated in CI
 - [ ] Hosted Anthropic proxy — not on Pages (static). Chat is BYOK against `api.anthropic.com` and may fail if Anthropic blocks the browser call
 

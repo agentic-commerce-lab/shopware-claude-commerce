@@ -31,6 +31,7 @@ from .replay import (
     CUSTOMER_PASSWORD,
     CUSTOMER_TOKEN,
     GONE_CART_ID,
+    MAIN_ID,
     PRODUCT_ID,
     VARIANT_S,
     ShopwareReplay,
@@ -145,6 +146,35 @@ def test_the_add_button_runs_under_the_customers_clock(client, monkeypatch):
     for context in ours:
         assert context.now is not None and context.now.utcoffset() is not None
         assert context.now.tzinfo == ZoneInfo(context.timezone)
+
+
+def test_storefront_focus_reads_details_so_the_pdp_enters_provenance(client, monkeypatch):
+    _bind_replay(monkeypatch)
+    headers = start(client)
+    response = client.post(
+        "/api/session/focus", json={"product_id": PRODUCT_ID}, headers=headers
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["ok"] is True
+    assert body["product_id"] == PRODUCT_ID
+    assert "T-Shirt" in body["title"]
+    record = main_module.host.sessions.require(headers[SESSION_HEADER])
+    assert PRODUCT_ID in record.state.seen_products
+    assert VARIANT_S in record.state.seen_products
+    assert any("storefront" in event.lower() for event in record.pending_app_events)
+
+
+def test_sync_catalog_puts_grid_titles_into_the_session(client, monkeypatch):
+    _bind_replay(monkeypatch)
+    headers = start(client)
+    response = client.post("/api/session/sync-catalog", headers=headers)
+    assert response.status_code == 200, response.text
+    assert response.json()["products"] >= 3
+    record = main_module.host.sessions.require(headers[SESSION_HEADER])
+    assert MAIN_ID in record.state.seen_products
+    assert PRODUCT_ID in record.state.seen_products
+    assert any("Main product" in event for event in record.pending_app_events)
 
 
 def test_the_add_button_on_a_family_is_held_with_the_route_to_a_variant(client, monkeypatch):

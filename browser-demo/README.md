@@ -70,9 +70,14 @@ Bind address: `--host` / `--port` or `HOST` / `PORT` (default `127.0.0.1:4188`).
    `admin` / `Shopware123!`, see `build/config.mjs`) in an iframe. The blue **Agentic Commerce demo** launcher at the bottom
    right (plugin `plugins/DemoOverlay/`) shows boot progress and opens the two demos.
 2. **Shopping assistant** — the blueprint shopping agent (`storefront/api` + `StorefrontBackend`)
-   over UCP/MCP and the Store API. It searches the live catalog and edits *the visitor's own cart*
-   (same `sw-context-token` as the storefront); `Checkout in Shopware` hands off into the
-   in-browser Shopware checkout through the `CommerceAgentsHandoff` plugin.
+   over UCP/MCP and the Store API. It searches the live catalog (UCP, then Store API search,
+   then `POST /store-api/product` listing) and edits *the visitor's own cart*
+   (same `sw-context-token` as the storefront). Opening a product in the Shopware iframe
+   focuses that PDP in the shopping session (`POST /api/session/focus` → `get_product_details`).
+   Opening the shopping view also syncs the grid catalog into the session
+   (`POST /api/session/sync-catalog`) so exact titles such as "Main product" resolve.
+   `Checkout in Shopware` hands off into the in-browser Shopware checkout through the
+   `CommerceAgentsHandoff` plugin.
 3. **Merchant portal** — the blueprint merchant agent (`merchant/api` + `MerchantBackend`) over
    `/api/_mcp` with the `SwagCommerceAgentTools` write tools: dashboard from Admin MCP, staged
    changes with a Shopware dry-run preview, approve → applied (visible on the storefront) or dismiss.

@@ -44,6 +44,7 @@ VARIANT_S = "22222222222222222222222222222222"
 VARIANT_M = "33333333333333333333333333333333"
 VARIANT_L = "44444444444444444444444444444444"
 OIL_ID = "55555555555555555555555555555555"
+MAIN_ID = "66666666666666666666666666666666"
 CART_ID = "SWSCVGF5ZUJQBWJ0QMP1OXPZNQ"
 GONE_CART_ID = "SWSCGONE00000000000000000000"
 CUSTOMER_TOKEN = "SWSCCUSTOMER0000000000000000"
@@ -209,6 +210,22 @@ STORE_PRODUCTS: dict[str, dict[str, Any]] = {
         },
         "children": [],
         "unit": {"shortCode": "l", "name": "Liter"},
+    },
+    MAIN_ID: {
+        "id": MAIN_ID,
+        "name": "Main product",
+        "translated": {"name": "Main product", "description": "Shopware demo main product."},
+        "available": True,
+        "availableStock": 10,
+        "calculatedPrice": {"unitPrice": 495.95},
+        "cover": {"media": {"url": "https://cdn.example/main.jpg"}},
+        "children": [],
+        "categories": [
+            {
+                "name": "Free time & electronics",
+                "translated": {"name": "Free time & electronics"},
+            }
+        ],
     },
 }
 for _child in STORE_CHILDREN:
@@ -413,6 +430,9 @@ class ShopwareReplay:
         self.agent_tool_failures: set[str] = set()  # tool names that answer isError
         self.store_api_mcp_sessions: set[str] = set()
         self._agent_tools = json.loads(AGENT_TOOLS_FIXTURE.read_text(encoding="utf-8"))
+        # Live WASM/Pages failures: UCP or Store API search answering HTML instead of JSON.
+        self.ucp_search_html = False
+        self.store_search_html = False
 
     # ------------------------------------------------------------------ dispatch
 
@@ -460,6 +480,10 @@ class ShopwareReplay:
 
     def _ucp_rest(self, method: str, path: str, body: dict[str, Any]) -> httpx.Response:
         if method == "POST" and path == "/catalog/search":
+            if self.ucp_search_html:
+                return httpx.Response(
+                    400, text="<html>Oops</html>", headers={"content-type": "text/html"}
+                )
             query = str(body.get("query") or "").lower()
             products = []
             if not query or query in {"*", "a"} or "shirt" in query or "claude" in query:
@@ -902,16 +926,24 @@ class ShopwareReplay:
                 },
             )
         if path == "/store-api/product" and method == "POST":
-            parent = next(
+            parent_filter = next(
                 (
-                    f.get("value")
+                    f
                     for f in body.get("filter") or []
                     if isinstance(f, dict) and f.get("field") == "parentId"
                 ),
                 None,
             )
-            children = [c for c in STORE_CHILDREN if c["parentId"] == parent]
-            return httpx.Response(200, json={"elements": deepcopy(children)})
+            if parent_filter is not None:
+                parent = parent_filter.get("value")
+                children = [c for c in STORE_CHILDREN if c["parentId"] == parent]
+                return httpx.Response(200, json={"elements": deepcopy(children)})
+            listed = [
+                deepcopy(STORE_PRODUCTS[PRODUCT_ID]),
+                deepcopy(STORE_PRODUCTS[OIL_ID]),
+                deepcopy(STORE_PRODUCTS[MAIN_ID]),
+            ]
+            return httpx.Response(200, json={"elements": listed})
         if path.startswith("/store-api/product/"):
             wanted = path.rsplit("/", 1)[-1]
             if wanted == PRODUCT_ID:
@@ -925,11 +957,20 @@ class ShopwareReplay:
                 return httpx.Response(404, json={"errors": [{"detail": "Product not found"}]})
             return httpx.Response(200, json={"product": deepcopy(product)})
         if path == "/store-api/search":
-            products = (
-                [deepcopy(SHIRT)]
-                if "shirt" in (query or "").lower()
-                else [deepcopy(SHIRT), deepcopy(OIL)]
-            )
+            if self.store_search_html:
+                return httpx.Response(
+                    400, text="<html>Oops</html>", headers={"content-type": "text/html"}
+                )
+            params = dict(part.split("=", 1) for part in (query or "").split("&") if "=" in part)
+            term = str(params.get("search") or body.get("search") or "").lower()
+            if "shirt" in term:
+                products = [deepcopy(SHIRT)]
+            elif "oil" in term or "olive" in term:
+                products = [deepcopy(OIL)]
+            elif not term.strip() or term.strip() in {"*", "a"}:
+                products = [deepcopy(SHIRT), deepcopy(OIL)]
+            else:
+                products = []
             return httpx.Response(200, json={"elements": products})
         if path == "/store-api/shipping-method":
             return httpx.Response(200, json={"elements": deepcopy(SHIPPING_METHODS)})

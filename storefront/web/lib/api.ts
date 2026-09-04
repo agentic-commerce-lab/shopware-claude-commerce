@@ -70,6 +70,11 @@ export function attachCart(cartId: string): Promise<CartPayload | null> {
   return api.post<CartPayload>("/cart/attach", { cart_id: cartId });
 }
 
+/** Grid catalog → shopping session (search + provenance) so chat can name visible products. */
+export function syncCatalog(): Promise<{ ok: boolean; products: number } | null> {
+  return api.post<{ ok: boolean; products: number }>("/session/sync-catalog", {});
+}
+
 export function fetchBrand(): Promise<Brand | null> {
   return api.get<Brand>("/brand");
 }

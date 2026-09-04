@@ -36,7 +36,10 @@ def build_shopping_config(store_name: str) -> ShoppingAgentConfig:
             "delivery time, VAT) come from get_disclosure, not from the product description. "
             "Order lookups cover the orders placed with this session's cart (or the linked "
             "Shopware account); for anything older point the customer at their Shopware "
-            "confirmation email or account."
+            "confirmation email or account. Answer catalog questions from search_products "
+            "and get_product_details only — do not invent aisles such as home goods, lamps, "
+            "or a generic electronics/clothing mall when the tools returned something else "
+            "(or nothing)."
         ),
         product_id_patterns=(_SHOPWARE_UUID,),
     )

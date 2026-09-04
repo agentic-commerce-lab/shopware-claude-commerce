@@ -135,15 +135,49 @@ class StoreApiClient:
     # ------------------------------------------------------------------ catalog
 
     async def search_products(self, query: str, limit: int = 8) -> list[dict[str, Any]]:
+        """Full-text search. An empty or wildcard query lists the catalog instead —
+        ``POST /store-api/search`` requires a term and answers 400 without one."""
+        term = (query or "").strip()
+        if not term or term == "*":
+            return await self.list_products(limit)
+        payload = {"limit": limit, "search": term, "associations": _product_associations()}
+        try:
+            body = await self._request(
+                "POST",
+                "/store-api/search",
+                json=payload,
+                params={"search": term},
+            )
+        except StoreApiError as error:
+            # HTML 400 = storefront router (path / sales-channel miss), not a JSON search miss.
+            if error.status in {400, 404, 405}:
+                logger.info("Store API search unavailable (%s); listing fallback", error)
+                return await self._filter_catalog(term, limit)
+            raise
+        rows = (body or {}).get("elements") or (body or {}).get("products") or []
+        if rows:
+            return rows
+        # 200 + empty is common when the search index is unbuilt (WASM / demo); the listing
+        # is the same catalog the product grid shows.
+        logger.info("Store API search returned no rows for %r; listing fallback", term)
+        return await self._filter_catalog(term, limit)
+
+    async def _filter_catalog(self, term: str, limit: int) -> list[dict[str, Any]]:
+        listed = await self.list_products(max(limit, 24))
+        return _filter_listed(listed, term)[:limit]
+
+    async def list_products(self, limit: int = 24) -> list[dict[str, Any]]:
+        """Visible catalog rows (``POST /store-api/product``). Children are dropped so the
+        grid and warm-up show families, matching UCP search."""
         body = await self._request(
             "POST",
-            "/store-api/search",
+            "/store-api/product",
             json={"limit": limit, "associations": _product_associations()},
-            params={"search": query},
         )
         if not body:
             return []
-        return body.get("elements") or body.get("products") or []
+        rows = body.get("elements") or body.get("products") or []
+        return [row for row in rows if not row.get("parentId")]
 
     async def product(self, product_id: str) -> dict[str, Any] | None:
         try:
@@ -267,6 +301,33 @@ def _error_detail(response: httpx.Response) -> str:
             return str(first.get("detail") or first.get("title") or first.get("code") or errors[0])
         return str(payload.get("detail") or payload.get("message") or payload)[:300]
     return str(payload)[:300]
+
+
+def _filter_listed(products: list[dict[str, Any]], query: str) -> list[dict[str, Any]]:
+    tokens = [part for part in (query or "").lower().split() if part and part != "*"]
+    if not tokens:
+        return products
+
+    def blob(product: dict[str, Any]) -> str:
+        translated = product.get("translated") if isinstance(product.get("translated"), dict) else {}
+        categories = product.get("categories") or []
+        category_names = [
+            str((item.get("translated") or {}).get("name") or item.get("name") or "")
+            if isinstance(item, dict)
+            else str(item)
+            for item in categories
+        ]
+        return " ".join(
+            [
+                str(product.get("name") or ""),
+                str(translated.get("name") or ""),
+                str(product.get("productNumber") or ""),
+                str(translated.get("description") or ""),
+                *category_names,
+            ]
+        ).lower()
+
+    return [product for product in products if all(token in blob(product) for token in tokens)]
 
 
 def _product_associations() -> dict[str, Any]:

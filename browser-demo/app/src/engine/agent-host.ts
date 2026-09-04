@@ -14,6 +14,8 @@
 
 import type { AgentRole, AnthropicAccess, HostBootConfig, HostWorkerInbound, HostWorkerOutbound } from '../../../host/protocol';
 import type { Playground } from './playground';
+import { PUBLIC_BASE } from './public-base';
+import { phpRequestUrl } from './shop-bridge.mjs';
 
 export const VIRTUAL_ORIGINS: Record<AgentRole, string> = {
   shopping: 'http://shopping.agent-host.invalid',
@@ -195,9 +197,9 @@ export class AgentHost {
 
   private async answerShopRequest(message: Extract<HostWorkerOutbound, { type: 'shop-request' }>): Promise<void> {
     try {
-      const url = new URL(message.url);
+      const href = phpRequestUrl(message.url, PUBLIC_BASE);
       const res = await this.playground.phpRequest({
-        url: url.pathname + url.search,
+        url: href,
         method: message.method,
         headers: { ...message.headers, Host: location.host },
         body: message.body,
