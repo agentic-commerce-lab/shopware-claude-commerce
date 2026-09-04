@@ -78,6 +78,12 @@ const STEP_LABELS: [string, string][] = [
 
 const OVERLAY_ACTIONS: Record<string, DemoView> = { 'open-shopping': 'shopping', 'open-merchant': 'merchant' };
 
+/** Symfony/Shopware error documents still fire iframe onLoad — do not treat them as a rendered catalogue. */
+export function storefrontDocumentLooksFailed(doc: Document | null): boolean {
+  const text = doc?.body?.innerText || '';
+  return /Oops! An Error Occurred/.test(text) || /The server returned a\s+'[45]\d\d/.test(text) || /The server returned a\s+"[45]\d\d/.test(text);
+}
+
 function readStoredMode(): AnthropicAccess['mode'] {
   try {
     return localStorage.getItem(STORAGE_KEYS.anthropicMode) === 'byok' ? 'byok' : 'proxy';
@@ -220,10 +226,12 @@ export class DemoController {
     const frame = this.frame;
     let path = '';
     let title = '';
+    let oops = false;
     try {
       const loc = frame?.contentWindow?.location;
       path = loc && loc.href !== 'about:blank' ? (loc.pathname || '/') + (loc.search || '') : '';
       title = frame?.contentDocument?.title || '';
+      oops = storefrontDocumentLooksFailed(frame?.contentDocument ?? null);
     } catch {
       path = '';
     }
@@ -231,6 +239,14 @@ export class DemoController {
     this.update({ framePath: path });
     if (!this.state.shopReady) {
       const ms = this.mark('storefront-rendered');
+      if (oops) {
+        this.step('storefront', 'error', title || 'Shopware returned an error page');
+        this.update({
+          shopError: 'Shopware storefront returned an error page (Oops / 400 / 500). Try Reset, then a hard refresh.',
+          statusText: `Shopware storefront failed after ${(ms / 1000).toFixed(1)} s`,
+        });
+        return;
+      }
       this.step('storefront', 'done', title);
       this.update({ shopReady: true, statusText: `Shopware storefront rendered after ${(ms / 1000).toFixed(1)} s${title ? ' — ' + title : ''}` });
       void this.startAgentsWhenReady();

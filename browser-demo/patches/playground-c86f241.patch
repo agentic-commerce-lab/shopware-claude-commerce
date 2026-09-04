@@ -12,10 +12,23 @@ index 99cf56d..cd6b143 100644
    "overrides": {
      "fs-ext-extra-prebuilt": "file:./shims/fs-ext-stub"
 diff --git a/php/auto_prepend.php b/php/auto_prepend.php
-index d20f9bd..60a2fa5 100644
+index d20f9bd..c145853 100644
 --- a/php/auto_prepend.php
 +++ b/php/auto_prepend.php
-@@ -67,3 +67,33 @@ if (!function_exists('mariadblite_rpc')) {
+@@ -5,6 +5,12 @@
+  */
+ @ini_set('memory_limit', '512M');
+ @ini_set('max_execution_time', '0');
++// One PHP instance serves every request. A previous storefront/error handler
++// that called session_start() leaves PHP_SESSION_ACTIVE; the next request then
++// 400s with "Failed to start the session: already started".
++if (\function_exists('session_status') && \session_status() === \PHP_SESSION_ACTIVE) {
++    \session_write_close();
++}
+ $_SERVER['PROJECT_ROOT'] = '/shopware';
+ $_ENV['PROJECT_ROOT'] = '/shopware';
+ putenv('PROJECT_ROOT=/shopware');
+@@ -67,3 +73,33 @@ if (!function_exists('mariadblite_rpc')) {
          return mariadblite_rpc(['op' => 'query', 'sql' => $sql]);
      }
  }
@@ -50,7 +63,7 @@ index d20f9bd..60a2fa5 100644
 +    }
 +}
 diff --git a/src/app-route.mjs b/src/app-route.mjs
-index 1f7ffbd..d1017b1 100644
+index 1f7ffbd..da232e4 100644
 --- a/src/app-route.mjs
 +++ b/src/app-route.mjs
 @@ -2,7 +2,41 @@
@@ -168,7 +181,7 @@ index 1f7ffbd..d1017b1 100644
    // Shopware API routes may end in a static-looking extension
    // (e.g. /api/_info/entity-schema.json) but are PHP controllers.
    if (pathname.startsWith('/api/')) {
-@@ -106,10 +153,24 @@ export function isShopwarePhpPath(pathname, nested = false) {
+@@ -106,10 +153,53 @@ export function isShopwarePhpPath(pathname, nested = false) {
    return true;
  }
  
@@ -186,6 +199,35 @@ index 1f7ffbd..d1017b1 100644
 +  }
 +}
 +
++/**
++ * Headers safe to forward into PHP WASM. Browser navigations (the storefront
++ * iframe) send hop-by-hop and X-Forwarded-* fields that make Symfony compute
++ * a pathless request URL; Shopware then throws SalesChannelMappingException
++ * (storefront 400 + theme CSS at the origin root).
++ */
++const PHP_HOP_BY_HOP = new Set([
++  'connection',
++  'keep-alive',
++  'proxy-authenticate',
++  'proxy-authorization',
++  'te',
++  'trailers',
++  'transfer-encoding',
++  'upgrade',
++  'accept-encoding',
++]);
++
++export function phpRequestHeaders(headers) {
++  const out = {};
++  if (!headers || typeof headers !== 'object') return out;
++  for (const [key, value] of Object.entries(headers)) {
++    const name = String(key).toLowerCase();
++    if (PHP_HOP_BY_HOP.has(name) || name.startsWith('x-forwarded-')) continue;
++    out[key] = value;
++  }
++  return out;
++}
++
  export function initialShopwarePath() {
    if (typeof location === 'undefined') return '/';
 -  const path = location.pathname + location.search;
@@ -196,18 +238,19 @@ index 1f7ffbd..d1017b1 100644
    return path;
  }
 diff --git a/src/browser-runtime.mjs b/src/browser-runtime.mjs
-index c465d23..583c0a6 100644
+index c465d23..c9197ef 100644
 --- a/src/browser-runtime.mjs
 +++ b/src/browser-runtime.mjs
-@@ -13,6 +13,7 @@ import { Lite4MariaDB } from '/mariadb/index.mjs';
+@@ -13,6 +13,8 @@ import { Lite4MariaDB } from '/mariadb/index.mjs';
  import { attachSqlBridge } from './sql-bridge.mjs';
  import { installSpawnStub } from './spawn-stub.mjs';
  import { seedShopware } from './db-seed.mjs';
 +import { demoPublicBase, withPublicBase } from './app-route.mjs';
++import { patchShopwareIndexAppUrl } from './front-controller.mjs';
  
  export const SHOPWARE_DOCUMENT_ROOT = '/shopware/public';
  export const SHOPWARE_PUBLIC_ROUTE = '/';
-@@ -44,7 +45,7 @@ export async function createPlayground(options = {}) {
+@@ -44,7 +46,7 @@ export async function createPlayground(options = {}) {
      }));
  
    await seedShopware(db, {
@@ -216,7 +259,7 @@ index c465d23..583c0a6 100644
      absoluteUrl:
        options.absoluteUrl || (typeof location !== 'undefined' ? location.origin : ''),
      skipDump: options.skipDump,
-@@ -55,11 +56,13 @@ export async function createPlayground(options = {}) {
+@@ -55,11 +57,13 @@ export async function createPlayground(options = {}) {
    await installSpawnStub(php);
    attachSqlBridge(php, db);
  
@@ -232,6 +275,67 @@ index c465d23..583c0a6 100644
    if (!zipRes.ok) {
      throw new Error('Shopware zip missing at ' + (options.zipUrl || '/shopware.zip') + '; run node src/copy-assets.mjs');
    }
+@@ -93,6 +97,15 @@ export async function createPlayground(options = {}) {
+     }
+     php.writeFile('/shopware/.env.local', env);
+   }
++  try {
++    const indexPhp = php.readFileAsText('/shopware/public/index.php');
++    const patched = patchShopwareIndexAppUrl(indexPhp);
++    if (patched.changed) {
++      php.writeFile('/shopware/public/index.php', patched.source);
++    }
++  } catch {
++    /* zip may omit public/index.php during seed-only boots */
++  }
+   php.chdir('/shopware/public');
+ 
+   const handler = new PHPRequestHandler({
+diff --git a/src/front-controller.mjs b/src/front-controller.mjs
+new file mode 100644
+index 0000000..0c91136
+--- /dev/null
++++ b/src/front-controller.mjs
+@@ -0,0 +1,39 @@
++/**
++ * Shopware's WASM front controller (`public/index.php`) overwrites APP_URL to
++ * `scheme://host` on every request. GitHub project Pages serves the shop under
++ * `/<repo>`; without that path, RequestTransformer cannot match
++ * `sales_channel_domain` (storefront 400) and theme CSS is emitted at the
++ * origin root (`/theme/…/all.css` → 404).
++ */
++
++export const APP_URL_ORIGIN_ONLY = "$appUrl = $scheme . '://' . $host;";
++
++export const APP_URL_WITH_PUBLIC_BASE = `$appUrl = $scheme . '://' . $host;
++    if (\\is_file('/internal/playground_public_base')) {
++        $base = \\rtrim(\\trim((string) \\file_get_contents('/internal/playground_public_base')), '/');
++        if ($base !== '' && $base[0] !== '/') {
++            $base = '/' . $base;
++        }
++        if ($base !== '') {
++            $appUrl .= $base;
++        }
++    }`;
++
++/** True when index.php already appends the playground public base to APP_URL. */
++export function indexPhpKeepsPublicBase(source) {
++  return typeof source === 'string' && source.includes('playground_public_base') && source.includes('$appUrl .= $base');
++}
++
++/**
++ * @param {string} source
++ * @returns {{ source: string, changed: boolean }}
++ */
++export function patchShopwareIndexAppUrl(source) {
++  if (typeof source !== 'string' || indexPhpKeepsPublicBase(source)) {
++    return { source, changed: false };
++  }
++  if (!source.includes(APP_URL_ORIGIN_ONLY)) {
++    return { source, changed: false };
++  }
++  return { source: source.replace(APP_URL_ORIGIN_ONLY, APP_URL_WITH_PUBLIC_BASE), changed: true };
++}
 diff --git a/src/frontend-assets.mjs b/src/frontend-assets.mjs
 index 627c231..9f71148 100644
 --- a/src/frontend-assets.mjs
@@ -280,19 +384,20 @@ index c3366d7..83a937f 100644
  }
  
 diff --git a/src/service-worker.mjs b/src/service-worker.mjs
-index 600a740..8536025 100644
+index 600a740..869d9fc 100644
 --- a/src/service-worker.mjs
 +++ b/src/service-worker.mjs
-@@ -10,6 +10,8 @@ import {
+@@ -10,6 +10,9 @@ import {
    isShopwarePhpPath,
    isVersionedAssetPath,
    versionedAssetPath,
++  phpRequestHeaders,
 +  postToWindowClient,
 +  withoutPublicBase,
  } from './app-route.mjs';
  
  self.addEventListener('install', (event) => {
-@@ -52,7 +54,7 @@ async function queryVersionFromClients() {
+@@ -52,7 +55,7 @@ async function queryVersionFromClients() {
            clearTimeout(timer);
            resolve((event.data && event.data.version) || '');
          };
@@ -301,7 +406,7 @@ index 600a740..8536025 100644
        });
        if (version) {
          activeVersion = version;
-@@ -119,16 +121,19 @@ function responseHeaders(headers) {
+@@ -119,16 +122,19 @@ function responseHeaders(headers) {
    return out;
  }
  
@@ -330,7 +435,7 @@ index 600a740..8536025 100644
    return new Promise((resolve, reject) => {
      const channel = new MessageChannel();
      const timer = setTimeout(() => {
-@@ -143,17 +148,64 @@ async function phpViaPage(req) {
+@@ -143,17 +149,64 @@ async function phpViaPage(req) {
        }
        resolve(data);
      };
@@ -397,7 +502,7 @@ index 600a740..8536025 100644
  
    event.respondWith(
      (async () => {
-@@ -169,20 +221,22 @@ self.addEventListener('fetch', (event) => {
+@@ -169,20 +222,22 @@ self.addEventListener('fetch', (event) => {
            // keeps the rewritten /versions/... URL, which browsers then use as
            // the module base URL — the admin SPA would load its chunks twice
            // (once via /bundles/, once via /versions/) and boot breaks.
@@ -427,7 +532,7 @@ index 600a740..8536025 100644
          return new Response('null', {
            headers: { 'content-type': 'application/json' },
          });
-@@ -191,7 +245,7 @@ self.addEventListener('fetch', (event) => {
+@@ -191,7 +246,7 @@ self.addEventListener('fetch', (event) => {
        // API, which is unreachable from WASM: the request hangs until TCP
        // timeout and blocks the single PHP instance behind it. Answer with
        // empty lists so the admin stays responsive.
@@ -436,7 +541,7 @@ index 600a740..8536025 100644
          return new Response('[]', {
            headers: { 'content-type': 'application/json' },
          });
-@@ -199,7 +253,7 @@ self.addEventListener('fetch', (event) => {
+@@ -199,7 +254,7 @@ self.addEventListener('fetch', (event) => {
  
        const nested = await isNestedClient(event);
        if (!isShopwarePhpPath(pathname, nested)) {
@@ -445,6 +550,19 @@ index 600a740..8536025 100644
        }
        const method = request.method || 'GET';
        let body;
+@@ -207,10 +262,10 @@ self.addEventListener('fetch', (event) => {
+         body = await request.arrayBuffer();
+       }
+       const php = await phpViaPage({
+-        url: url.pathname + url.search,
++        url: url.href,
+         method,
+         headers: {
+-          ...headerMap(request.headers),
++          ...phpRequestHeaders(headerMap(request.headers)),
+           Host: url.host,
+         },
+         body,
 diff --git a/src/sql-dump.mjs b/src/sql-dump.mjs
 index 4960008..2f98929 100644
 --- a/src/sql-dump.mjs

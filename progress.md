@@ -139,6 +139,7 @@ twice then `curl -s http://localhost:8080/.well-known/ucp | jq '.signing_keys | 
 - [x] Demo shell: React boot UI, Shopware iframe, shopping/merchant panels, `DemoOverlay` plugin
 - [x] GitHub Pages: `pages.yml` builds the gitignored WASM tree and deploys to https://sthamann.github.io/shopware_claude_commerce/ (COI via service worker; project path prefix; no Cloudflare)
 - [x] Pages storefront boot: UCP `embeddedAllowedOrigins` stay pathless; sales-channel domains keep the repo prefix; SW → page PHP bridge uses `{ transfer }` (`build/ucp-origin.mjs`)
+- [x] Pages storefront after boot: `APP_URL` keeps the repo path (otherwise Shopware maps no sales channel → Oops 400 and `all.css` 404); leftover PHP sessions are closed between WASM requests; iframe Oops is not treated as storefront-ready
 - [ ] End-to-end acceptance on a fresh Pages build (cold boot, chat turn, cart, handoff) documented and gated in CI
 - [ ] Hosted Anthropic proxy — not on Pages (static). Chat is BYOK against `api.anthropic.com` and may fail if Anthropic blocks the browser call
 

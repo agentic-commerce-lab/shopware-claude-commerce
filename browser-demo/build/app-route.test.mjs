@@ -11,7 +11,7 @@ const playgroundPresent = existsSync(APP_ROUTE);
 describe('app-route classification under a project Pages prefix', { skip: playgroundPresent ? false : 'playground not fetched' }, async () => {
   if (!playgroundPresent) return;
 
-  const { isEngineBypassPath, isShopwarePhpPath, isStaticPlaygroundPath, postToWindowClient } = await import(APP_ROUTE.href);
+  const { isEngineBypassPath, isShopwarePhpPath, isStaticPlaygroundPath, phpRequestHeaders, postToWindowClient } = await import(APP_ROUTE.href);
   const previous = globalThis.self;
 
   before(() => {
@@ -55,5 +55,16 @@ describe('app-route classification under a project Pages prefix', { skip: playgr
     postToWindowClient(client, { type: 'php-request' }, ['port']);
     assert.deepEqual(calls[0], { transfer: ['port'] });
     assert.deepEqual(calls[1], ['port']);
+  });
+
+  it('drops X-Forwarded-* and Accept-Encoding before PHP WASM', () => {
+    const out = phpRequestHeaders({
+      Host: 'sthamann.github.io',
+      'Accept-Encoding': 'gzip',
+      'X-Forwarded-Host': 'sthamann.github.io',
+    });
+    assert.equal(out.Host, 'sthamann.github.io');
+    assert.equal(out['Accept-Encoding'], undefined);
+    assert.equal(out['X-Forwarded-Host'], undefined);
   });
 });
