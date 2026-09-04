@@ -6,6 +6,7 @@ import { describe, it } from 'node:test';
 import {
   injectPublicBaseBanner,
   prefixManifestUrls,
+  prepareEngineWorkerSource,
   publicBasePrefix,
   rewriteEngineSource,
   viteBaseFromEnv,
@@ -35,6 +36,32 @@ describe('public base (GitHub Pages project path)', () => {
     assert.match(once, /fetch\("\/shopware_claude_commerce\/versions\/6\.7\.13\.1\/shopware\.zip"\)/);
     assert.equal(rewriteEngineSource(once, prefix), once);
     assert.equal(rewriteEngineSource(source, ''), source);
+  });
+
+  it('does not prefix service-worker route constants that withoutPublicBase already strips', () => {
+    const source = [
+      'var DEMO_STATIC_PREFIX = "/demo/";',
+      'var DEMO_PROXY_PREFIX = "/api/anthropic/";',
+      'pathname.startsWith("/php/");',
+      'pathname === "/browser-worker.js";',
+      '',
+    ].join('\n');
+    const prefix = '/shopware_claude_commerce';
+    const prepared = prepareEngineWorkerSource('service-worker.js', source, prefix);
+    assert.match(prepared, /self\.__DEMO_PUBLIC_BASE__ = "\/shopware_claude_commerce"/);
+    assert.match(prepared, /DEMO_STATIC_PREFIX = "\/demo\/"/);
+    assert.match(prepared, /DEMO_PROXY_PREFIX = "\/api\/anthropic\/"/);
+    assert.match(prepared, /startsWith\("\/php\/"\)/);
+    assert.match(prepared, /=== "\/browser-worker.js"/);
+    assert.doesNotMatch(prepared, /DEMO_STATIC_PREFIX = "\/shopware_claude_commerce\/demo\/"/);
+    assert.equal(prepareEngineWorkerSource('playground/public/service-worker.js', source, prefix), prepared);
+  });
+
+  it('still prefixes browser-worker resource URLs for project Pages', () => {
+    const source = `import { Lite4MariaDB } from '/mariadb/index.mjs'; fetch('/php/auto_prepend.php');\n`;
+    const prepared = prepareEngineWorkerSource('browser-worker.js', source, '/shopware_claude_commerce');
+    assert.match(prepared, /from '\/shopware_claude_commerce\/mariadb\/index\.mjs'/);
+    assert.match(prepared, /fetch\('\/shopware_claude_commerce\/php\/auto_prepend\.php'\)/);
   });
 
   it('injects a rewritable __DEMO_PUBLIC_BASE__ banner', () => {

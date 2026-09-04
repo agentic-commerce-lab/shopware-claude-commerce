@@ -20,7 +20,7 @@ index 1f7ffbd..388a11a 100644
   */
  const STATIC_FILE_EXT =
 -  /\.(?:html?|js|mjs|cjs|css|json|map|wasm|svg|png|jpe?g|gif|webp|ico|avif|woff2?|ttf|otf|eot|zip|gz|dat|so|la|txt|xml|webmanifest)$/i;
-+  /\.(?:html?|js|mjs|cjs|css|json|map|wasm|svg|png|jpe?g|gif|webp|ico|avif|woff2?|ttf|otf|eot|zip|gz|dat|so|la|txt|md|xml|webmanifest|whl|tar)$/i;
++  /\.(?:html?|js|mjs|cjs|css|json|map|wasm|svg|png|jpe?g|gif|webp|ico|avif|woff2?|ttf|otf|eot|zip|gz|dat|so|la|txt|md|xml|webmanifest|whl|tar|py)$/i;
 +
 +/**
 + * Static tree of the demo shell that embeds this playground (Vite build, Pyodide

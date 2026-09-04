@@ -15,18 +15,19 @@
  *
  * Serve with `npm start` (server/index.mjs) or GitHub Pages. Pages cannot set COOP/COEP;
  * the playground service worker adds them (coi-serviceworker behaviour). DEMO_BASE_PATH
- * prefixes engine URLs for project Pages (`/shopware_claude_commerce/`).
+ * prefixes engine URLs for project Pages (`/shopware_claude_commerce/`). The service
+ * worker keeps logical `/demo/` and `/php/` route constants; only `browser-worker.js`
+ * has those quoted paths rewritten (see prepareEngineWorkerSource).
  */
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { APP_DIR, DEMO_ROOT, PLAYGROUND_COMMIT, PLAYGROUND_DIR, PLAYGROUND_PUBLIC, PYODIDE_VERSION, SITE_DIR } from './config.mjs';
 import { formatBytes, log } from './lib.mjs';
 import {
-  injectPublicBaseBanner,
   pagesFileLimitBytes,
   prefixManifestUrls,
+  prepareEngineWorkerSource,
   publicBasePrefix,
-  rewriteEngineSource,
   viteBaseFromEnv,
 } from './public-base.mjs';
 
@@ -58,8 +59,7 @@ for (const file of engineFiles) {
   const source = readFileSync(join(PLAYGROUND_PUBLIC, file), 'utf8');
   // php-wasm side modules are referenced as `assets/<name>.so?url` — the query is not part of the file.
   for (const match of source.matchAll(/["'](?:\/)?assets\/([A-Za-z0-9._-]+)(?:\?[A-Za-z0-9=&_-]*)?["']/g)) referenced.add(match[1]);
-  const rewritten = injectPublicBaseBanner(rewriteEngineSource(source, publicPrefix), publicPrefix);
-  writeFileSync(join(SITE_DIR, file), rewritten);
+  writeFileSync(join(SITE_DIR, file), prepareEngineWorkerSource(file, source, publicPrefix));
 }
 mkdirSync(join(SITE_DIR, 'assets'), { recursive: true });
 for (const name of referenced) {

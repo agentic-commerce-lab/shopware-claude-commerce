@@ -26,7 +26,7 @@ Cold boot downloads ≈ 150 MB and takes ~20–40 s on a typical laptop. A reloa
 | Catalog, cart, seeded products and orders | Yes |
 | Chat (Claude) | Only if you paste an `ANTHROPIC_API_KEY` in the UI. Pages cannot run the Node proxy. The tab calls `api.anthropic.com` with `anthropic-dangerous-direct-browser-access`. If Anthropic rejects that browser request, chat fails; the shop still works. |
 | Checkout handoff (agent cart → in-browser Shopware checkout) | Yes — verified end to end by `npm run e2e` against the local server (dev and static build); not yet re-verified on a fresh Pages build |
-| Cross-origin isolation | GitHub Pages cannot set COOP/COEP. The playground service worker adds those headers; the shell reloads once so `SharedArrayBuffer` works. |
+| Cross-origin isolation | GitHub Pages cannot set COOP/COEP. The playground service worker adds those headers; the shell reloads once so `SharedArrayBuffer` works. The assembled `service-worker.js` gets a `__DEMO_PUBLIC_BASE__` banner only — rewriting its `/demo/` and `/php/` route constants would send those files to PHP WASM and deadlock boot. |
 
 The [pages.yml](../.github/workflows/pages.yml) workflow uses a **checked-in SQL seed** on GitHub Actions (full WASM install runs on contributors' machines — see [`ci-fixtures/README.md`](ci-fixtures/README.md)). First successful deploy often takes **10–30+ minutes**. Until then, the live URL may 404.
 
@@ -197,7 +197,7 @@ After a backend change: `npm run build:host` (wheels are rebuilt only when pins 
 ## Testing
 
 ```bash
-npm test                 # server + build unit tests (21; Node only, no WASM boot)
+npm test                 # server + build unit tests (25; Node only, no WASM boot)
 npm run typecheck        # TypeScript for app/, host/ and the vendored UIs
 npm run e2e              # Playwright against the local server: boot, overlay, both flows, screenshots
 ```

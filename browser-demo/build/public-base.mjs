@@ -74,6 +74,22 @@ export function rewriteEngineSource(source, prefix) {
   return out;
 }
 
+/**
+ * Prepare a playground worker for the assembled site.
+ *
+ * The service worker classifies routes *after* `withoutPublicBase()` (logical
+ * `/demo/`, `/php/`, …). Rewriting those quoted prefixes to `/<repo>/demo/`
+ * makes every check miss, so `/php/auto_prepend.php` and `/demo/host/bootstrap.py`
+ * are sent to PHP WASM while that worker is still fetching them — deadlock,
+ * status stuck on "mounting backends". Only inject the public-base banner there.
+ * `browser-worker.js` still needs the rewrite for hardcoded resource URLs.
+ */
+export function prepareEngineWorkerSource(filename, source, prefix) {
+  const name = String(filename || '').split(/[/\\]/).pop();
+  const rewritten = name === 'service-worker.js' ? source : rewriteEngineSource(source, prefix);
+  return injectPublicBaseBanner(rewritten, prefix);
+}
+
 export function prefixManifestUrls(manifest, prefix) {
   if (!prefix || !manifest || typeof manifest !== 'object') return manifest;
   const prefixUrl = (url) => {
