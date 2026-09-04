@@ -109,3 +109,14 @@ export function prefixManifestUrls(manifest, prefix) {
 export function pagesFileLimitBytes() {
   return PAGES_FILE_LIMIT_BYTES;
 }
+
+/**
+ * Absolute URL for a Vite-emitted file (`demo/assets/MerchantView-….js`).
+ * Relative `demo/assets/…` mapDeps resolve against the wrong base inside
+ * workers / `about:client` on project Pages.
+ */
+export function builtAssetUrl(filename, base = viteBaseFromEnv()) {
+  const name = String(filename || '').replace(/^\//, '');
+  const prefix = !base || base === '/' ? '/' : base.endsWith('/') ? base : `${base}/`;
+  return `${prefix}${name}`;
+}

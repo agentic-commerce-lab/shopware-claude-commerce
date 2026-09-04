@@ -21,7 +21,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, type Plugin } from 'vite';
 import { ISOLATION_HEADERS, contentTypeFor } from '../server/headers.mjs';
-import { viteBaseFromEnv } from '../build/public-base.mjs';
+import { builtAssetUrl, viteBaseFromEnv } from '../build/public-base.mjs';
 
 const appRoot = dirname(fileURLToPath(import.meta.url));
 const demoRoot = resolve(appRoot, '..');
@@ -161,6 +161,13 @@ export default defineConfig(({ command }) => ({
     fs: { allow: [demoRoot, resolve(demoRoot, '..')] },
   },
   worker: { format: 'es' },
+  // Absolute URLs under Vite `base` so lazy chunks (MerchantView, next-navigation)
+  // never resolve against the origin root on GitHub project Pages.
+  experimental: {
+    renderBuiltUrl(filename) {
+      return builtAssetUrl(filename);
+    },
+  },
   build: {
     outDir: join(appRoot, 'dist'),
     emptyOutDir: true,

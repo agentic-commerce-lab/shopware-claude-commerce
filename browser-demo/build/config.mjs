@@ -103,6 +103,17 @@ export const APP_PUBLIC_DEMO = join(APP_DIR, 'public', 'demo');
 export const DEV_PORT = Number(process.env.PORT || 4188);
 
 /**
+ * Compiled Storefront theme path for the checked-in 6.7.13.1 seed
+ * (`storefront.themeSeed` + theme id + sales-channel id, xxh128).
+ * Pages serves it statically at `/versions/<v>/assets/` + this path.
+ */
+export const FIXTURE_THEME_CSS = 'theme/63704ac15ed895d93fd0231a1370e8b2/css/all.css';
+export const FIXTURE_THEME_JS = 'theme/63704ac15ed895d93fd0231a1370e8b2/js/storefront/storefront.js';
+export const FIXTURE_MEDIA_LOGO = 'media/8c/e2/08/1788446593/demostore-logo.png';
+export const FIXTURE_MEDIA_PRODUCT = 'media/b2/12/e1/1788446601/hq_1280x1280.jpg';
+export const FIXTURE_PUBLIC_ASSETS_ARCHIVE = 'public-assets.tar.gz';
+
+/**
  * Public path of the assembled site. `/` for the local Node server; GitHub project Pages
  * sets `/shopware_claude_commerce/` via DEMO_BASE_PATH in .github/workflows/pages.yml.
  */

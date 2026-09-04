@@ -19,6 +19,7 @@ import { existsSync, mkdirSync, rmSync, statSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { PLAYGROUND_DIR, PLAYGROUND_PUBLIC, SHOP_DIR } from './config.mjs';
+import { assertPublishedStorefrontAssets } from './ci-public-assets.mjs';
 import { formatBytes, isDir, log, requireTool, run } from './lib.mjs';
 
 requireTool('zip');
@@ -46,6 +47,7 @@ for (const dir of ['bundles', 'theme', 'media', 'thumbnail']) {
   rmSync(to, { recursive: true, force: true });
   cpSync(from, to, { recursive: true });
 }
+assertPublishedStorefrontAssets(assetsDir);
 log(`version assets → ${assetsDir}`);
 
 const zipPath = join(versionDir, 'shopware.zip');

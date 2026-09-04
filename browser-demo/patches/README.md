@@ -27,7 +27,7 @@ patches/apply-patches.sh vendor     playground/shopware/    # vendor-*.patch,   
 | `src/service-worker.mjs` | Adds `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp` and `Cross-Origin-Resource-Policy: same-origin` to every response it serves (the `coi-serviceworker` style fallback for static hosts without header control) and bypasses `/api/anthropic/*` so proxy streams reach the network untouched. PHP routing uses `postToWindowClient` (transfer options, client retry), the absolute request URL, and `phpRequestHeaders`. |
 | `src/sql-dump.mjs` | `shopUrlVariants` keeps a URL path so GitHub project Pages (`https://host/repo`) is written into `sales_channel_domain`, not just the host origin. |
 | `php/auto_prepend.php` | On a public-base prefix, rewrite `/index.php` after that prefix and set `SCRIPT_NAME` so Symfony's base path matches the sales-channel domain. Close a leftover PHP session so the next WASM request does not 400 with "session already started". |
-| `src/front-controller.mjs` | Patches Shopware `public/index.php` so `APP_URL` keeps the Pages path (`https://host/repo`). Without that, RequestTransformer cannot map the sales-channel domain (storefront 400) and theme CSS is emitted at `/theme/…/all.css` (404). |
+| `src/front-controller.mjs` | Patches Shopware `public/index.php` so `APP_URL` keeps the Pages path (`https://host/repo`). Without that, RequestTransformer cannot map the sales-channel domain (storefront 400) and theme CSS is emitted at `/theme/…/all.css` (404). The compiled `all.css` / media files themselves are published from `ci-fixtures/<v>/public-assets.tar.gz` (CI skips `theme:compile`). |
 
 ## Things that are *not* patches
 

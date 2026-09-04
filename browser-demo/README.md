@@ -28,7 +28,7 @@ Cold boot downloads ≈ 150 MB and takes ~20–40 s on a typical laptop. A reloa
 | Checkout handoff (agent cart → in-browser Shopware checkout) | Yes — verified end to end by `npm run e2e` against the local server (dev and static build); not yet re-verified on a fresh Pages build |
 | Cross-origin isolation | GitHub Pages cannot set COOP/COEP. The playground service worker adds those headers; the shell reloads once so `SharedArrayBuffer` works. The assembled `service-worker.js` gets a `__DEMO_PUBLIC_BASE__` banner only — rewriting its `/demo/` and `/php/` route constants would send those files to PHP WASM and deadlock boot. UCP `embeddedAllowedOrigins` stay pathless (`https://host`, not `https://host/repo`) or Shopware throws and the storefront never renders. Shopware `APP_URL` and `sales_channel_domain` keep the repo path so theme CSS (`all.css`) and storefront routing resolve under `/<repo>/`. |
 
-The [pages.yml](../.github/workflows/pages.yml) workflow uses a **checked-in SQL seed** on GitHub Actions (full WASM install runs on contributors' machines — see [`ci-fixtures/README.md`](ci-fixtures/README.md)). First successful deploy often takes **10–30+ minutes**. Until then, the live URL may 404.
+The [pages.yml](../.github/workflows/pages.yml) workflow uses a **checked-in SQL seed plus compiled theme/media** on GitHub Actions (full WASM install runs on contributors' machines — see [`ci-fixtures/README.md`](ci-fixtures/README.md)). Theme CSS is served statically at `/versions/6.7.13.1/assets/theme/<hash>/css/all.css` (the service worker maps `/theme/…`). First successful deploy often takes **10–30+ minutes**. Until then, the live URL may 404.
 
 Feasibility measurements: [`docs/browser-demo-feasibility.md`](../docs/browser-demo-feasibility.md).
 

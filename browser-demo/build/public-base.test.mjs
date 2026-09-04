@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  builtAssetUrl,
   injectPublicBaseBanner,
   prefixManifestUrls,
   prepareEngineWorkerSource,
@@ -69,6 +70,18 @@ describe('public base (GitHub Pages project path)', () => {
     assert.equal(first, 'self.__DEMO_PUBLIC_BASE__ = "/shopware_claude_commerce";\nconsole.log(1);\n');
     const second = injectPublicBaseBanner(first, '');
     assert.equal(second, 'self.__DEMO_PUBLIC_BASE__ = "";\nconsole.log(1);\n');
+  });
+
+  it('emits origin-absolute Vite chunk URLs under the Pages prefix', () => {
+    assert.equal(
+      builtAssetUrl('demo/assets/MerchantView-DgL7vdsf.js', '/shopware_claude_commerce/'),
+      '/shopware_claude_commerce/demo/assets/MerchantView-DgL7vdsf.js',
+    );
+    assert.equal(builtAssetUrl('demo/assets/next-navigation-BpM7TX4o.js', '/'), '/demo/assets/next-navigation-BpM7TX4o.js');
+    assert.equal(
+      builtAssetUrl('/demo/assets/ShoppingView-Vb3o-FWp.js', '/shopware_claude_commerce'),
+      '/shopware_claude_commerce/demo/assets/ShoppingView-Vb3o-FWp.js',
+    );
   });
 
   it('prefixes versions.json zip and dump URLs', () => {
