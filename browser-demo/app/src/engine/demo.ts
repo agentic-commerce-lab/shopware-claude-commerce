@@ -26,6 +26,7 @@ import {
   WHEELS_MANIFEST_URL,
 } from './demo-config';
 import { Playground } from './playground';
+import { rewriteUcpConfig } from '../../../build/ucp-origin.mjs';
 import { demoUrl, shopPublicOrigin } from './public-base';
 
 export type DemoView = 'shop' | 'shopping' | 'merchant';
@@ -308,28 +309,16 @@ export class DemoController {
 
   /**
    * The seed baked the build-time loopback origin into the UCP config (profileDomain,
-   * continueUrlTemplate, embedded origins). Point every URL-valued field at the live origin —
-   * same idea as the playground's sales_channel_domain rewrite. The UCP MCP tools resolve the
-   * sales channel through profileDomain, so a stale origin breaks cart/checkout tool calls.
-   *
-   * Reads and rewrites the JSON in JS instead of SQL REPLACE: Shopware stores the config with
-   * escaped slashes (`http:\/\/…`), and a previous origin may differ from the seed origin.
+   * continueUrlTemplate, embedded origins). Point URL fields at the live shop public
+   * URL (Pages prefix included) but keep `embeddedAllowedOrigins` /
+   * `embeddedFrameAncestors` as pathless origins — SwagAgenticCommerce rejects a path
+   * there (`UcpConfigException`) and the storefront answers 500, then 400.
    */
   private async rewriteUcpOrigin(seedOrigin: string): Promise<void> {
-    const liveOrigin = shopPublicOrigin();
+    const livePublic = shopPublicOrigin();
+    const liveOrigin = location.origin;
     const previous = localStorage.getItem(STORAGE_KEYS.ucpOrigin);
-    const staleOrigins = new Set([seedOrigin, previous].filter((o): o is string => !!o && o !== liveOrigin));
-    const swapOrigin = (value: unknown): unknown => {
-      if (typeof value === 'string') {
-        for (const from of staleOrigins) if (value.startsWith(from)) return liveOrigin + value.slice(from.length);
-        return value;
-      }
-      if (Array.isArray(value)) return value.map(swapOrigin);
-      if (value && typeof value === 'object') {
-        return Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, swapOrigin(v)]));
-      }
-      return value;
-    };
+    const staleOrigins = [seedOrigin, previous].filter((o): o is string => !!o);
     const escape = (value: string) => value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     try {
       const result = await this.playground.sql(
@@ -337,15 +326,15 @@ export class DemoController {
       );
       for (const row of result.rows as { sales_channel_id: string; config_json: string }[]) {
         const config = JSON.parse(String(row.config_json)) as Record<string, unknown>;
-        const rewritten = swapOrigin(config) as Record<string, unknown>;
+        const rewritten = rewriteUcpConfig(config, staleOrigins, livePublic, liveOrigin) as Record<string, unknown>;
         const next = JSON.stringify(rewritten);
         if (next === JSON.stringify(config)) continue;
         await this.playground.sql(
           `UPDATE swag_agentic_commerce_ucp_config SET config_json = '${escape(next)}' WHERE sales_channel_id = UNHEX('${row.sales_channel_id}')`
         );
-        console.info('ucp config origin rewritten →', liveOrigin, 'for sales channel', row.sales_channel_id);
+        console.info('ucp config origin rewritten →', livePublic, 'for sales channel', row.sales_channel_id);
       }
-      localStorage.setItem(STORAGE_KEYS.ucpOrigin, liveOrigin);
+      localStorage.setItem(STORAGE_KEYS.ucpOrigin, livePublic);
     } catch (error) {
       console.warn('ucp config origin rewrite skipped', error);
     }

@@ -11,8 +11,46 @@ index 99cf56d..cd6b143 100644
    },
    "overrides": {
      "fs-ext-extra-prebuilt": "file:./shims/fs-ext-stub"
+diff --git a/php/auto_prepend.php b/php/auto_prepend.php
+index d20f9bd..60a2fa5 100644
+--- a/php/auto_prepend.php
++++ b/php/auto_prepend.php
+@@ -67,3 +67,33 @@ if (!function_exists('mariadblite_rpc')) {
+         return mariadblite_rpc(['op' => 'query', 'sql' => $sql]);
+     }
+ }
++
++// GitHub project Pages hosts the shop under /<repo>/. PHP-WASM SCRIPT_NAME is
++// still /index.php; tell Symfony the subdirectory so RequestTransformer matches
++// sales_channel_domain URLs that include that path.
++$playgroundPublicBase = '';
++if (\is_file('/internal/playground_public_base')) {
++    $playgroundPublicBase = \rtrim(\trim((string) \file_get_contents('/internal/playground_public_base')), '/');
++    if ($playgroundPublicBase !== '' && $playgroundPublicBase[0] !== '/') {
++        $playgroundPublicBase = '/' . $playgroundPublicBase;
++    }
++}
++$playgroundUri = (string) ($_SERVER['REQUEST_URI'] ?? '/');
++if (\preg_match('#^((?:/[^/?]+)*)/index\\.php(/[^?]*)?(\\?.*)?$#', $playgroundUri, $playgroundUriMatch) === 1) {
++    $playgroundPrefix = $playgroundUriMatch[1] ?? '';
++    $playgroundRest = $playgroundUriMatch[2] ?? '';
++    $playgroundQuery = $playgroundUriMatch[3] ?? '';
++    $_SERVER['REQUEST_URI'] = ($playgroundPrefix !== '' ? $playgroundPrefix : '') . ($playgroundRest !== '' ? $playgroundRest : '/') . $playgroundQuery;
++    if ($_SERVER['REQUEST_URI'] === '') {
++        $_SERVER['REQUEST_URI'] = '/';
++    }
++}
++if (($_SERVER['PATH_INFO'] ?? '') === '/index.php' || ($playgroundPublicBase !== '' && ($_SERVER['PATH_INFO'] ?? '') === $playgroundPublicBase . '/index.php')) {
++    $_SERVER['PATH_INFO'] = '/';
++}
++if ($playgroundPublicBase !== '') {
++    $playgroundScript = (string) ($_SERVER['SCRIPT_NAME'] ?? '');
++    if ($playgroundScript === '/index.php' || $playgroundScript === 'index.php') {
++        $_SERVER['SCRIPT_NAME'] = $playgroundPublicBase . '/index.php';
++    }
++}
 diff --git a/src/app-route.mjs b/src/app-route.mjs
-index 1f7ffbd..388a11a 100644
+index 1f7ffbd..d1017b1 100644
 --- a/src/app-route.mjs
 +++ b/src/app-route.mjs
 @@ -2,7 +2,41 @@
@@ -130,8 +168,24 @@ index 1f7ffbd..388a11a 100644
    // Shopware API routes may end in a static-looking extension
    // (e.g. /api/_info/entity-schema.json) but are PHP controllers.
    if (pathname.startsWith('/api/')) {
-@@ -108,8 +155,8 @@ export function isShopwarePhpPath(pathname, nested = false) {
+@@ -106,10 +153,24 @@ export function isShopwarePhpPath(pathname, nested = false) {
+   return true;
+ }
  
++/**
++ * Service worker → page postMessage. `Client.postMessage` in current Chromium
++ * takes `{ transfer }`; the legacy transfer-array second argument throws in
++ * some embeds and the fetch fails in 1–2 ms (`phpMessages=0`).
++ */
++export function postToWindowClient(client, message, transfer = []) {
++  if (!client) throw new Error('playground page is not available for PHP routing');
++  try {
++    client.postMessage(message, { transfer });
++  } catch {
++    client.postMessage(message, transfer);
++  }
++}
++
  export function initialShopwarePath() {
    if (typeof location === 'undefined') return '/';
 -  const path = location.pathname + location.search;
@@ -142,14 +196,14 @@ index 1f7ffbd..388a11a 100644
    return path;
  }
 diff --git a/src/browser-runtime.mjs b/src/browser-runtime.mjs
-index c465d23..6718e34 100644
+index c465d23..583c0a6 100644
 --- a/src/browser-runtime.mjs
 +++ b/src/browser-runtime.mjs
 @@ -13,6 +13,7 @@ import { Lite4MariaDB } from '/mariadb/index.mjs';
  import { attachSqlBridge } from './sql-bridge.mjs';
  import { installSpawnStub } from './spawn-stub.mjs';
  import { seedShopware } from './db-seed.mjs';
-+import { withPublicBase } from './app-route.mjs';
++import { demoPublicBase, withPublicBase } from './app-route.mjs';
  
  export const SHOPWARE_DOCUMENT_ROOT = '/shopware/public';
  export const SHOPWARE_PUBLIC_ROUTE = '/';
@@ -162,13 +216,14 @@ index c465d23..6718e34 100644
      absoluteUrl:
        options.absoluteUrl || (typeof location !== 'undefined' ? location.origin : ''),
      skipDump: options.skipDump,
-@@ -55,11 +56,12 @@ export async function createPlayground(options = {}) {
+@@ -55,11 +56,13 @@ export async function createPlayground(options = {}) {
    await installSpawnStub(php);
    attachSqlBridge(php, db);
  
 -  const prependRes = await fetch('/php/auto_prepend.php');
 +  const prependRes = await fetch(withPublicBase('/php/auto_prepend.php'));
    php.writeFile('/internal/playground_prepend.php', await prependRes.text());
++  php.writeFile('/internal/playground_public_base', demoPublicBase());
 +  php.writeFile('/internal/openssl.cnf', '[req]\ndistinguished_name = dn\n[dn]\n');
    php.writeFile('/internal/playground_skip_heavy_migrations', '1');
  
@@ -225,21 +280,91 @@ index c3366d7..83a937f 100644
  }
  
 diff --git a/src/service-worker.mjs b/src/service-worker.mjs
-index 600a740..9e1d324 100644
+index 600a740..8536025 100644
 --- a/src/service-worker.mjs
 +++ b/src/service-worker.mjs
-@@ -10,6 +10,7 @@ import {
+@@ -10,6 +10,8 @@ import {
    isShopwarePhpPath,
    isVersionedAssetPath,
    versionedAssetPath,
++  postToWindowClient,
 +  withoutPublicBase,
  } from './app-route.mjs';
  
  self.addEventListener('install', (event) => {
-@@ -147,13 +148,34 @@ async function phpViaPage(req) {
+@@ -52,7 +54,7 @@ async function queryVersionFromClients() {
+           clearTimeout(timer);
+           resolve((event.data && event.data.version) || '');
+         };
+-        client.postMessage({ type: 'sw-playground-version-query' }, [channel.port2]);
++        postToWindowClient(client, { type: 'sw-playground-version-query' }, [channel.port2]);
+       });
+       if (version) {
+         activeVersion = version;
+@@ -119,16 +121,19 @@ function responseHeaders(headers) {
+   return out;
+ }
+ 
+-async function phpViaPage(req) {
+-  const windows = await self.clients.matchAll({
+-    type: 'window',
+-    includeUncontrolled: true,
+-  });
+-  const client =
+-    windows.find((c) => c.frameType === 'top-level') || windows[0];
+-  if (!client) {
+-    throw new Error('playground page is not available for PHP routing');
++async function windowClients() {
++  for (let attempt = 0; attempt < 5; attempt++) {
++    const windows = await self.clients.matchAll({
++      type: 'window',
++      includeUncontrolled: true,
++    });
++    if (windows.length) return windows;
++    await new Promise((resolve) => setTimeout(resolve, 50));
+   }
++  return [];
++}
++
++function phpViaClient(client, req) {
+   return new Promise((resolve, reject) => {
+     const channel = new MessageChannel();
+     const timer = setTimeout(() => {
+@@ -143,17 +148,64 @@ async function phpViaPage(req) {
+       }
+       resolve(data);
+     };
+-    client.postMessage({ type: 'php-request', req }, [channel.port2]);
++    try {
++      postToWindowClient(client, { type: 'php-request', req }, [channel.port2]);
++    } catch (error) {
++      clearTimeout(timer);
++      reject(error);
++    }
    });
  }
  
++async function phpViaPage(req) {
++  const windows = await windowClients();
++  const ordered = [
++    ...windows.filter((c) => c.frameType === 'top-level'),
++    ...windows.filter((c) => c.frameType !== 'top-level'),
++  ];
++  if (!ordered.length) {
++    throw new Error('playground page is not available for PHP routing');
++  }
++  let lastError;
++  for (const client of ordered) {
++    try {
++      return await phpViaClient(client, req);
++    } catch (error) {
++      lastError = error;
++      if (/timed out|PHP request failed/i.test(String(error && error.message))) throw error;
++    }
++  }
++  throw lastError || new Error('playground page is not available for PHP routing');
++}
++
 +/**
 + * coi-serviceworker behaviour for hosts that cannot set headers (GitHub Pages): every
 + * same-origin response the SW hands out carries COOP/COEP/CORP, so the page becomes
@@ -272,7 +397,7 @@ index 600a740..9e1d324 100644
  
    event.respondWith(
      (async () => {
-@@ -169,20 +191,22 @@ self.addEventListener('fetch', (event) => {
+@@ -169,20 +221,22 @@ self.addEventListener('fetch', (event) => {
            // keeps the rewritten /versions/... URL, which browsers then use as
            // the module base URL — the admin SPA would load its chunks twice
            // (once via /bundles/, once via /versions/) and boot breaks.
@@ -302,7 +427,7 @@ index 600a740..9e1d324 100644
          return new Response('null', {
            headers: { 'content-type': 'application/json' },
          });
-@@ -191,7 +215,7 @@ self.addEventListener('fetch', (event) => {
+@@ -191,7 +245,7 @@ self.addEventListener('fetch', (event) => {
        // API, which is unreachable from WASM: the request hangs until TCP
        // timeout and blocks the single PHP instance behind it. Answer with
        // empty lists so the admin stays responsive.
@@ -311,7 +436,7 @@ index 600a740..9e1d324 100644
          return new Response('[]', {
            headers: { 'content-type': 'application/json' },
          });
-@@ -199,7 +223,7 @@ self.addEventListener('fetch', (event) => {
+@@ -199,7 +253,7 @@ self.addEventListener('fetch', (event) => {
  
        const nested = await isNestedClient(event);
        if (!isShopwarePhpPath(pathname, nested)) {
@@ -320,3 +445,24 @@ index 600a740..9e1d324 100644
        }
        const method = request.method || 'GET';
        let body;
+diff --git a/src/sql-dump.mjs b/src/sql-dump.mjs
+index 4960008..2f98929 100644
+--- a/src/sql-dump.mjs
++++ b/src/sql-dump.mjs
+@@ -267,11 +267,13 @@ export function shopUrlVariants(origin) {
+   if (parsed.hostname === 'localhost') {
+     hosts.add(parsed.port ? '127.0.0.1:' + parsed.port : '127.0.0.1');
+   }
++  const path = parsed.pathname.replace(/\/+$/, '');
++  const suffix = path && path !== '/' ? path : '';
+   const urls = new Set();
+-  urls.add(parsed.origin);
++  urls.add(parsed.origin + suffix);
+   for (const host of hosts) {
+-    urls.add('http://' + host);
+-    urls.add('https://' + host);
++    urls.add('http://' + host + suffix);
++    urls.add('https://' + host + suffix);
+   }
+   return [...urls];
+ }

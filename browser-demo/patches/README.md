@@ -21,10 +21,12 @@ patches/apply-patches.sh vendor     playground/shopware/    # vendor-*.patch,   
 | File | Change |
 |---|---|
 | `package.json` | `lite4mariadb ^0.1.2` — 0.1.1 truncated `LONGTEXT` at the first NUL byte, which broke `cheapestPrice` on product listings. |
-| `src/app-route.mjs` | More static extensions (`md`, `whl`, `tar`, `py`); `/demo/` (shell, Pyodide, wheels, host) and `/api/anthropic/` (proxy) are never routed to PHP; public-base helpers for sub-path hosting (GitHub project Pages). Route classification uses logical paths (`withoutPublicBase`); `assemble-site` must not rewrite those prefixes in `service-worker.js` or Pages deadlocks at "mounting backends". |
+| `src/app-route.mjs` | More static extensions (`md`, `whl`, `tar`, `py`); `/demo/` (shell, Pyodide, wheels, host) and `/api/anthropic/` (proxy) are never routed to PHP; public-base helpers for sub-path hosting (GitHub project Pages). Route classification uses logical paths (`withoutPublicBase`); `assemble-site` must not rewrite those prefixes in `service-worker.js` or Pages deadlocks at "mounting backends". `postToWindowClient` uses `{ transfer }` so the SW → page PHP bridge does not throw in Chromium embeds. |
 | `src/browser-runtime.mjs`, `src/runtime.mjs`, `src/php-web-runtime.mjs` | `OPENSSL_CONF=/internal/openssl.cnf` in the Emscripten `ENV` plus a minimal `openssl.cnf` written to MEMFS — OpenSSL 1.1.1 in WASM otherwise fails in `openssl_pkey_new()` (UCP agent keys, JWT). Dump/zip/prepend URLs honour the public base. |
 | `src/frontend-assets.mjs` | The in-WASM Shopware console boots `/shopware/.env` through Symfony Dotenv (`usePutenv`), so `bin/console`-style commands (theme compile, plugin install) see the same environment as web requests. |
-| `src/service-worker.mjs` | Adds `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp` and `Cross-Origin-Resource-Policy: same-origin` to every response it serves (the `coi-serviceworker` style fallback for static hosts without header control) and bypasses `/api/anthropic/*` so proxy streams reach the network untouched. |
+| `src/service-worker.mjs` | Adds `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Embedder-Policy: require-corp` and `Cross-Origin-Resource-Policy: same-origin` to every response it serves (the `coi-serviceworker` style fallback for static hosts without header control) and bypasses `/api/anthropic/*` so proxy streams reach the network untouched. PHP routing uses `postToWindowClient` (transfer options, client retry). |
+| `src/sql-dump.mjs` | `shopUrlVariants` keeps a URL path so GitHub project Pages (`https://host/repo`) is written into `sales_channel_domain`, not just the host origin. |
+| `php/auto_prepend.php` | On a public-base prefix, rewrite `/index.php` after that prefix and set `SCRIPT_NAME` so Symfony's base path matches the sales-channel domain. |
 
 ## Things that are *not* patches
 
@@ -33,8 +35,10 @@ patches/apply-patches.sh vendor     playground/shopware/    # vendor-*.patch,   
   literals above ~100 KB fail with *Thread stack overrun* — by inserting large tool results in
   96 KB pieces. It is a service decoration, not a change to Shopware.
 - **Runtime rewrites** in `app/src/engine/demo.ts` (`rewriteUcpOrigin`) adjust the seeded UCP
-  configuration (`profileDomain`, continue URL) to the origin the demo actually runs on; the seed
-  is made under a placeholder origin at build time.
+  configuration (`profileDomain`, continue URL) to the shop public URL the demo actually runs on;
+  `embeddedAllowedOrigins` / `embeddedFrameAncestors` stay pathless origins (a Pages path there
+  throws `UcpConfigException` and the storefront never renders). The seed is made under a
+  placeholder origin at build time.
 - **`build/prepare-shop.mjs`** seeds the agent profile into `ucp_platform_profile_cache`
   (`expires_at NULL`), so the UCP plugin never needs outbound HTTP from WASM — the blocker
   measured in `docs/browser-demo-feasibility.md`.

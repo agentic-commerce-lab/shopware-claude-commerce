@@ -11,7 +11,7 @@ const playgroundPresent = existsSync(APP_ROUTE);
 describe('app-route classification under a project Pages prefix', { skip: playgroundPresent ? false : 'playground not fetched' }, async () => {
   if (!playgroundPresent) return;
 
-  const { isEngineBypassPath, isShopwarePhpPath, isStaticPlaygroundPath } = await import(APP_ROUTE.href);
+  const { isEngineBypassPath, isShopwarePhpPath, isStaticPlaygroundPath, postToWindowClient } = await import(APP_ROUTE.href);
   const previous = globalThis.self;
 
   before(() => {
@@ -40,5 +40,20 @@ describe('app-route classification under a project Pages prefix', { skip: playgr
   it('still treats the storefront front controller as PHP', () => {
     assert.equal(isShopwarePhpPath('/shopware_claude_commerce/index.php', true), true);
     assert.equal(isEngineBypassPath('/shopware_claude_commerce/index.php'), false);
+  });
+
+  it('posts PHP bridge messages with transfer options, then the legacy list', () => {
+    const calls = [];
+    const client = {
+      postMessage(_message, second) {
+        calls.push(second);
+        if (second && typeof second === 'object' && !Array.isArray(second)) {
+          throw new Error('options form unsupported');
+        }
+      },
+    };
+    postToWindowClient(client, { type: 'php-request' }, ['port']);
+    assert.deepEqual(calls[0], { transfer: ['port'] });
+    assert.deepEqual(calls[1], ['port']);
   });
 });
