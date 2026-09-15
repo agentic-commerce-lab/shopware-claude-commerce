@@ -23,7 +23,6 @@ from typing import Any
 
 from _bootstrap_lib import DEFAULT_CONTAINER, AdminApi, AdminApiError, console
 
-UCP_VERSION = "2026-04-08"
 DEFAULT_SIGNING_KID = "default"
 SIGNATURE_POLICIES = ("strict", "log", "off")
 HOST_APP_ORIGINS = ("http://localhost:3005", "http://127.0.0.1:3005")
@@ -33,7 +32,6 @@ LOOPBACK_HOSTS = ("localhost", "127.0.0.1")
 def desired_config(shop_url: str, signature_policy: str) -> dict[str, Any]:
     return {
         "active": True,
-        "ucpVersion": UCP_VERSION,
         "profileDomain": shop_url,
         "enabledCapabilities": [
             "catalog",

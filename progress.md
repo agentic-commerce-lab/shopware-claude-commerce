@@ -50,7 +50,7 @@ twice then `curl -s http://localhost:8080/.well-known/ucp | jq '.signing_keys | 
 | P1/2 | SQLite ledger | fixed | see M7 | see M7 |
 | P1/2 | `vendor/` re-vendored + truthful NOTICE | fixed | see M8 | see M8 |
 | P1/2 | MIT headers on repo-owned code | fixed | `storefront/api/**`, `merchant/api/**`, `shopware_common/**`, `docker/**`, `requirements.txt` | `rg "SPDX-License-Identifier: Apache-2.0"` outside `vendor/` hits only the adapted Anthropic files in `merchant/web` and the Shopify-headed `storefront/web` files named in NOTICE |
-| P1/2 | Bootstrap idempotent + pinned plugin commits | fixed (ADR-11) | `docker/bootstrap.sh` (`PLUGIN_REF=20bd3df3…`, `MERCHANT_TOOLS_REF=01e2082e…`) | two consecutive runs, `signing_keys | length == 1`, `verify.sh` §6 |
+| P1/2 | Bootstrap idempotent + pinned plugin commits | fixed (ADR-11) | `docker/bootstrap.sh` (`PLUGIN_REF=df0ae723…`, `MERCHANT_TOOLS_REF=01e2082e…`) | two consecutive runs, `signing_keys | length == 1`, `verify.sh` §6 |
 | P1/2 | Integration + ACL role + MCP allowlist | fixed (ADR-14) | `docker/merchant_identity.py` | `verify.sh` §4 and §6 (`integration 1`, `acl role 1`, effective tools == allowlist) |
 | Docker | `docker/verify.sh` exists and passes | fixed | `docker/verify.sh`, `docker/verify_state.py`, `docker/ucp_signed_check.py`, `docker/handoff_check.py` | `./docker/verify.sh` → `all checks passed` |
 | Punch a | ids in prose; "nearest compliant thing" | fixed (host prompt rules) | `merchant/api/agent_config.py::MERCHANT_BRAND_VOICE`, `storefront/api/agent_config.py::SHOPPING_BRAND_VOICE` | `python -m evals.runner --suite merchant --set ci --mode replay --trials 2`: 23/38 cases (0.67) → 34/38 (0.93); remaining: `merch-price-008` (blueprint float cap bug), single-trial misses on `approval-001/004`, `price-001` |
@@ -69,7 +69,7 @@ twice then `curl -s http://localhost:8080/.well-known/ucp | jq '.signing_keys | 
 - [x] Seed catalog (CA-TSHIRT S/M/L with L OOS, CA-OIL Grundpreis), delivery times, shipping prices, CMS policy pages, order history
 - [x] Merchant identity: integration + ACL role `claude-merchant-agent` + Admin MCP allowlist (ADR-14)
 - [x] `docker/verify.sh`; bootstrap re-runnable without side effects (M10)
-- [x] `curl /.well-known/ucp` returns a profile (2026-04-08)
+- [x] `curl /.well-known/ucp` returns a profile (2026-08-25)
 - [x] Live facts documented in `docs/shopware-mapping.md`
 
 ## Phase 1 — Storefront shopping agent

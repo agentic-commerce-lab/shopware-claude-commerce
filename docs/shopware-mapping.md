@@ -1,6 +1,6 @@
 # Shopware mapping
 
-Discovered against dockware **Shopware 6.7.13.0** (PHP 8.4, `MCP_SERVER=1`) with `SwagAgenticCommerce` pinned in `docker/bootstrap.sh`. UCP protocol version **2026-04-08**. Everything below was read from the live shop; the netless replay in `storefront/api/tests/replay.py` and `merchant/api/fake_admin.py` mirrors these shapes so the test suite pins them.
+Discovered against dockware **Shopware 6.7.13.0** (PHP 8.4, `MCP_SERVER=1`) with `SwagAgenticCommerce` pinned in `docker/bootstrap.sh`. UCP protocol version **2026-08-25**. Everything below was read from the live shop; the netless replay in `storefront/api/tests/replay.py` and `merchant/api/fake_admin.py` mirrors these shapes so the test suite pins them.
 
 ## Transports (ADR-12)
 
@@ -70,15 +70,15 @@ Writes send `Idempotency-Key` (UUID per call; REST header, MCP `_meta`). The Doc
 | Our method | Tool | Arguments |
 |---|---|---|
 | (context) | `shopware-store-api-context` | — |
-| search_catalog | `shopware-ucp-catalog-search` | `query:string`, `limit:int=10` (no price filter → applied client-side) |
-| lookup_catalog / get_product | `shopware-ucp-catalog-lookup` | `ids:string` (JSON array as string) |
-| create_cart | `shopware-ucp-cart-create` | `payload:string` (JSON `{line_items}`), `dryRun` |
-| get_cart | `shopware-ucp-cart-get` | `id*` |
-| update_cart | `shopware-ucp-cart-update` | `id*`, `payload:string`, `dryRun` |
-| cancel_cart | `shopware-ucp-cart-cancel` | `id*`, `dryRun` |
-| apply_discount | `shopware-ucp-discount-apply` | `cartId*`, `code*`, `dryRun` |
-| get_order | `shopware-ucp-order-get` | `id*` |
-| never called | `shopware-ucp-checkout-create/get/update/cancel/complete` | checkout stays in Shopware |
+| search_catalog | `search_catalog` | `query:string`, `limit:int=10` (no price filter → applied client-side) |
+| lookup_catalog / get_product | `lookup_catalog` | `ids:string` (JSON array as string) |
+| create_cart | `create_cart` | `payload:string` (JSON `{line_items}`), `dryRun` |
+| get_cart | `get_cart` | `id*` |
+| update_cart | `update_cart` | `id*`, `payload:string`, `dryRun` |
+| cancel_cart | `cancel_cart` | `id*`, `dryRun` |
+| apply_discount | `apply_discount` | `cartId*`, `code*`, `dryRun` |
+| get_order | `get_order` | `id*` |
+| never called | `create_checkout/get/update/cancel/complete` | checkout stays in Shopware |
 
 ## Cart id
 

@@ -653,28 +653,28 @@ class ShopwareReplay:
             return parsed if isinstance(parsed, dict) else {}
 
         dry_run = arguments.get("dryRun", True)
-        if name == "shopware-ucp-catalog-search":
+        if name == "search_catalog":
             return self._ucp_rest(
                 "POST",
                 "/catalog/search",
                 {"query": arguments.get("query", ""), "limit": arguments.get("limit", 10)},
             )
-        if name == "shopware-ucp-catalog-lookup":
+        if name == "lookup_catalog":
             try:
                 ids = json.loads(arguments.get("ids") or "[]")
             except ValueError:
                 ids = []
             return self._ucp_rest("POST", "/catalog/lookup", {"ids": ids})
-        if name == "shopware-ucp-cart-get":
+        if name == "get_cart":
             return self._ucp_rest("GET", f"/carts/{arguments.get('id')}", {})
-        if name == "shopware-ucp-cart-create":
+        if name == "create_cart":
             if dry_run:
                 return httpx.Response(
                     200,
                     json={"dryRun": True, "id": None, "line_items": doc().get("line_items") or []},
                 )
             return self._ucp_rest("POST", "/carts", doc())
-        if name == "shopware-ucp-cart-update":
+        if name == "update_cart":
             if dry_run:
                 return httpx.Response(
                     200,
@@ -685,9 +685,9 @@ class ShopwareReplay:
                     },
                 )
             return self._ucp_rest("PATCH", f"/carts/{arguments.get('id')}", doc())
-        if name == "shopware-ucp-cart-cancel":
+        if name == "cancel_cart":
             return self._ucp_rest("POST", f"/carts/{arguments.get('id')}/cancel", {})
-        if name == "shopware-ucp-order-get":
+        if name == "get_order":
             return self._ucp_rest("GET", f"/orders/{arguments.get('id')}", {})
         return None
 
@@ -1041,7 +1041,7 @@ def _discovery() -> dict[str, Any]:
     if path.exists():
         return json.loads(path.read_text(encoding="utf-8"))
     return {
-        "ucp": {"version": "2026-04-08"},
+        "ucp": {"version": "2026-08-25"},
         "services": {
             "dev.ucp.shopping": {"rest": {"endpoint": "/ucp/v1"}, "mcp": {"endpoint": "/ucp/mcp"}}
         },

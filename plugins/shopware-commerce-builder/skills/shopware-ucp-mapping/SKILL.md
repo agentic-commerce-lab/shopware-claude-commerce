@@ -12,7 +12,7 @@ from the live shop. The blueprint contract is `StorefrontBackend` in Anthropic's
 
 ## Discovery and the two transports
 
-- `GET /.well-known/ucp` on the sales-channel domain is the profile: protocol version (`2026-04-08`
+- `GET /.well-known/ucp` on the sales-channel domain is the profile: protocol version (`2026-08-25`
   on the pinned `SwagAgenticCommerce`), capabilities, transports, service URLs, and the shop's
   active signing keys. `UcpClient.discover` reads it; the smoke script and the doctor check it,
   and the fixture is `storefront/data/discovery.json`. The backend's calls do not depend on it,
@@ -41,15 +41,15 @@ from the live shop. The blueprint contract is `StorefrontBackend` in Anthropic's
 
 | Backend method | UCP operation | MCP tool (live `tools/list`) | REST |
 |---|---|---|---|
-| `search_products` | `catalog.search` | `shopware-ucp-catalog-search` (`query`, `limit`; no price filter, applied host-side) | `POST /ucp/v1/catalog/search` |
-| `get_product_details` | `catalog.product`, then `catalog.lookup` when the answered id differs from the requested one | `shopware-ucp-catalog-lookup` (`ids` as a JSON array string) serves both | `GET /ucp/v1/catalog/product/{id}` answers a family's first child while `POST /ucp/v1/catalog/lookup` answers the family; the Store API's `parentId` decides which side was asked for |
-| `get_cart` | `cart.get` | `shopware-ucp-cart-get` | `GET /ucp/v1/carts/{id}`; an unknown id answers an empty cart with that id, not `404` |
-| `add_to_cart` (first line) | `cart.create` | `shopware-ucp-cart-create` (`payload` JSON string) | `POST /ucp/v1/carts` |
-| `add_to_cart`, `update_cart_item`, `remove_from_cart` | `cart.update` | `shopware-ucp-cart-update` | `PATCH /ucp/v1/carts/{id}` |
-| (drop) | `cart.cancel` | `shopware-ucp-cart-cancel` | `POST /ucp/v1/carts/{id}/cancel` |
-| (promotion code) | `discount.apply` | `shopware-ucp-discount-apply` (`cartId`, `code`) | absent on 6.7.13 |
-| `get_order` (linked) | `order.get` | `shopware-ucp-order-get` | `GET /ucp/v1/orders/{id}` |
-| never called | `checkout.*` | `shopware-ucp-checkout-create/get/update/cancel/complete` | `/ucp/v1/checkout-sessions` |
+| `search_products` | `catalog.search` | `search_catalog` (`query`, `limit`; no price filter, applied host-side) | `POST /ucp/v1/catalog/search` |
+| `get_product_details` | `catalog.product`, then `catalog.lookup` when the answered id differs from the requested one | `lookup_catalog` (`ids` as a JSON array string) serves both | `GET /ucp/v1/catalog/product/{id}` answers a family's first child while `POST /ucp/v1/catalog/lookup` answers the family; the Store API's `parentId` decides which side was asked for |
+| `get_cart` | `cart.get` | `get_cart` | `GET /ucp/v1/carts/{id}`; an unknown id answers an empty cart with that id, not `404` |
+| `add_to_cart` (first line) | `cart.create` | `create_cart` (`payload` JSON string) | `POST /ucp/v1/carts` |
+| `add_to_cart`, `update_cart_item`, `remove_from_cart` | `cart.update` | `update_cart` | `PATCH /ucp/v1/carts/{id}` |
+| (drop) | `cart.cancel` | `cancel_cart` | `POST /ucp/v1/carts/{id}/cancel` |
+| (promotion code) | `discount.apply` | `apply_discount` (`cartId`, `code`) | absent on 6.7.13 |
+| `get_order` (linked) | `order.get` | `get_order` | `GET /ucp/v1/orders/{id}` |
+| never called | `checkout.*` | `create_checkout/get/update/cancel/complete` | `/ucp/v1/checkout-sessions` |
 
 `shopware-store-api-context` is the context tool; the backend reads `GET /store-api/context`
 instead. Discount, loyalty, fulfillment, and buyer-consent extensions exist in the plugin; the

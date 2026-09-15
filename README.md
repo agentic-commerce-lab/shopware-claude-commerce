@@ -11,7 +11,7 @@ Anthropic's [Commerce Agents blueprint](https://github.com/anthropics/commerce-a
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776ab)](requirements.txt)
 [![Node 22](https://img.shields.io/badge/Node-22-339933)](package.json)
 [![Blueprint pinned @ fd4d5922](https://img.shields.io/badge/blueprint-pinned%20%40%20fd4d5922-8a2be2)](https://github.com/anthropics/commerce-agents/tree/fd4d59224ab96b43c6dc6888207c67b3bd5a24cf)
-[![UCP 2026-04-08](https://img.shields.io/badge/UCP-2026--04--08-lightgrey)](https://ucp.dev)
+[![UCP 2026-08-25](https://img.shields.io/badge/UCP-2026--08--25-lightgrey)](https://ucp.dev)
 [![CI](https://github.com/agentic-commerce-lab/shopware-claude-commerce/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/agentic-commerce-lab/shopware-claude-commerce/actions/workflows/ci.yml)
 [![Integration (Docker Shopware)](https://github.com/agentic-commerce-lab/shopware-claude-commerce/actions/workflows/integration.yml/badge.svg)](https://github.com/agentic-commerce-lab/shopware-claude-commerce/actions/workflows/integration.yml)
 [![Pages](https://github.com/agentic-commerce-lab/shopware-claude-commerce/actions/workflows/pages.yml/badge.svg?branch=main)](https://agentic-commerce-lab.github.io/shopware-claude-commerce/)
@@ -163,7 +163,7 @@ Chat turns need `ANTHROPIC_API_KEY` in `.env`. Search, product details, cart, ch
 |---|---|---|
 | Shopware storefront | http://localhost:8080 | dockware demo catalog plus seeded rows and orders |
 | Shopware admin | http://localhost:8080/admin | `admin` / `shopware` (bootstrap only; the hosts never use it) |
-| UCP discovery | http://localhost:8080/.well-known/ucp | protocol `2026-04-08`, one active shop signing key |
+| UCP discovery | http://localhost:8080/.well-known/ucp | protocol `2026-08-25`, one active shop signing key |
 | Shopping agent API | http://localhost:8004 | `GET /api/health`, `POST /api/session`, `POST /api/chat` (SSE), `GET /api/cart`, `POST /api/cart/add`, `GET /api/checkout/handoff/{ticket}`, `GET /api/auth/status` |
 | Shopping web UI | http://localhost:3005 | `npm run dev:storefront` |
 | Merchant agent API | http://localhost:8005 | `GET /api/merchant/health`, `POST /api/merchant/session`, `POST /api/merchant/chat`, `GET /api/merchant/dashboard`, `GET /api/merchant/orders`, `GET /api/merchant/changes`, `POST /api/merchant/changes/{id}/apply`, `POST /api/merchant/changes/{id}/discard` |
@@ -197,7 +197,7 @@ Full tables, live tool names and schemas, and the quirks found on the live shop 
 
 | Blueprint contract | Method group | Shopware surface |
 |---|---|---|
-| `StorefrontBackend` | Catalog (`search_products`, `get_product_details`) | UCP `shopware-ucp-catalog-search` / `-lookup` over `/ucp/mcp` (REST `/ucp/v1/catalog/*` fallback); real children, options, stock, delivery time from Store API `GET /store-api/product/{id}` and `POST /store-api/product` by `parentId` |
+| `StorefrontBackend` | Catalog (`search_products`, `get_product_details`) | UCP `search_catalog` / `-lookup` over `/ucp/mcp` (REST `/ucp/v1/catalog/*` fallback); real children, options, stock, delivery time from Store API `GET /store-api/product/{id}` and `POST /store-api/product` by `parentId` |
 | `StorefrontBackend` | Cart (`get_cart`, `add_to_cart`, `update_cart_item`, `remove_from_cart`) | UCP cart tools with `dryRun=false`; the cart id is the Store API `sw-context-token`; family ids are resolved to a child, out-of-stock children raise `Unavailable` with in-stock siblings |
 | `StorefrontBackend` | Checkout (`checkout_handoff`) | Host ticket URL → one-time HMAC-signed, AES-GCM-boxed handoff code (≤ 120 s) auto-posted to `POST /claude-commerce/continue`; the plugin verifies, migrates the session, sets the context token and redirects to `/checkout/confirm`. `complete_checkout` is never called |
 | `StorefrontBackend` | Orders (`get_orders`, `get_order`) | Store API `POST /store-api/order` behind the cart's context token (or the linked customer's) |
@@ -411,9 +411,9 @@ Later phases (SDK, merchant operator in the admin) are described in the internal
 |---|---|
 | Shopware | `dockware/shopware:6.7.13.0`, PHP 8.4, `MCP_SERVER=1` |
 | Anthropic blueprint | `fd4d59224ab96b43c6dc6888207c67b3bd5a24cf` |
-| UCP protocol | `2026-04-08` |
+| UCP protocol | `2026-08-25` |
 | `SwagAgenticCommerce`, `SwagMcpMerchantTools` | pinned commits in `docker/bootstrap.sh`, listed in [`docs/version-matrix.md`](docs/version-matrix.md) |
-| `ucp-php-sdk/symfony-bundle` | `0.0.5` |
+| `ucp-php-sdk/symfony-bundle` | `0.0.6` |
 | Python / Node | 3.11+ / 22 |
 
 Shopware 6.7.14 (progressive MCP discovery, `MCP_SERVER` flag removed) is unreleased as of 2026-09-03; the latest release is 6.7.13.1, which has the same MCP surface as the pinned 6.7.13.0. This lane is current. The lane matrix (6.5 / 6.6 / 6.7.11–6.7.13.1 / 6.7.14+), what changes on 6.7.14, and how to run a second lane side by side are in [`docs/version-matrix.md`](docs/version-matrix.md).

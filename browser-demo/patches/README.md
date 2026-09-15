@@ -14,7 +14,7 @@ patches/apply-patches.sh vendor     playground/shopware/    # vendor-*.patch,   
 |---|---|---|
 | `playground-c86f241.patch` | FriendsOfShopware/shopware-playground @ `c86f241` | See below — WASM runtime fixes plus the hooks the demo shell needs |
 | `vendor-mcp-sdk-0.7.1-no-fibers.patch` | `vendor/mcp/sdk/src/Server/Protocol.php` | php-wasm has no Fiber support; the MCP server handled every request inside a `Fiber`. The patch runs the handler directly (same result, no Fiber). Shopware's `/api/_mcp` (merchant agent) and `/ucp/mcp` (shopping agent) depend on it. |
-| `vendor-ucp-php-sdk-symfony-bundle-0.0.5-bridged-connection.patch` | `vendor/ucp-php-sdk/symfony-bundle/src/Bridge/DoctrineDbal/ConnectionFactory.php` | The UCP bundle opened its own PDO connection from `DATABASE_URL`. In WASM there is no MySQL socket; the patch routes it through Shopware's DBAL connection, i.e. the lite4mariadb bridge. |
+| `vendor-ucp-php-sdk-symfony-bundle-0.0.6-bridged-connection.patch` | `vendor/ucp-php-sdk/symfony-bundle/src/Bridge/DoctrineDbal/ConnectionFactory.php` | The UCP bundle opened its own PDO connection from `DATABASE_URL`. In WASM there is no MySQL socket; the patch routes it through Shopware's DBAL connection, i.e. the lite4mariadb bridge. |
 
 ## `playground-c86f241.patch` in detail
 

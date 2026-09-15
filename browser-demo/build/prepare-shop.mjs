@@ -62,7 +62,7 @@ const SEED_HOST = `127.0.0.1:${SEED_HTTP_PORT}`;
 const HANDOFF_SECRET_BYTES = 32;
 const SIGNING_KID = 'default';
 const SEED_ORDER_COUNT = Number(process.env.SEED_ORDER_COUNT || 40);
-const UCP_VERSION = '2026-04-08';
+const UCP_VERSION = '2026-08-25';
 const LOOPBACK_HOSTS = ['127.0.0.1', 'localhost'];
 const PLUGINS_TO_INSTALL = [
   { name: 'SwagAgenticCommerce', required: true },
