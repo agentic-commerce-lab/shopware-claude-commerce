@@ -63,6 +63,10 @@ MERCHANT_TOOLS: tuple[str, ...] = (
     TOOL_BUSINESS_SNAPSHOT,
     TOOL_METRICS_SERIES,
 )
+#: The tools an ACL split can withhold on purpose: the template's maker-checker roles give
+#: ``agent_change:update`` (apply/discard) to the approver only, and a read-only role has no
+#: ``agent-change-stage`` either. Missing *reads* are always a misconfiguration.
+WRITE_TOOLS: frozenset[str] = frozenset({TOOL_CHANGE_STAGE, TOOL_CHANGE_APPLY, TOOL_CHANGE_DISCARD})
 #: Change kinds the plugin stages; the others keep the host ledger.
 PLUGIN_CHANGE_KINDS: frozenset[ChangeKind] = frozenset(
     {ChangeKind.LISTING_UPDATE, ChangeKind.PRICE_UPDATE, ChangeKind.INVENTORY_ACTION}
@@ -160,13 +164,20 @@ class MerchantAgentTools:
             logger.warning("agent tools: tools/list failed (%s); host path", error)
             self.advertised = set()
         self.mode = resolve_mode(self.requested_mode, self.advertised)
-        missing = sorted(set(MERCHANT_TOOLS) - self.advertised)
+        missing = set(MERCHANT_TOOLS) - self.advertised
         if self.mode == MODE_PLUGIN and missing:
-            logger.error(
-                "%s=plugin but the integration does not see %s (allowlist?)",
-                AGENT_TOOLS_ENV,
-                ", ".join(missing),
-            )
+            if reads := sorted(missing - WRITE_TOOLS):
+                logger.error(
+                    "%s=plugin but the integration does not see %s (allowlist?)",
+                    AGENT_TOOLS_ENV,
+                    ", ".join(reads),
+                )
+            if writes := sorted(missing & WRITE_TOOLS):
+                logger.info(
+                    "agent tools: the integration does not see %s — expected when the roles "
+                    "are split (maker-checker); those calls fail with a clear message",
+                    ", ".join(writes),
+                )
         logger.info(
             "agent tools: %s (/api/_mcp advertises %d agent-* tool(s))",
             self.description,
