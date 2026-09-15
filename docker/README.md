@@ -57,7 +57,7 @@ docker compose -f docker/compose.yaml up -d
    `bin/console sales-channel:update:domain` only swaps the host and cannot add the port.
 4. **`SwagAgenticCommerce` pinned** to `SWAG_AGENTIC_COMMERCE_REF`
    (default `20bd3df360c6c6622eed8e20fa5db66b8a6e1a86`): clone if missing, `git checkout` if
-   HEAD differs, skipped when already at the ref. `ucp-php-sdk/symfony-bundle >=0.0.5 <0.1.0`
+   HEAD differs, skipped when already at the ref. `ucp-php-sdk/symfony-bundle 0.0.5`
    via composer (skipped when present; path-repository fallback when Packagist fails). Plugin
    installed+activated or updated (`plugin:update` when a newer version is detected).
 5. **`SwagMcpMerchantTools` pinned** to `SWAG_MCP_MERCHANT_TOOLS_REF`

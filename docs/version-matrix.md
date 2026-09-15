@@ -17,7 +17,7 @@ agents), and the measurements behind the recommendation to stay on 6.7.13.x for 
 | Node | 22 (web UI) |
 | `SwagAgenticCommerce` | commit `20bd3df360c6c6622eed8e20fa5db66b8a6e1a86` (`SWAG_AGENTIC_COMMERCE_REF` in `docker/bootstrap.sh`), plugin version 1.3.0 |
 | `SwagMcpMerchantTools` | commit `01e2082e99a4e9a2e56cdfd69faa38cd7c988efe` (`SWAG_MCP_MERCHANT_TOOLS_REF`) |
-| `ucp-php-sdk/symfony-bundle` | `>=0.0.5 <0.1.0` |
+| `ucp-php-sdk/symfony-bundle` | `0.0.5` |
 
 ## Lane matrix
 

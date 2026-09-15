@@ -413,7 +413,7 @@ Later phases (SDK, merchant operator in the admin) are described in the internal
 | Anthropic blueprint | `fd4d59224ab96b43c6dc6888207c67b3bd5a24cf` |
 | UCP protocol | `2026-04-08` |
 | `SwagAgenticCommerce`, `SwagMcpMerchantTools` | pinned commits in `docker/bootstrap.sh`, listed in [`docs/version-matrix.md`](docs/version-matrix.md) |
-| `ucp-php-sdk/symfony-bundle` | `>=0.0.5 <0.1.0` |
+| `ucp-php-sdk/symfony-bundle` | `0.0.5` |
 | Python / Node | 3.11+ / 22 |
 
 Shopware 6.7.14 (progressive MCP discovery, `MCP_SERVER` flag removed) is unreleased as of 2026-09-03; the latest release is 6.7.13.1, which has the same MCP surface as the pinned 6.7.13.0. This lane is current. The lane matrix (6.5 / 6.6 / 6.7.11–6.7.13.1 / 6.7.14+), what changes on 6.7.14, and how to run a second lane side by side are in [`docs/version-matrix.md`](docs/version-matrix.md).
