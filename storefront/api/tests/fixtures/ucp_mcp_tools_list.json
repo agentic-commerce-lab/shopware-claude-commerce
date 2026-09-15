@@ -46,8 +46,8 @@
         "type": "object",
         "properties": {
           "payload": {
-            "type": "string",
-            "default": "{}"
+            "type": "object",
+            "default": {}
           },
           "dryRun": {
             "type": "boolean",
@@ -83,8 +83,8 @@
             "type": "string"
           },
           "payload": {
-            "type": "string",
-            "default": "{}"
+            "type": "object",
+            "default": {}
           },
           "dryRun": {
             "type": "boolean",
@@ -159,8 +159,8 @@
             "type": "string"
           },
           "payload": {
-            "type": "string",
-            "default": "{}"
+            "type": "object",
+            "default": {}
           },
           "dryRun": {
             "type": "boolean",
@@ -180,8 +180,8 @@
         "type": "object",
         "properties": {
           "payload": {
-            "type": "string",
-            "default": "{}"
+            "type": "object",
+            "default": {}
           },
           "dryRun": {
             "type": "boolean",
@@ -217,8 +217,8 @@
             "type": "string"
           },
           "payload": {
-            "type": "string",
-            "default": "{}"
+            "type": "object",
+            "default": {}
           },
           "dryRun": {
             "type": "boolean",

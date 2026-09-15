@@ -646,10 +646,9 @@ class ShopwareReplay:
 
     def _mcp_to_rest(self, name: str, arguments: dict[str, Any]) -> httpx.Response | None:
         def doc(key: str = "payload") -> dict[str, Any]:
-            try:
-                parsed = json.loads(arguments.get(key) or "{}")
-            except ValueError:
-                return {}
+            # Plugin 1.3.0 types the tool argument `array $payload`, so it arrives as an
+            # object; 1.2.x took a JSON string. `ids` is still a string, decoded separately.
+            parsed = arguments.get(key)
             return parsed if isinstance(parsed, dict) else {}
 
         dry_run = arguments.get("dryRun", True)

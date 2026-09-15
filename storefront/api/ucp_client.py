@@ -6,8 +6,8 @@
 * **MCP** (primary, ADR-12) ``POST /ucp/mcp`` — Streamable HTTP through
   :class:`shopware_common.mcp_client.McpClient` (``initialize`` → ``Mcp-Session-Id`` →
   ``tools/call``). Tool names and argument shapes are the ones the live ``tools/list``
-  returns (fixture: ``tests/fixtures/ucp_mcp_tools_list.json``): documents travel as
-  JSON strings in ``payload`` / ``ids``; mutating tools default to ``dryRun=true`` on the
+  returns (fixture: ``tests/fixtures/ucp_mcp_tools_list.json``): ``payload`` travels as an
+  object and ``ids`` as a JSON string; mutating tools default to ``dryRun=true`` on the
   server, so this client always sends ``dryRun=false`` for real cart writes.
 * **REST** (fallback / ``UCP_TRANSPORT=rest``) ``/ucp/v1/*`` — the same documents on
   the SDK's REST routes.
@@ -406,7 +406,8 @@ def rest_request(name: str, arguments: dict[str, Any]) -> tuple[str, str, dict[s
 
 
 def mcp_arguments(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-    """Tool arguments per the live ``tools/list`` schemas: documents as JSON strings,
+    """Tool arguments per the live ``tools/list`` schemas: ``payload`` is an object
+    (plugin 1.3.0 types it ``array $payload``), ``ids`` is still a JSON string, and
     ``dryRun=false`` on every mutating tool."""
     if name == "search_catalog":
         query, limit = _search_terms(arguments)
@@ -417,11 +418,11 @@ def mcp_arguments(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     if name in {"get_cart", "get_checkout", "get_order"}:
         return {"id": arguments["id"]}
     if name == "create_cart":
-        return {"payload": json.dumps(_document_body(arguments, "cart")), "dryRun": False}
+        return {"payload": _document_body(arguments, "cart"), "dryRun": False}
     if name == "update_cart":
         return {
             "id": arguments["id"],
-            "payload": json.dumps(_document_body(arguments, "cart")),
+            "payload": _document_body(arguments, "cart"),
             "dryRun": False,
         }
     if name in {"cancel_cart", "cancel_checkout"}:
@@ -429,11 +430,11 @@ def mcp_arguments(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
     if name == "apply_discount":
         return {"cartId": arguments["cart_id"], "code": arguments["code"], "dryRun": False}
     if name == "create_checkout":
-        return {"payload": json.dumps(_document_body(arguments, "checkout")), "dryRun": False}
+        return {"payload": _document_body(arguments, "checkout"), "dryRun": False}
     if name in {"update_checkout", "complete_checkout"}:
         return {
             "id": arguments["id"],
-            "payload": json.dumps(_document_body(arguments, "checkout")),
+            "payload": _document_body(arguments, "checkout"),
             "dryRun": False,
         }
     raise UcpError(f"Unknown UCP operation {name!r}")

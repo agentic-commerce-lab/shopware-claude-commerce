@@ -93,18 +93,18 @@ async def test_mcp_runs_the_handshake_once_and_calls_the_recorded_tool_shapes():
     }
     assert create["name"] == MCP_TOOLS["create_cart"]
     assert create["arguments"]["dryRun"] is False
-    assert json.loads(create["arguments"]["payload"])["line_items"][0]["item"]["id"] == VARIANT_S
+    assert create["arguments"]["payload"]["line_items"][0]["item"]["id"] == VARIANT_S
     await client.aclose()
     assert MCP_SESSION_ID not in shop.mcp_sessions  # DELETE ended the session
 
 
-async def test_mcp_lookup_sends_ids_as_a_json_string():
+async def test_mcp_sends_ids_as_a_json_string_and_payload_as_an_object():
     assert mcp_arguments("get_product", {"catalog": {"id": PRODUCT_ID}}) == {
         "ids": json.dumps([PRODUCT_ID])
     }
     assert mcp_arguments("update_cart", {"id": CART_ID, "cart": {"line_items": []}}) == {
         "id": CART_ID,
-        "payload": json.dumps({"line_items": []}),
+        "payload": {"line_items": []},
         "dryRun": False,
     }
 
