@@ -24,7 +24,7 @@ PLUGIN_REF="${SWAG_AGENTIC_COMMERCE_REF:-20bd3df360c6c6622eed8e20fa5db66b8a6e1a8
 MERCHANT_TOOLS_REPO="${SWAG_MCP_MERCHANT_TOOLS_REPO:-https://github.com/shopware/SwagMcpMerchantTools.git}"
 MERCHANT_TOOLS_REF="${SWAG_MCP_MERCHANT_TOOLS_REF:-01e2082e99a4e9a2e56cdfd69faa38cd7c988efe}"
 SDK_REPO="${UCP_PHP_SDK_REPO:-https://github.com/agentic-commerce-alliance/ucp-php-sdk.git}"
-SDK_CONSTRAINT='>=0.0.5 <0.1.0'
+SDK_CONSTRAINT='0.0.5'
 
 SHOP_ROOT="/var/www/html"
 PLUGIN_DIR="${SHOP_ROOT}/custom/plugins/SwagAgenticCommerce"
