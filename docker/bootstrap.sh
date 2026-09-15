@@ -20,11 +20,11 @@ ADMIN_PASS="${SHOPWARE_ADMIN_PASSWORD:-shopware}"
 
 # Pinned upstream refs (docs/version-matrix.md). Override with a tag/branch/SHA if needed.
 PLUGIN_REPO="${SWAG_AGENTIC_COMMERCE_REPO:-https://github.com/shopware/agentic-commerce.git}"
-PLUGIN_REF="${SWAG_AGENTIC_COMMERCE_REF:-20bd3df360c6c6622eed8e20fa5db66b8a6e1a86}"
+PLUGIN_REF="${SWAG_AGENTIC_COMMERCE_REF:-df0ae7231e2b2090ccfbf3a31e7a462b40b69a0f}"
 MERCHANT_TOOLS_REPO="${SWAG_MCP_MERCHANT_TOOLS_REPO:-https://github.com/shopware/SwagMcpMerchantTools.git}"
 MERCHANT_TOOLS_REF="${SWAG_MCP_MERCHANT_TOOLS_REF:-01e2082e99a4e9a2e56cdfd69faa38cd7c988efe}"
 SDK_REPO="${UCP_PHP_SDK_REPO:-https://github.com/agentic-commerce-alliance/ucp-php-sdk.git}"
-SDK_CONSTRAINT='0.0.5'
+SDK_CONSTRAINT='0.0.6'
 
 SHOP_ROOT="/var/www/html"
 PLUGIN_DIR="${SHOP_ROOT}/custom/plugins/SwagAgenticCommerce"
@@ -168,9 +168,9 @@ install_sdk() {
   fi
   echo "Packagist require failed; cloning SDK as path repositories."
   exec_root "test -d ${SHOP_ROOT}/custom/ucp-php-sdk/.git || git clone --depth 1 '${SDK_REPO}' ${SHOP_ROOT}/custom/ucp-php-sdk"
-  exec_shop 'composer config repositories.ucp-sdk-core "{\"type\":\"path\",\"url\":\"custom/ucp-php-sdk/packages/core\",\"options\":{\"symlink\":true,\"versions\":{\"ucp-php-sdk/core\":\"0.0.5\"}}}"'
-  exec_shop 'composer config repositories.ucp-sdk-symfony "{\"type\":\"path\",\"url\":\"custom/ucp-php-sdk/packages/symfony-bundle\",\"options\":{\"symlink\":true,\"versions\":{\"ucp-php-sdk/symfony-bundle\":\"0.0.5\"}}}"'
-  exec_shop 'COMPOSER_MEMORY_LIMIT=-1 composer require ucp-php-sdk/symfony-bundle:0.0.5 --no-interaction --no-scripts'
+  exec_shop 'composer config repositories.ucp-sdk-core "{\"type\":\"path\",\"url\":\"custom/ucp-php-sdk/packages/core\",\"options\":{\"symlink\":true,\"versions\":{\"ucp-php-sdk/core\":\"0.0.6\"}}}"'
+  exec_shop 'composer config repositories.ucp-sdk-symfony "{\"type\":\"path\",\"url\":\"custom/ucp-php-sdk/packages/symfony-bundle\",\"options\":{\"symlink\":true,\"versions\":{\"ucp-php-sdk/symfony-bundle\":\"0.0.6\"}}}"'
+  exec_shop 'COMPOSER_MEMORY_LIMIT=-1 composer require ucp-php-sdk/symfony-bundle:0.0.6 --no-interaction --no-scripts'
 }
 
 # ----------------------------------------------------------------------------------------

@@ -48,7 +48,7 @@ Shopping flows:
 
 | Flow | Backend methods | Shopware surface |
 |---|---|---|
-| `search-discovery` | `search_products`, `get_product_details` | UCP `catalog.search` (`shopware-ucp-catalog-search`; no price filter on the tool, applied host-side) and `catalog.lookup`; variants, options, stock, delivery time, base price from Store API `GET /store-api/product/{id}` and `POST /store-api/product` filtered by `parentId` (shopware-variants) |
+| `search-discovery` | `search_products`, `get_product_details` | UCP `catalog.search` (`search_catalog`; no price filter on the tool, applied host-side) and `catalog.lookup`; variants, options, stock, delivery time, base price from Store API `GET /store-api/product/{id}` and `POST /store-api/product` filtered by `parentId` (shopware-variants) |
 | `planning-goals` | `search_products` | as above; a plan's budget is summed host-side from `calculatedPrice` |
 | `purchase-research` | `search_policies`, `search_products`, `get_product_details` | `PolicyIndex` over footer and service navigation → CMS category text, plus `/agents.md` and `/llms.txt` (`policies.py`); `web_search` stays off |
 | `memory-personalization` | `save_memory`, `recall_memories` | the blueprint's `MemoryStore`; nothing in Shopware; the subject is the session's principal, a guest until Identity Linking |

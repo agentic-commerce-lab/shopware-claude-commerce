@@ -4,7 +4,7 @@ FastAPI host implementing Anthropic's `StorefrontBackend` against a live Shopwar
 
 ```
 storefront/api/
-  ucp_client.py       UcpClient — MCP (shopware-ucp-* tools) primary, /ucp/v1 REST fallback, signing, idempotency
+  ucp_client.py       UcpClient — MCP (UCP spec tools: create_cart, search_catalog, …) primary, /ucp/v1 REST fallback, signing, idempotency
   shopware_backend.py StorefrontBackend: catalog, variants, cart, handoff, orders, policies, disclosures, fulfillment
   store_api.py        Store API client (typed StoreApiError): product/children, shipping methods, navigation, CMS, orders, context
   handoff.py          HandoffBroker — per-session ticket → one-time signed code → auto-POST page for the plugin

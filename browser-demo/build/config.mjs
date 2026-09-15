@@ -26,9 +26,9 @@ export const PLAYGROUND_PUBLIC = join(PLAYGROUND_DIR, 'public');
 export const SWAG_AGENTIC_COMMERCE_REPO =
   process.env.SWAG_AGENTIC_COMMERCE_REPO || 'https://github.com/shopware/agentic-commerce.git';
 export const SWAG_AGENTIC_COMMERCE_REF =
-  process.env.SWAG_AGENTIC_COMMERCE_REF || '20bd3df360c6c6622eed8e20fa5db66b8a6e1a86';
+  process.env.SWAG_AGENTIC_COMMERCE_REF || 'df0ae7231e2b2090ccfbf3a31e7a462b40b69a0f';
 export const SWAG_AGENTIC_COMMERCE_VERSION = '1.3.0';
-export const UCP_SDK_CONSTRAINT = '>=0.0.5 <0.1.0';
+export const UCP_SDK_CONSTRAINT = '0.0.6';
 
 /** Plugins copied from this repository into the WASM shop (read-only sources). */
 export const REPO_PLUGINS = [

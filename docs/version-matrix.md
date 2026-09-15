@@ -12,12 +12,12 @@ agents), and the measurements behind the recommendation to stay on 6.7.13.x for 
 | Shopware (Docker) | `dockware/shopware:6.7.13.0` (`docker/compose.yaml`) |
 | PHP | 8.4 (image default) |
 | Anthropic blueprint | `fd4d59224ab96b43c6dc6888207c67b3bd5a24cf` |
-| UCP protocol | 2026-04-08 |
+| UCP protocol | 2026-08-25 |
 | Python | 3.11+ (CI: 3.11 and 3.12) |
 | Node | 22 (web UI) |
-| `SwagAgenticCommerce` | commit `20bd3df360c6c6622eed8e20fa5db66b8a6e1a86` (`SWAG_AGENTIC_COMMERCE_REF` in `docker/bootstrap.sh`), plugin version 1.3.0 |
+| `SwagAgenticCommerce` | commit `df0ae7231e2b2090ccfbf3a31e7a462b40b69a0f` (`SWAG_AGENTIC_COMMERCE_REF` in `docker/bootstrap.sh`), plugin version 1.3.0 — head of the upstream `integration/all-open-prs` release branch (shopware/agentic-commerce#224), **not a tag**; re-point at the `1.3.0` tag once it ships |
 | `SwagMcpMerchantTools` | commit `01e2082e99a4e9a2e56cdfd69faa38cd7c988efe` (`SWAG_MCP_MERCHANT_TOOLS_REF`) |
-| `ucp-php-sdk/symfony-bundle` | `0.0.5` |
+| `ucp-php-sdk/symfony-bundle` | `0.0.6` |
 
 ## Lane matrix
 
@@ -25,7 +25,7 @@ agents), and the measurements behind the recommendation to stay on 6.7.13.x for 
 |---|---|---|---|---|---|---|---|---|---|
 | **6.5.x** | no MCP in core | – | – | – (plugin advertises MCP only when the core has Store API MCP) | – (Admin REST transport, local diff) | no core primitive; plugin serves its own fallback `llms.txt` / `agents.md` / `ai-catalog.json` | yes (`~6.5.0`) | `6.5.8.19` (amd64 + arm64, 2026-06-10) | not measured |
 | **6.6.x** | no MCP in core | – | – | – | – (Admin REST transport) | plugin fallback files only | yes (`~6.6.0`) | `6.6.10.23` (amd64 + arm64, 2026-08-26) | not measured |
-| **6.7.11 – 6.7.13.1** (current) | present, default off; **must be set in `/var/www/html/.env`** — the compose `environment: MCP_SERVER=1` reaches the CLI only, Apache/PHP requests still answer 404 until `.env` has it (measured on 6.7.13.1; `docker/bootstrap.sh` does exactly this) | **no** — `tools/list` is a flat list; the three discovery tools are absent | yes; core alone exposes 1 tool (`shopware-store-api-context`), with `SwagAgenticCommerce` 14 (13 `shopware-ucp-*`) | yes (`/ucp/mcp`, protocol 2025-11-25 negotiated) | yes — `shopware-entity-upsert`, `shopware-entity-delete`, `shopware-order-state`, `shopware-system-config-write`, `shopware-theme-config` carry `dryRun` (default true) | **core primitive present** (`Migration1780062008CreateSalesChannelFile`, Admin API `/api/_action/sales-channel-file/{family}/{salesChannelId}`, core templates `llms.txt`, `AGENTS.md`, `.well-known/ai-catalog.json`); served as 404-fallback **only after a `sales_channel_file` row is enabled** — bare 6.7.13.1 answers 404, the plugin enables the three rows (`/llms.txt`, `/agents.md` 200 on the 6.7.13.0 stack) | yes (`~6.7.0`); README: "trunk/current 6.7+", MCP only advertised when the core has Store API MCP | `6.7.13.0` (2026-08-06), `6.7.13.1` (2026-08-26), `6.7-latest`; all amd64 + arm64 | **70 s** for 6.7.13.1 (arm64, Apple Silicon, image pre-pulled; measured `docker compose up -d` → first `401` on `/api/_info/version`) |
+| **6.7.11 – 6.7.13.1** (current) | present, default off; **must be set in `/var/www/html/.env`** — the compose `environment: MCP_SERVER=1` reaches the CLI only, Apache/PHP requests still answer 404 until `.env` has it (measured on 6.7.13.1; `docker/bootstrap.sh` does exactly this) | **no** — `tools/list` is a flat list; the three discovery tools are absent | yes; core alone exposes 1 tool (`shopware-store-api-context`), with `SwagAgenticCommerce` 14 (13 UCP spec-named, e.g. `create_cart`) | yes (`/ucp/mcp`, protocol 2025-11-25 negotiated) | yes — `shopware-entity-upsert`, `shopware-entity-delete`, `shopware-order-state`, `shopware-system-config-write`, `shopware-theme-config` carry `dryRun` (default true) | **core primitive present** (`Migration1780062008CreateSalesChannelFile`, Admin API `/api/_action/sales-channel-file/{family}/{salesChannelId}`, core templates `llms.txt`, `AGENTS.md`, `.well-known/ai-catalog.json`); served as 404-fallback **only after a `sales_channel_file` row is enabled** — bare 6.7.13.1 answers 404, the plugin enables the three rows (`/llms.txt`, `/agents.md` 200 on the 6.7.13.0 stack) | yes (`~6.7.0`); README: "trunk/current 6.7+", MCP only advertised when the core has Store API MCP | `6.7.13.0` (2026-08-06), `6.7.13.1` (2026-08-26), `6.7-latest`; all amd64 + arm64 | **70 s** for 6.7.13.1 (arm64, Apple Silicon, image pre-pulled; measured `docker compose up -d` → first `401` on `/api/_info/version`) |
 | **6.7.14+** (unreleased) | **removed** — `chore(framework): remove MCP_SERVER feature flag gate` (#18463, trunk 2026-07-20); `feature.yaml` on trunk has no `MCP_SERVER` | **yes** — `shopware-tool-search` (#17996), session toolsets `shopware-toolsets-list` / `shopware-toolset-enable` (#17997), tool groups (#17995), paginated allowlists (#17994), `tools/listChanged` notifications (#17998); domain tools are hidden until a toolset is enabled | yes, **with progressive discovery** (#18298, trunk 2026-07-25) | expected yes (plugin's own endpoint; re-verify `tools/list` once a build exists) | yes (unchanged tool set + discovery tools) | yes (same primitive) | yes | **none** — no Shopware 6.7.14.0 release exists as of 2026-09-03 (latest `v6.7.13.1`, 2026-08-25); no dockware tag; `ghcr.io/shopware/docker-dev` / `docker-base` are multi-arch (amd64 + arm64) but need a composer project (`dev-trunk`) plus asset build, not a quick pull | not measured (no image) |
 
 Read from source, not measured: everything in the 6.7.14+ row. The commits are on `trunk`, whose
@@ -43,7 +43,7 @@ Read from source, not measured: everything in the 6.7.14+ row. The commits are o
   `shopware-system-config-read`, `-write`, `shopware-theme-config`). On the 6.7.13.0 stack with
   `SwagMcpMerchantTools`: 20 (plus 9 `merchant-*`).
 - `initialize` on `/store-api/_mcp` with the sales-channel access key: server `Shopware Store API`,
-  1 core tool on bare 6.7.13.1; 14 with `SwagAgenticCommerce` (the `shopware-ucp-*` set, all cart/
+  1 core tool on bare 6.7.13.1; 14 with `SwagAgenticCommerce` (the UCP spec-named set, all cart/
   checkout/discount tools with `dryRun`).
 - 6.7.13.0 → 6.7.13.1 changes nothing in the MCP surface (same tool names, same protocol).
 

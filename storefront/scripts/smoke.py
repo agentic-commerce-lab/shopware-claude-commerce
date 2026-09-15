@@ -80,9 +80,9 @@ async def check_transport(transport: str, *, fallback: bool, agent_tools_mode: s
     print(f"discovery: ucp version {version}")
     if transport == "mcp":
         names = sorted(await client.tool_names())
-        assert "shopware-ucp-catalog-search" in names, names
+        assert "search_catalog" in names, names
         print(
-            f"tools/list: {len(names)} tools ({', '.join(n.removeprefix('shopware-ucp-') for n in names)})"
+            f"tools/list: {len(names)} tools ({', '.join(names)})"
         )
 
     products = await backend.search_products(session, "shirt", limit=3)

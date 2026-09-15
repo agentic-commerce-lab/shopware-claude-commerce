@@ -24,7 +24,7 @@ sales-channel domain does not match the published port (the bootstrap rewrites
 the handoff posts the browser there.
 
 **2. Discovery.** `GET {SHOPWARE_URL}/.well-known/ucp`: a JSON profile with the protocol version
-(`2026-04-08` on the pinned plugin), capabilities containing `dev.ucp.shopping.catalog`, `.cart`,
+(`2026-08-25` on the pinned plugin), capabilities containing `dev.ucp.shopping.catalog`, `.cart`,
 `.checkout`, `.order`, `.discount`, and `dev.ucp.common.identity_linking`, the transports (`rest`,
 `mcp` on 6.7.11 and later, `embedded`), and `signing_keys` with exactly one active key. `404`
 means `SwagAgenticCommerce` is not active or UCP is not enabled on this channel
